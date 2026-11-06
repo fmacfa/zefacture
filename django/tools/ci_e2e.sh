@@ -40,7 +40,10 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-dc up -d --build --wait --wait-timeout 180 web worker
+dc up -d --build --wait --wait-timeout 180 web
+# The worker deliberately has no HTTP healthcheck. Wait for the web/database,
+# then start it without applying Compose's health requirement to that service.
+dc up -d --no-deps worker
 dc exec -T web python manage.py shell < tests/browser_fixture.py
 export TEST_BASE_URL="http://127.0.0.1:$ci_port"
 export NODE_PATH="$PWD/tests/browser/node_modules${NODE_PATH:+:$NODE_PATH}"
