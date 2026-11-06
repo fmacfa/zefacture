@@ -1,0 +1,10 @@
+<form class="card filters" method="get">
+  {% if dataset %}<input type="hidden" name="dataset" value="{{ dataset }}">{% endif %}
+  <label>Du<input type="date" name="from" value="{{ period.start|date:'Y-m-d' }}" required></label>
+  <label>Au<input type="date" name="to" value="{{ period.end|date:'Y-m-d' }}" required></label>
+  <label>Comparer avec<select aria-label="Comparer avec" name="compare"><option value="previous" {% if period.comparison == 'previous' %}selected{% endif %}>Période précédente (même durée)</option><option value="year" {% if period.comparison == 'year' %}selected{% endif %}>Même période l'an passé</option><option value="custom" {% if period.comparison == 'custom' %}selected{% endif %}>Dates personnalisées</option><option value="none" {% if period.comparison == 'none' %}selected{% endif %}>Sans comparaison</option></select></label>
+  <label>Comparaison du<input type="date" name="compare_from" value="{{ period.compare_start|date:'Y-m-d' }}"></label>
+  <label>au<input type="date" name="compare_to" value="{{ period.compare_end|date:'Y-m-d' }}"></label>
+  <button>Appliquer</button>
+  <div class="full inline wrap"><button class="secondary" name="preset" value="month">Ce mois</button><button class="secondary" name="preset" value="quarter">Ce trimestre</button><button class="secondary" name="preset" value="year">Cette année</button><button class="secondary" name="preset" value="all">Toutes les dates</button></div>
+</form>

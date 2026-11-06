@@ -1,0 +1,1 @@
+{% extends "core/base.html" %}{% block content %}<form class="card narrow" method="post">{% csrf_token %}<h1>Rejoindre l'entreprise</h1><p>Invitation pour {{ invitation.email }}, avec le rôle {{ invitation.role }}.</p><button>Accepter l'invitation</button></form>{% endblock %}

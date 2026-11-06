@@ -1,0 +1,7 @@
+{% extends "core/base.html" %}{% block content %}<section class="card auth-card"><p class="eyebrow">BIENVENUE SUR ZEFACTURE</p><h1>{{ title }}</h1><form method="post" class="stack">{% csrf_token %}{% if mode == "register" %}<input type="hidden" name="invite" value="{{ invite }}"><label>Votre nom<input name="name" required autocomplete="name"></label>{% if not invite %}<label>Entreprise<input name="company_name" required></label>{% endif %}{% endif %}
+{% if mode != "reset" %}<label>Email<input type="email" name="email" required autocomplete="username"></label>{% endif %}
+{% if mode != "forgot" %}<label>Mot de passe<input type="password" name="password" required {% if mode != "login" %}minlength="10" autocomplete="new-password"{% else %}autocomplete="current-password"{% endif %}></label>{% endif %}
+{% if mode == "register" or mode == "reset" %}<label>Confirmer le mot de passe<input type="password" name="password_confirmation" required minlength="10" autocomplete="new-password"></label>{% endif %}
+{% if mode == "register" %}<label class="check"><input type="checkbox" name="terms" value="1" required> J'accepte les <a href="/cgu">conditions d'utilisation</a>.</label>{% endif %}
+<button type="submit">{% if mode == "login" %}Se connecter{% else %}Continuer{% endif %}</button></form>
+{% if mode == "login" %}<p><a href="/mot-de-passe-oublie">Mot de passe oublié ?</a></p>{% if registration_open %}<a href="/inscription">Créer un compte</a>{% endif %}{% else %}<p><a href="/connexion">J'ai déjà un compte</a></p>{% endif %}</section>{% endblock %}

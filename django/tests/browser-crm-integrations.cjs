@@ -1,0 +1,98 @@
+/* Synthetic validation instance only. Never run against customer data. */
+const {chromium}=require('playwright');
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const base=process.env.TEST_BASE_URL||'http://127.0.0.1:8091';
+const output=path.resolve('test-results/browser-crm');
+(async()=>{
+  await fs.mkdir(output,{recursive:true});
+  const browser=await chromium.launch({headless:true});
+  const context=await browser.newContext({viewport:{width:1440,height:1050},acceptDownloads:true});
+  const page=await context.newPage();const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('dialog',dialog=>dialog.accept());
+  await page.goto(base+'/connexion');
+  await page.getByLabel('Email',{exact:true}).fill('demo@example.test');
+  await page.getByLabel('Mot de passe',{exact:true}).fill('DemoForBrowser123!');
+  await Promise.all([page.waitForURL('**/app'),page.getByRole('button',{name:'Se connecter',exact:true}).click()]);
+  await page.goto(base+'/app/clients/nouveau');
+  await page.getByLabel('Relation commerciale',{exact:true}).selectOption('prospect');
+  await page.getByLabel('Type de client',{exact:true}).selectOption('individual');
+  await page.getByLabel('Nom / raison sociale',{exact:true}).fill('Prospect navigateur '+Date.now());
+  await page.getByLabel('Email',{exact:true}).fill('prospect@example.test');
+  await Promise.all([page.waitForURL(/\/app\/clients\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Enregistrer',exact:true}).click()]);
+  const customer=page.url();
+  assert.equal(await page.locator('select[name=relationship]').inputValue(),'prospect');
+  await page.getByText('+ Ajouter un contact',{exact:true}).click();
+  await page.getByLabel('Nom du contact',{exact:true}).fill('Contact navigateur');
+  await page.getByLabel('Email du contact',{exact:true}).fill('contact@example.test');
+  await page.getByRole('button',{name:'Ajouter le contact',exact:true}).click();
+  await page.getByText('+ Nouvelle opportunité',{exact:true}).click();
+  const opportunity=page.locator('form').filter({has:page.getByRole('button',{name:"Créer l'opportunité",exact:true})});
+  await opportunity.getByLabel('Intitulé',{exact:true}).fill('Projet navigateur fictif');
+  await opportunity.getByLabel('Étape',{exact:true}).selectOption('proposal');
+  await opportunity.getByLabel('Montant',{exact:true}).fill('4250.75');
+  await opportunity.getByLabel('Clôture prévue',{exact:true}).fill('2026-12-15');
+  await opportunity.getByRole('button',{name:"Créer l'opportunité",exact:true}).click();
+  const activity=page.locator('form').filter({has:page.getByRole('button',{name:'Enregistrer / envoyer',exact:true})});
+  await activity.getByLabel("Type d'activité",{exact:true}).selectOption('task');
+  await activity.getByLabel('Objet',{exact:true}).fill('Relance navigateur fictive');
+  await activity.getByLabel('Échéance de relance',{exact:true}).fill('2026-11-15');
+  await activity.getByRole('button',{name:'Enregistrer / envoyer',exact:true}).click();
+  await page.screenshot({path:path.join(output,'customer.png'),fullPage:true});
+  await page.goto(base+'/app/crm?q=Projet%20navigateur%20fictif');
+  assert.match(await page.locator('main').innerText(),/4[\s  ]?250,75/);
+  await page.screenshot({path:path.join(output,'crm.png'),fullPage:true});
+  await page.goto(customer);
+  await page.getByRole('button',{name:'Marquer terminée',exact:true}).click();
+  await page.goto(base+'/app/rapports?from=2026-01-01&to=2026-12-31&compare=year&dataset=summary');
+  await page.screenshot({path:path.join(output,'reports.png'),fullPage:true});
+  for(const [label,name] of [['PDF','summary.pdf'],['Excel','summary.xlsx'],['CSV','summary.csv']]){
+    const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('link',{name:label,exact:true}).click()]);
+    await download.saveAs(path.join(output,name));
+    const raw=await fs.readFile(path.join(output,name));
+    assert.ok(raw.length>100);
+    if(label==='PDF')assert.equal(raw.subarray(0,5).toString(),'%PDF-');
+    if(label==='Excel')assert.equal(raw.subarray(0,2).toString(),'PK');
+  }
+  await page.goto(base+'/app/rapports?dataset=customers&preset=all');
+  const [customerPdf]=await Promise.all([page.waitForEvent('download'),page.getByRole('link',{name:'PDF',exact:true}).click()]);
+  await customerPdf.saveAs(path.join(output,'customers.pdf'));
+  await page.goto(base+'/app/emails/connexion');
+  await page.getByLabel('Fournisseur',{exact:true}).selectOption('smtp');
+  await page.getByLabel("Adresse d'expédition",{exact:true}).fill('sender@example.test');
+  await page.getByLabel('Serveur SMTP',{exact:true}).fill('smtp.example.test');
+  await page.getByLabel('Identifiant SMTP',{exact:true}).fill('sender@example.test');
+  await page.getByLabel('Mot de passe SMTP',{exact:true}).fill('BrowserTestOnlyNotARealPassword');
+  await page.getByRole('button',{name:'Enregistrer les paramètres',exact:true}).click();
+  assert.equal(await page.getByLabel('Mot de passe SMTP',{exact:true}).inputValue(),'');
+  await page.screenshot({path:path.join(output,'smtp.png'),fullPage:true});
+  for(const [provider,label] of [['google','Se connecter avec Google'],['microsoft','Se connecter avec Microsoft']]){
+    await page.getByLabel('Fournisseur',{exact:true}).selectOption(provider);
+    await page.getByRole('button',{name:'Enregistrer les paramètres',exact:true}).click();
+    await page.getByRole('button',{name:label,exact:true}).waitFor();
+    await page.screenshot({path:path.join(output,provider+'.png'),fullPage:true});
+  }
+  await page.getByLabel('Fournisseur',{exact:true}).selectOption('instance');
+  await page.getByRole('button',{name:'Enregistrer les paramètres',exact:true}).click();
+  await page.goto(base+'/app/developpeurs/webhooks');
+  await page.getByLabel('Nom',{exact:true}).fill('Webhook navigateur fictif');
+  await page.getByLabel('URL destinataire',{exact:true}).fill('https://example.com/zefacture-synthetic-only');
+  await page.getByLabel('Mouvement de stock',{exact:true}).check();
+  await page.getByRole('button',{name:'Enregistrer le webhook',exact:true}).click();
+  const secret=await page.locator('.secret').textContent();assert.ok(secret.length>=40);
+  await page.getByRole('link',{name:'Webhook navigateur fictif',exact:true}).last().click();
+  assert.equal(await page.locator('.secret').count(),0);
+  await page.getByRole('button',{name:'Mettre en pause',exact:true}).click();
+  await page.screenshot({path:path.join(output,'webhooks.png'),fullPage:true});
+  for(const route of ['/app/crm','/app/rapports','/app/emails/connexion',new URL(customer).pathname]){
+    await page.setViewportSize({width:390,height:844});
+    await page.goto(base+route);
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile overflow: '+route);
+  }
+  await page.screenshot({path:path.join(output,'mobile.png'),fullPage:true});
+  assert.equal(errors.length,0,errors.join('\n'));
+  await fs.writeFile(path.join(output,'report.json'),JSON.stringify({ok:true,flows:['individual_prospect','contact','opportunity','task','crm_search','period_comparison','pdf_excel_csv_downloads','smtp_interface_encrypted_secret','google_interface','microsoft_interface','webhook_create_secret_once_pause','mobile'],javascript_errors:errors},null,2));
+  await browser.close();console.log('CRM and integration browser checks passed.');
+})().catch(error=>{console.error(error);process.exit(1)});

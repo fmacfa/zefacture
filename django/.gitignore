@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+staticfiles/
+source.tar.gz
+backups/
+test-results/
+__pycache__/
+*.pyc
+.venv*/
+*.sqlite*
+*.key
+.DS_Store
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/

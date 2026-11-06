@@ -1,0 +1,1 @@
+{% extends "core/base.html" %}{% block content %}<h1>Résultat de la recherche</h1><p>{{ customer.legal_name }}</p><section class="card"><pre class="code">{{ result }}</pre><p>Reportez les coordonnées vérifiées dans la fiche client.</p><a class="button" href="/app/clients/{{ customer.customer_uid }}">Modifier le client</a></section>{% endblock %}

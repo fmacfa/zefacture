@@ -1,0 +1,12 @@
+name: Proposer une évolution
+description: Expliquer un besoin et son résultat attendu.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes: {label: Besoin utilisateur, description: Décrire le contexte avec un exemple fictif.}
+    validations: {required: true}
+  - type: textarea
+    id: outcome
+    attributes: {label: Comportement souhaité}
+    validations: {required: true}

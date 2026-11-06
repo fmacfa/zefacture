@@ -1,0 +1,6 @@
+{
+  "name": "zefacture-browser-tests",
+  "private": true,
+  "description": "Tests de navigateur sur une instance synthétique isolée",
+  "devDependencies": {"playwright": "1.65.0"}
+}

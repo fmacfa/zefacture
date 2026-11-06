@@ -1,0 +1,10 @@
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 16MB
+	}
+	reverse_proxy web:8000 {
+		header_up X-ZeFacture-Proxy-Key {$PROXY_SHARED_SECRET}
+		header_up X-ZeFacture-Client-IP {remote_host}
+	}
+}

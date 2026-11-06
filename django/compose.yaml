@@ -1,0 +1,90 @@
+name: zefacture
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zefacture
+      POSTGRES_USER: zefacture
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configurez POSTGRES_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zefacture -d zefacture"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [private]
+    mem_limit: ${DB_MEMORY_LIMIT:-1024m}
+    pids_limit: 256
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: ${ZEFACTURE_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://zefacture:${POSTGRES_PASSWORD}@db:5432/zefacture
+      DATA_DIR: /data
+      RUN_MIGRATIONS: "1"
+    volumes:
+      - documents:/data
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8090}:8000"
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [private, public]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    mem_limit: ${WEB_MEMORY_LIMIT:-1536m}
+    pids_limit: 256
+    tmpfs: ["/tmp:size=512m,mode=1777"]
+  worker:
+    build: .
+    restart: unless-stopped
+    command: ["python","manage.py","worker"]
+    env_file: ${ZEFACTURE_ENV_FILE:-.env}
+    environment:
+      DATABASE_URL: postgresql://zefacture:${POSTGRES_PASSWORD}@db:5432/zefacture
+      DATA_DIR: /data
+      RUN_MIGRATIONS: "0"
+    volumes: ["documents:/data"]
+    depends_on:
+      web: {condition: service_healthy}
+    healthcheck: {disable: true}
+    networks: [private, public]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    mem_limit: ${WORKER_MEMORY_LIMIT:-1536m}
+    pids_limit: 256
+    tmpfs: ["/tmp:size=512m,mode=1777"]
+  proxy:
+    image: caddy:2-alpine
+    profiles: [https]
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      PROXY_SHARED_SECRET: ${PROXY_SHARED_SECRET:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web: {condition: service_healthy}
+    networks: [public]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    mem_limit: ${PROXY_MEMORY_LIMIT:-256m}
+    pids_limit: 128
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+volumes:
+  database:
+  documents:
+  caddy_data:
+  caddy_config:
+networks:
+  private: {internal: true}
+  public:

@@ -1,0 +1,28 @@
+# Private configurations and business data
+.env
+.env.*
+!.env.example
+storage/
+data/
+backups/
+test-results/
+*.key
+*.sqlite*
+*.dump
+*.sql.gz
+*.log
+# Generated files and dependencies
+.venv*/
+node_modules/
+__pycache__/
+*.pyc
+staticfiles/
+source.tar.gz
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/
+.publication/
+.DS_Store
+.idea/
+.vscode/
