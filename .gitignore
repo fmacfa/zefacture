@@ -1,4 +1,10 @@
 # Private configurations and business data
+/site-presentation/
+.openai/
+.sites-runtime/
+dist/
+playwright-report/
+blob-report/
 .env
 .env.*
 !.env.example

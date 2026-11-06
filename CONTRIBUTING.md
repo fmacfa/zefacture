@@ -14,6 +14,8 @@ Les contributions sont distribuées sous AGPL-3.0-only. Respecter les licences d
 
 ## Protéger les données
 
+Ce dépôt est réservé à l’application Django open source et à ses outils de développement. Le site de présentation est maintenu séparément dans un dépôt privé : ne pas ajouter ses sources, sa configuration d’hébergement ou ses artefacts ici. Le contrôle de publication refuse aussi leur présence dans l’historique Git ; supprimer les fichiers du dernier commit ne suffit pas.
+
 Ne jamais committer une configuration `.env` réelle, une base, un original client, un export, un journal privé, une sauvegarde ou une clé. Les tests et captures doivent utiliser des données inventées. Les seuls environnements d’exemple autorisés sont ceux explicitement présents dans les sources.
 
 Le contrôle `.github/scripts/check_publication.py` vérifie les chemins, types de fichiers et liens documentaires suivis par Git. Gitleaks analyse le contenu et l’historique sans exception globale pour les tests. Un nouvel asset binaire ou une nouvelle catégorie de fichier nécessite une revue explicite et l’adaptation du contrôle ; ne pas contourner une alerte avec une exclusion large.

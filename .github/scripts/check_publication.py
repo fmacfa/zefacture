@@ -56,6 +56,14 @@ PRIVATE_DIRS = {
     "__pycache__",
     ".git",
     ".publication",
+    "site-presentation",
+    ".openai",
+    ".codex",
+    ".agents",
+    ".sites-runtime",
+    "dist",
+    "playwright-report",
+    "blob-report",
 }
 EMAIL = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
@@ -113,6 +121,16 @@ def check(root):
     if not entries:
         raise SystemExit("No tracked files to check.")
     issues = []
+    private_history = subprocess.check_output(
+        [
+            "git", "log", "--all", "--format=", "--name-only", "--",
+            "site-presentation", ":(glob)**/site-presentation/**",
+            ".openai", ":(glob)**/.openai/**",
+        ],
+        cwd=root,
+    )
+    if private_history.strip():
+        issues.append(("Git history", "private site sources or hosting metadata in reachable history"))
     contacts = 0
     links = 0
     for name, mode in entries:

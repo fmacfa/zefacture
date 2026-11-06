@@ -6,6 +6,8 @@ Le [dépôt public](https://github.com/fmacfa/zefacture) distribue l’édition 
 
 Le dépôt conserve l’application dans `django/`, les workflows dans `.github/`, la licence, le README, les notes de version et les règles de contribution/sécurité à la racine. Les sources PHP historiques, les procédures propres à une instance locale, les données et les sauvegardes ne font pas partie de cette distribution.
 
+Le site vitrine est maintenu dans un dépôt privé distinct, avec sa propre CI. Ses sources, sa configuration d’hébergement, ses rapports et son build ne doivent apparaître ni dans ce dépôt public, ni dans ses branches, tags ou anciens commits. La CI publique ne construit que l’application open source. Le contrôle de publication vérifie aussi l’absence du site dans l’historique Git accessible.
+
 ```text
 README.md, LICENSE, VERSION, CHANGELOG.md
 CONTRIBUTING.md, SECURITY.md
@@ -35,6 +37,8 @@ python3 .github/scripts/check_publication.py
 ```
 
 Il examine les fichiers suivis par Git, refuse notamment environnements privés, jeux de données courants, liens symboliques et sous-modules, et contrôle les liens Markdown locaux. Il ne remplace pas une recherche de secrets ou la revue des données ; des informations personnelles peuvent se trouver dans un fichier source textuel valide.
+
+Si des sources privées ont déjà été publiées, un simple commit de suppression les laisse accessibles dans l’historique. Conserver l’archive concernée en privé et repartir d’un historique exclusivement public avant toute nouvelle publication. Vérifier les références Git et les archives, et contrôler les accès sans authentification.
 
 La CI installe une version fixée de Gitleaks, après contrôle de l’empreinte de son archive officielle, puis analyse **tout l’historique accessible** avec les valeurs expurgées. Les tests ne bénéficient pas d’une exclusion globale et les commentaires d’exclusion ne sont pas acceptés par l’appel de CI. Si une valeur est réellement sensible, la retirer de l’historique public et la révoquer ; ne pas la recopier dans un ticket.
 
