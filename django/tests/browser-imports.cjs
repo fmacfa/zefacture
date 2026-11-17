@@ -36,11 +36,20 @@ const output=path.resolve('test-results/browser');
   await page.getByLabel("Date d'émission",{exact:true}).fill('2026-10-25');
   await page.getByLabel('Échéance',{exact:true}).fill('2026-11-24');
   await page.getByLabel('Désignation',{exact:true}).fill('Achat fictif importé');
-  await page.getByLabel('Quantité',{exact:true}).fill('1');
-  await page.getByLabel('Prix unitaire HT',{exact:true}).fill('100');
+  const sourceTotal=page.getByLabel('Total TTC sur l’original',{exact:true});
+  if(process.env.TEST_IMPORT_FILE){
+    await sourceTotal.fill('');
+    await page.getByLabel('Quantité',{exact:true}).fill('1');
+    await page.getByLabel('Prix unitaire HT',{exact:true}).fill('100');
+  }else{
+    assert.equal(await sourceTotal.inputValue(),'406.62');
+    await page.getByLabel('Quantité',{exact:true}).fill('3');
+    await page.getByLabel('Prix unitaire HT',{exact:true}).fill('125.50');
+    await page.getByLabel('Remise',{exact:true}).fill('10');
+  }
   await page.screenshot({path:path.join(output,'import-review.png'),fullPage:true});
   await Promise.all([page.waitForURL(/\/app\/reception\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Valider et créer la facture reçue',exact:true}).click()]);
-  assert.match(await page.locator('main').innerText(),/120,00/);
+  assert.match(await page.locator('main').innerText(),process.env.TEST_IMPORT_FILE?/120,00/:/406,62/);
   const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('link',{name:"Télécharger l’original",exact:true}).click()]);
   const expectedExtension=process.env.TEST_IMPORT_FILE?path.extname(process.env.TEST_IMPORT_FILE):'.pdf';
   assert.equal(path.extname(download.suggestedFilename()),expectedExtension);

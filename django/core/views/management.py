@@ -568,17 +568,23 @@ def developers(request, key_uid=None, action=None):
             audit(request, "api.key_revoked", key.key_uid)
             return redirect("/app/developpeurs")
         name = request.POST.get("name", "").strip()
-        if not name:
-            raise BusinessError("Nom de clé requis.")
+        if not name or len(name) > 120 or "\0" in name:
+            raise BusinessError(
+                "Le nom de la clé doit comporter de 1 à 120 caractères."
+            )
+        scope = request.POST.get("scope", ApiKey.Scope.BUSINESS)
+        if scope not in ApiKey.Scope.values:
+            raise BusinessError("Choisissez un accès valide pour la clé.")
         secret = "zf_live_" + secrets.token_hex(24)
         key = ApiKey.objects.create(
             company_uid=request.company.company_uid,
             name=name,
             key_hash=digest(secret),
             prefix=secret[:16],
+            scope=scope,
         )
         audit(request, "api.key_created", key.key_uid)
-    return render(
+    response = render(
         request,
         "core/developers.html",
         {
@@ -587,8 +593,11 @@ def developers(request, key_uid=None, action=None):
                 company_uid=request.company.company_uid
             ).order_by("-id"),
             "secret": secret,
+            "scopes": [ApiKey.Scope.ASSISTANT, ApiKey.Scope.BUSINESS],
         },
     )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @scoped("admin")

@@ -96,9 +96,13 @@ L’action **Marquer payé** correspond à un règlement intégral. Pour un paie
 
 Avec une connexion SUPERPDP vérifiée, l’administrateur active la synchronisation depuis **Mon entreprise → Connexion SUPERPDP**. Les originaux PDF/XML et événements sont récupérés par le worker. Dans les fiches, **Suivi SUPERPDP** distingue le dépôt et les statuts distants des règlements locaux ; les décisions métier se transmettent par des boutons explicites. Le [guide SUPERPDP](GUIDE_SUPERPDP.md) explique les parcours et les reprises après résultat incertain.
 
-Dans **Imports**, charger un PDF ou une image, lancer la transcription/OCR, puis relire et corriger le résultat. L’analyse IA est facultative ; lorsqu’elle est configurée et déclenchée, le texte est transmis au service choisi par l’exploitant. Contrôler les champs et les lignes avant de convertir en facture.
+Pour un reçu de restaurant, ouvrir **Notes de frais → Ticket de caisse** et joindre une photo ou un PDF (15 Mo maximum). Cliquer sur **Transcrire**, puis actualiser la page lorsque le worker a terminé. L’OCR fonctionne sur le serveur et propose le commerçant, la date, le total TTC, la devise et, si elle est libellée clairement, la TVA totale. Les valeurs incertaines peuvent rester vides. Comparer la proposition à l’original, corriger les champs nécessaires, choisir la catégorie et cliquer sur **Enregistrer le justificatif**. Ce parcours accepte les tickets sans numéro de facture.
 
-**Notes de frais** permet de déposer ses justificatifs et de suivre leur traitement. Les administrateurs et comptables peuvent traiter les frais de l’entreprise ; les autres utilisateurs conservent les restrictions de visibilité par auteur. Un fichier importé n’est pas automatiquement validé ou payé.
+Pour une facture fournisseur, passer par **Imports → Facture fournisseur**. Après transcription, relire les informations de facturation, le total TTC et les lignes. La conversion en facture reçue est une action explicite réservée aux rôles financiers.
+
+Après transcription, **Analyser avec l’IA** propose les fournisseurs configurés sur le serveur. Ce bouton transmet le texte transcrit au fournisseur sélectionné. Le résultat peut suggérer les champs et les lignes lisibles. Les montants, la TVA et les dates doivent être relus avant enregistrement. Les informations déjà saisies dans la fiche de frais restent prioritaires. Voir la [configuration des fournisseurs](GUIDE_AUTOHEBERGEMENT.md#analyse-facultative-des-justificatifs).
+
+Les administrateurs et comptables peuvent traiter les frais de l’entreprise. Les autres utilisateurs gardent la visibilité de leurs propres justificatifs. Enregistrer les champs du ticket conserve l’original et ne crée pas de facture ni de paiement.
 
 ## 7. Finances et rapprochement
 

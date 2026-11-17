@@ -302,6 +302,21 @@ Le CRM distingue prospects/clients et professionnels/particuliers, avec contacts
 
 Les PDF/Factur-X et l’OCR sont générés localement. L’analyse IA reste facultative et utilise le service configuré par l’exploitant ; son activation transmet le texte concerné. Une transmission PDP nécessite également une configuration et une action dédiées. Le logiciel conserve l’historique mais ne remplace pas la validation des coordonnées, montants et mentions avant émission.
 
+### Analyse facultative des justificatifs
+
+La transcription locale suggère les champs courants des tickets, même sans fournisseur externe. Pour proposer des champs supplémentaires et des lignes à partir du texte transcrit, ajouter une clé et un identifiant de modèle dans le fichier `.env` **privé** de l’instance. Chaque paire renseignée ajoute un choix au formulaire d’analyse.
+
+| Fournisseur | Clé API | Identifiant du modèle |
+| --- | --- | --- |
+| OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` |
+| OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL` |
+| Google Gemini | `GEMINI_API_KEY` | `GEMINI_MODEL` |
+| Anthropic Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` |
+
+Choisir un modèle texte compatible avec les sorties JSON de son API. Utiliser la clé de l’API du fournisseur, distincte des identifiants de messagerie et de la clé ZeFacture pour Codex. `INGESTION_AI_PROVIDER` peut placer `openrouter`, `openai`, `google` ou `anthropic` en tête du menu lorsque la paire correspondante est configurée. Après modification, relancer `docker compose up -d web worker` depuis le dossier de déploiement pour charger la nouvelle configuration.
+
+Les clés et modèles sont configurés par l’exploitant pour l’instance entière. Vérifier les conditions de traitement et de conservation du fournisseur avant d’autoriser cette fonction sur des pièces réelles. Seul le texte transcrit, jusqu’à 80 000 caractères, est transmis après une action explicite. ZeFacture n’envoie pas l’image ou le PDF et ne change pas de fournisseur en cas d’échec. `EXTERNAL_SERVICES_DISABLED=1` bloque les analyses externes tout en laissant fonctionner l’OCR. Vérifier chaque fournisseur souhaité sur un justificatif fictif avant usage réel.
+
 ## 10. Sécurité, second facteur et intégrations
 
 En production, les administrateurs doivent activer un second facteur TOTP dans **Mon compte → Sécurité**. Scanner le QR code ou saisir la clé dans une application d’authentification, confirmer un code puis conserver les dix codes de secours affichés **une seule fois**. Chaque code est à usage unique. Un code TOTP déjà consommé est refusé ; attendre le prochain code si nécessaire.

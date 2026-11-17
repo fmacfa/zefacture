@@ -75,7 +75,7 @@ Cette règle concerne la configuration historique du serveur. Une connexion expl
 
 Pour livrer les messages, renseigner `MAIL_TRANSPORT=smtp`, les variables SMTP de `.env.example` et l'adresse d'expédition, puis redémarrer web et worker. Les PDF émis sont joints aux messages de devis/factures. `resend` est également pris en charge avec `RESEND_API_KEY`.
 
-L'OCR utilise Poppler et Tesseract, inclus dans l'image Docker. L'analyse via OpenRouter nécessite `OPENROUTER_API_KEY` et `OPENROUTER_MODEL` et transmet le texte à ce fournisseur lorsqu'elle est déclenchée. La saisie manuelle fonctionne sans IA.
+L’OCR utilise Poppler et Tesseract, inclus dans l’image Docker. Les tickets peuvent être relus et enregistrés avec des suggestions locales. L’[analyse facultative](GUIDE_AUTOHEBERGEMENT.md#analyse-facultative-des-justificatifs) peut utiliser OpenRouter, OpenAI, Google Gemini ou Anthropic Claude selon la configuration de l’exploitant. Le [connecteur MCP pour Codex](GUIDE_API_WEBHOOKS.md#9-consulter-zefacture-depuis-codex) utilise une clé ZeFacture en lecture seule.
 
 SUPERPDP reste optionnel. Le [guide émission/réception](GUIDE_SUPERPDP.md) détaille OAuth, dépôts Factur-X durables, synchronisation des factures entrantes/sortantes, conservation des originaux PDF/XML et suivi des statuts. La synchronisation est activée par entreprise et utilise l’API officielle, sans dépendre d’un abonnement webhook. Les événements ne réécrivent pas les montants ou les rapprochements ; les déclarations métier se transmettent explicitement. Les essais automatisés utilisent un fournisseur HTTP local ; une recette sur le véritable sandbox SUPERPDP reste requise avant les dépôts réels.
 

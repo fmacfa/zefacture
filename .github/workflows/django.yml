@@ -27,12 +27,21 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-          cache-dependency-path: '.github/requirements-ci.txt'
+          cache-dependency-path: |
+            .github/requirements-ci.txt
+            django/tools/mcp-requirements.txt
       - run: python -m pip install -r .github/requirements-ci.txt
       - name: Erreurs Python
         run: ruff check django/core django/config django/tests django/tools --select E9,F821
       - name: Vulnérabilités des dépendances verrouillées
-        run: pip-audit -r django/requirements.txt --strict --no-deps --disable-pip --progress-spinner off
+        run: |
+          pip-audit -r django/requirements.txt --strict --no-deps --disable-pip --progress-spinner off
+          pip-audit -r django/tools/mcp-requirements.txt --strict --no-deps --disable-pip --progress-spinner off
+      - name: Connecteur MCP sur données fictives
+        run: |
+          python -m venv "$RUNNER_TEMP/zefacture-mcp"
+          "$RUNNER_TEMP/zefacture-mcp/bin/python" -m pip install -r django/tools/mcp-requirements.txt
+          "$RUNNER_TEMP/zefacture-mcp/bin/python" django/tests/check_mcp.py
 
   publication:
     name: Fichiers publics et secrets

@@ -3,10 +3,10 @@ from decimal import Decimal
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from core.common import BusinessError, digest
-from core.models import ApiKey, Company, User, Customer, Document
+from core.common import BusinessError
+from core.models import ApiKey, User, Customer, Document
 from core.services import documents, files
-from core.security import throttle
+from core.services.api_access import api_company
 
 
 def numbers(value):
@@ -23,17 +23,7 @@ def numbers(value):
 @transaction.atomic
 def api(request, resource, document_uid=None, action=None):
     try:
-        auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer "):
-            raise BusinessError("Clé API requise.", 401)
-        key = ApiKey.objects.filter(key_hash=digest(auth[7:]), status="active").first()
-        company = (
-            Company.objects.filter(company_uid=key.company_uid, status="active").first()
-            if key
-            else None
-        )
-        if not company:
-            raise BusinessError("Clé API invalide.", 401)
+        company = api_company(request, ApiKey.Scope.BUSINESS)
         user = User.objects.get(user_uid=company.owner_user_uid)
         if request.method == "GET" and not document_uid:
             if resource == "customers":

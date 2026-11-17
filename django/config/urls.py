@@ -7,6 +7,7 @@ from core.views import (
     ingestions,
     pdp,
     api,
+    assistant_api,
     public,
     crm,
     reports,
@@ -104,7 +105,7 @@ urlpatterns = [
     path("app/imports", ingestions.ingestions),
     path("app/notes-de-frais", ingestions.ingestions, {"expenses": True}),
     re_path(
-        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer))?$",
+        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif))?$",
         ingestions.ingestions,
     ),
     path("app/finances", finance.finance),
@@ -171,6 +172,14 @@ urlpatterns = [
     re_path(
         r"^api/v1/(?P<resource>customers|quotes|invoices)(?:/(?P<document_uid>[a-f0-9]{32})/(?P<action>accept|invoice|progress-invoices|facturx))?$",
         api.api,
+    ),
+    re_path(
+        r"^api/v1/assistant/(?P<resource>summary|invoices|receipts)$",
+        assistant_api.assistant_api,
+    ),
+    re_path(
+        r"^api/v1/assistant/(?P<resource>receipts)/(?P<receipt_uid>[a-f0-9]{32})$",
+        assistant_api.assistant_api,
     ),
     path("webhooks/superpdp", pdp.webhook),
 ]

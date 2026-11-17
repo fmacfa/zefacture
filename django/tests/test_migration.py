@@ -7,7 +7,7 @@ from pathlib import Path
 from django.test import override_settings
 from django.db import models
 from core.common import BusinessError, digest
-from core.models import DocumentFile
+from core.models import ApiKey, DocumentFile
 from core.services.migration import models_by_table, export_legacy, import_legacy
 from .test_application import ApplicationCase
 
@@ -27,13 +27,20 @@ class MigrationTests(ApplicationCase):
             sha256=digest(raw),
             file_size=len(raw),
         )
+        ApiKey.objects.create(
+            company_uid=self.company.company_uid,
+            key_hash=digest("legacy-test-key"),
+        )
         old_user_extra = {"last_login", "is_superuser", "is_active", "is_staff"}
         with sqlite3.connect(root / "storage/zefacture.sqlite") as connection:
             for table, model in models_by_table().items():
                 fields = [
                     field
                     for field in model._meta.concrete_fields
-                    if not (table == "users" and field.name in old_user_extra)
+                    if not (
+                        (table == "users" and field.name in old_user_extra)
+                        or (table == "api_keys" and field.name == "scope")
+                    )
                 ]
                 types = [
                     "INTEGER"
@@ -78,6 +85,7 @@ class MigrationTests(ApplicationCase):
             result = import_legacy(archive)
             self.assertTrue(result["equal"])
             self.assertEqual(result["rows"], exported["rows"])
+            self.assertEqual(ApiKey.objects.get().scope, ApiKey.Scope.BUSINESS)
             self.assertTrue(import_legacy(archive, verify_only=True)["equal"])
             with self.assertRaises(BusinessError):
                 import_legacy(archive)
