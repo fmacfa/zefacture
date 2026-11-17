@@ -204,19 +204,21 @@ def transactions_for(company):
     ), accounts
 
 
-def totals(request, start, end):
+def billing_totals(query):
     result = defaultdict(lambda: defaultdict(Decimal))
-    query = between(documents_for(request), "issue_date", start, end)
     effective = query.exclude(type="quote").exclude(
         status__in=["draft", "cancelled", "refused", "simulated"]
     )
-    for doc in effective:
-        value = money(doc.total_excluding_tax) * (
-            -1 if doc.type == "credit_note" else 1
-        )
-        result[doc.currency_code][
-            "sales" if doc.direction == "outgoing" else "purchases"
-        ] += value
+    for currency, kind, direction, total in effective.values_list(
+        "currency_code", "type", "direction", "total_excluding_tax"
+    ).iterator():
+        value = money(total) * (-1 if kind == "credit_note" else 1)
+        result[currency]["sales" if direction == "outgoing" else "purchases"] += value
+    return result
+
+
+def totals(request, start, end):
+    result = billing_totals(between(documents_for(request), "issue_date", start, end))
     if request.role in ROLES["finance"]:
         transactions, accounts = transactions_for(request.company)
         for item in between(transactions, "transaction_date", start, end):

@@ -11,6 +11,7 @@ Contrat de l’édition Django, vérifié dans les routes et services le 6 novem
 | Être averti d’une modification dans ZeFacture | Webhooks sortants configurables par entreprise |
 | Récupérer stocks, CRM ou finances pour analyse | Exports CSV/Excel/PDF depuis **Rapports** |
 | Synchroniser les factures et statuts SUPERPDP | Synchronisation officielle configurée par entreprise ; récepteur `/webhooks/superpdp` facultatif pour un relais autorisé |
+| Interroger ZeFacture depuis Codex ou un autre assistant | Connecteur MCP et API de consultation en lecture seule, voir [configuration](#9-consulter-zefacture-depuis-codex) |
 
 Il n’existe pas de récepteur de webhook générique permettant de modifier toutes les données. L’API publique n’expose pas encore de CRUD des stocks, contacts CRM, opportunités, membres, comptes bancaires ou paramètres email. Ne pas utiliser les routes de formulaires `/app/` comme contrat d’API.
 
@@ -18,7 +19,7 @@ L’intégration SUPERPDP et la commande de synchronisation sont décrites dans 
 
 ## 2. Créer et protéger une clé
 
-Un propriétaire ou administrateur ouvre **API & intégrations**, nomme une clé pour l’outil destinataire et copie la valeur affichée une seule fois. La clé appartient à l’entreprise sélectionnée et peut être révoquée depuis cette même page. Son empreinte seule est conservée pour l’authentification.
+Un propriétaire ou administrateur ouvre **API & intégrations**, nomme une clé pour l’outil destinataire et choisit **API métier** ou **Codex · lecture seule**. Il copie la valeur affichée une seule fois. La clé appartient à l’entreprise sélectionnée et peut être révoquée depuis cette même page. Son empreinte seule est conservée pour l’authentification. Les clés créées avant l’ajout de ce choix gardent l’accès **API métier**.
 
 Transmettre la clé uniquement dans l’en-tête :
 
@@ -27,7 +28,7 @@ Authorization: Bearer zf_live_VOTRE_CLE
 Content-Type: application/json
 ```
 
-Conserver la valeur dans le gestionnaire de secrets du système appelant. Une clé n’est pas liée au rôle d’un membre et n’a pas de permissions fines par ressource, d’expiration automatique ou de second facteur par appel. Son détenteur peut effectuer l’ensemble des opérations API disponibles dans cette entreprise. Créer une clé par intégration et révoquer les anciennes après rotation.
+Conserver la valeur dans le gestionnaire de secrets du système appelant. L’accès **API métier** donne accès aux routes de création et de lecture documentées ci-dessous. L’accès **Codex · lecture seule** autorise uniquement les routes de consultation `/api/v1/assistant/` de cette entreprise, y compris ses justificatifs de frais. Il ne donne accès ni aux originaux ni au texte OCR brut. Les clés ne sont pas liées au rôle d’un membre, n’expirent pas automatiquement et n’exigent pas de second facteur par appel. Créer une clé par intégration et révoquer les anciennes après rotation.
 
 L’API nécessite HTTPS en production. Les sessions et formulaires du navigateur ne sont pas nécessaires pour les appels Bearer. Le contrôle d’accès est limité à l’entreprise de la clé ; un identifiant provenant d’une autre entreprise ne donne pas accès à ses données.
 
@@ -266,3 +267,49 @@ Répondre 2xx pour une acceptation durable ; les réponses non 2xx et erreurs r�
 - Valider les destinataires et les files avant activation sur des données réelles.
 
 Ces essais utilisent des données fictives. Les tests automatiques du projet couvrent l’isolation API, les exports, les signatures, les reprises et les protections réseau ; ils ne valident pas le service récepteur propre à chaque intégration.
+
+## 9. Consulter ZeFacture depuis Codex
+
+Le connecteur tourne sur le poste qui exécute Codex. Il appelle l’instance ZeFacture via HTTPS ou, si elle tourne sur le même poste, via `http://127.0.0.1:8090`. Codex reçoit les résultats des consultations et peut les utiliser dans la conversation.
+
+1. Depuis l’entreprise à consulter, créer une clé **Codex · lecture seule** dans **API & intégrations**.
+2. Sur le poste qui exécute Codex, créer un environnement Python 3.13 ou 3.14 et installer le connecteur depuis le dossier `django/` des sources.
+
+   ```sh
+   python3 -m venv .venv-mcp
+   .venv-mcp/bin/python -m pip install -r tools/mcp-requirements.txt
+   ```
+
+3. Enregistrer la clé sur une ligne dans un fichier privé, en dehors du dépôt, par exemple `~/.config/zefacture/codex.key`. Sur macOS et Linux, utiliser `chmod 600` sur ce fichier. Le connecteur peut aussi lire `ZEFACTURE_MCP_API_KEY` depuis son environnement.
+4. Dans le `config.toml` de Codex, ajouter ce bloc avec les chemins absolus du poste et l’origine de l’instance. Ouvrir une nouvelle session pour charger la configuration.
+
+   ```toml
+   [mcp_servers.zefacture]
+   command = "/chemin/absolu/django/.venv-mcp/bin/python"
+   args = [
+     "/chemin/absolu/django/tools/zefacture_mcp.py",
+     "--url", "http://127.0.0.1:8090",
+     "--key-file", "/chemin/prive/zefacture/codex.key",
+   ]
+   ```
+
+   Sur Windows, utiliser le chemin de `python.exe` dans `.venv-mcp/Scripts/`. La [documentation OpenAI sur MCP](https://developers.openai.com/codex/mcp) indique aussi comment ajouter le serveur depuis Codex.
+
+Exemples de questions : « Compare mes ventes HT d’octobre et de septembre », « Quelles factures fournisseurs ai-je reçues ce mois-ci ? », « Quels justificatifs ont été enregistrés en novembre et pour quels montants ? », « Montre-moi les champs proposés pour ce ticket ». Les montants restent séparés par devise.
+
+Les outils MCP sont `synthese_facturation`, `lister_factures`, `lister_justificatifs` et `consulter_justificatif`. Ils consultent les données et ne déposent, ne valident et n’envoient aucun document.
+
+### Utiliser l’API de consultation sans MCP
+
+Envoyer une clé **Codex · lecture seule** avec `Authorization: Bearer …`. Les chemins ci-dessous sont relatifs à l’origine de l’instance.
+
+| Route GET | Paramètres | Résultat |
+| --- | --- | --- |
+| `/api/v1/assistant/summary` | `date_from`, `date_to`, `compare` (`none`, `previous`, `year`) | Ventes et achats HT par devise, hors brouillons et avec avoirs déduits |
+| `/api/v1/assistant/invoices` | `date_from`, `date_to`, `direction` (`incoming`, `outgoing`), `limit`, `cursor` | Factures, avancements et avoirs. Dates et statuts de l’instance |
+| `/api/v1/assistant/receipts` | `date_from`, `date_to`, `limit`, `cursor` | Tickets et notes de frais, champs enregistrés et états des traitements |
+| `/api/v1/assistant/receipts/{id}` | Identifiant retourné par la liste | Champs enregistrés et, quand disponibles, suggestions à relire |
+
+Les dates suivent le format `AAAA-MM-JJ`. Sans dates, la synthèse couvre le début de l’année jusqu’à aujourd’hui et les listes prennent les entrées les plus récentes. Les listes renvoient `next_cursor` lorsque d’autres entrées correspondent à la recherche. Redonner ce curseur et les mêmes filtres pour la page suivante. Le maximum est de 100 entrées par appel. Les montants sont renvoyés sous forme de chaînes décimales.
+
+Une clé inconnue ou révoquée produit `401`. Une clé du mauvais type produit `403`. Une écriture sur ces routes produit `405`. Le dépôt et l’analyse des justificatifs se font dans l’interface. Les webhooks sortants restent disponibles pour notifier les événements métier documentés plus haut.

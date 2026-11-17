@@ -3,33 +3,39 @@ from django.db import transaction
 from django.utils import timezone
 from core.models import BackgroundJob, Ingestion
 from core.common import BusinessError, stamp
-from . import ingestion
+from . import extraction_ai, ingestion
+
+
+def require_idle(item):
+    if BackgroundJob.objects.filter(
+        ingestion_uid=item.ingestion_uid, status__in=["queued", "running"]
+    ).exists():
+        raise BusinessError("Une opération est déjà en cours pour ce document.", 409)
 
 
 @transaction.atomic
-def enqueue(item, operation):
+def enqueue(item, operation, provider=""):
     item = Ingestion.objects.select_for_update().get(pk=item.pk)
     if item.document_uid:
         raise BusinessError("Import déjà converti.", 409)
     if operation not in {"transcribe", "analyze"}:
         raise BusinessError("Opération inconnue.")
-    if BackgroundJob.objects.filter(
-        ingestion_uid=item.ingestion_uid, status__in=["queued", "running"]
-    ).exists():
-        raise BusinessError("Une opération est déjà en cours pour ce document.", 409)
-    if operation == "analyze" and not item.transcription_text:
-        raise BusinessError("Transcrivez d'abord le document.")
+    require_idle(item)
+    if operation == "analyze":
+        if not (item.transcription_text or "").strip():
+            raise BusinessError("Transcrivez d'abord le document.")
+        provider = provider or "openrouter"
+        extraction_ai.require_provider(provider)
     job = BackgroundJob.objects.create(
         company_uid=item.company_uid,
         ingestion_uid=item.ingestion_uid,
         operation=operation,
+        provider=provider,
     )
-    setattr(
-        item,
-        "transcription_status" if operation == "transcribe" else "extraction_status",
-        "queued",
-    )
-    item.save()
+    field = "transcription_status" if operation == "transcribe" else "extraction_status"
+    setattr(item, field, "queued")
+    item.last_error = None
+    item.save(update_fields=[field, "last_error"])
     return job
 
 
@@ -63,21 +69,20 @@ def work_one():
         if job.operation == "transcribe":
             ingestion.transcribe(item)
         else:
-            ingestion.analyze(item)
+            ingestion.analyze(item, job.provider or "openrouter")
         job.status = "done"
     except Exception as exc:
         job.status = "failed"
         job.error = str(exc)[:1000]
         item.last_error = job.error
         item.status = "failed"
-        setattr(
-            item,
+        field = (
             "transcription_status"
             if job.operation == "transcribe"
-            else "extraction_status",
-            "failed",
+            else "extraction_status"
         )
-        item.save()
+        setattr(item, field, "failed")
+        item.save(update_fields=[field, "status", "last_error"])
     job.finished_at = timezone.now()
     job.save()
     return True

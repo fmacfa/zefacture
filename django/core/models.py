@@ -460,11 +460,16 @@ class Email(models.Model):
 
 
 class ApiKey(models.Model):
+    class Scope(models.TextChoices):
+        BUSINESS = "business", "API métier"
+        ASSISTANT = "assistant_read", "Codex · lecture seule"
+
     key_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, default="")
     name = models.TextField(default="")
     key_hash = models.TextField(default="")
     prefix = models.TextField(default="")
+    scope = models.CharField(max_length=24, choices=Scope, default=Scope.BUSINESS)
     status = models.TextField(default="active")
     created_at = models.TextField(default=stamp)
     revoked_at = models.TextField(null=True, blank=True)
@@ -570,6 +575,7 @@ class BackgroundJob(models.Model):
     company_uid = models.CharField(max_length=32, db_index=True)
     ingestion_uid = models.CharField(max_length=32, db_index=True)
     operation = models.CharField(max_length=20)
+    provider = models.CharField(max_length=20, blank=True, default="")
     status = models.CharField(max_length=20, default="queued", db_index=True)
     error = models.TextField(default="")
     created_at = models.DateTimeField(auto_now_add=True)

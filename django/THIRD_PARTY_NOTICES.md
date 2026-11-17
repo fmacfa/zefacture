@@ -15,3 +15,5 @@ Les exports Excel utilisent openpyxl et et_xmlfile (licence MIT), sans service c
 La double authentification utilise PyOTP (MIT) et python-qrcode (BSD). Les tests de navigateur utilisent Playwright (Apache-2.0) et Chromium ; ils ne sont pas nécessaires au fonctionnement du serveur. Les outils CI coverage.py, Ruff et pip-audit conservent leurs licences respectives.
 
 La CI utilise aussi [Gitleaks](https://github.com/gitleaks/gitleaks), sous licence MIT, pour rechercher les secrets dans l’historique. Son binaire n’est pas inclus dans l’application ; l’installateur de CI vérifie l’empreinte de l’archive officielle de la version fixée.
+
+Le connecteur Codex facultatif utilise le [SDK Python officiel MCP](https://github.com/modelcontextprotocol/python-sdk) sous licence MIT. Ses dépendances sont fixées séparément dans `tools/mcp-requirements.txt` et s’installent sur le poste qui exécute Codex.
