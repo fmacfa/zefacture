@@ -387,12 +387,12 @@ Les tests locaux et la CI vérifient l’application sur des données fictives. 
 
 ## 13. CI et dépôt GitHub
 
-Le workflow principal est `../.github/workflows/django.yml`, dans le [dépôt public](https://github.com/fmacfa/zefacture). GitHub Actions exécute sur les push et pull requests :
+Le workflow **CI ZeFacture** s’exécute pour les pull requests, les pushes sur `main`, les tags `v*` et les lancements manuels. Voir le [workflow du dépôt public](https://github.com/fmacfa/zefacture/actions/workflows/django.yml).
 
-1. Le contrôle des fichiers publiés, la recherche de secrets dans le contenu et l’historique, l’analyse Python et l’audit des versions verrouillées.
+1. La syntaxe GitHub Actions, le contrôle des fichiers publiés, la recherche de secrets dans l’historique, l’analyse Python et l’audit des versions verrouillées.
 2. Les tests avec PostgreSQL 17 sur Python 3.13 et 3.14, les migrations, les fichiers statiques et les contrôles Django de production.
 3. La construction Docker, les parcours navigateur, les exports et une sauvegarde/restauration vérifiée par empreintes sur données fictives.
-4. Le statut final **CI validée**, à rendre obligatoire pour la fusion dans la branche principale.
+4. L’archivage des sources publiques après les contrôles de publication et le statut final **CI validée**, obligatoire pour la fusion dans la branche principale.
 
 Les actions sont fixées par SHA, le token GitHub est limité à la lecture et les tests n’utilisent aucun secret de production. Les projets Docker de CI sont neufs et supprimables ; leur nettoyage est réservé à ces projets fictifs. Les preuves publiées par la CI sont limitées aux captures et résultats synthétiques sélectionnés, avec conservation de sept jours. Dependabot prépare des propositions de mise à jour ; aucune fusion automatique n’est activée. Les sources et workflows PHP historiques ne font pas partie de cette distribution Django.
 

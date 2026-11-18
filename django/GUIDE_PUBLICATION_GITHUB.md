@@ -6,12 +6,13 @@ Le [dépôt public](https://github.com/fmacfa/zefacture) distribue l’édition 
 
 Le dépôt conserve l’application dans `django/`, les workflows dans `.github/`, la licence, le README, les notes de version et les règles de contribution/sécurité à la racine. Les sources PHP historiques, les procédures propres à une instance locale, les données et les sauvegardes ne font pas partie de cette distribution.
 
-Le site vitrine est maintenu dans un dépôt privé distinct, avec sa propre CI. Ses sources, sa configuration d’hébergement, ses rapports et son build ne doivent apparaître ni dans ce dépôt public, ni dans ses branches, tags ou anciens commits. La CI publique ne construit que l’application open source. Le contrôle de publication vérifie aussi l’absence du site dans l’historique Git accessible.
+Le site vitrine est maintenu dans un dépôt privé distinct. Il appelle les contrôles communs de CI depuis son dépôt et y conserve ses sources, sa configuration d’hébergement, ses rapports et son build. Le contrôle de publication vérifie aussi l’absence du site dans l’historique Git accessible au dépôt public.
 
 ```text
 README.md, LICENSE, VERSION, CHANGELOG.md
 CONTRIBUTING.md, SECURITY.md
-.github/workflows/django.yml
+.github/workflows/django.yml, .github/workflows/ci-common.yml
+.github/actions/install-chromium/
 .github/scripts/, .github/tests/, .github/ISSUE_TEMPLATE/
 .github/dependabot.yml, .github/requirements-ci.txt
 django/
@@ -52,13 +53,15 @@ Pour un changement affectant le schéma, les traitements ou le stockage, effectu
 
 ## 4. CI et branche principale
 
-Le [workflow Django CI](https://github.com/fmacfa/zefacture/actions/workflows/django.yml) vérifie :
+Le workflow **CI ZeFacture** s’exécute à l’ouverture ou à la mise à jour d’une pull request, sur les pushes sur `main`, sur les tags `v*` et à la demande. Les autres pushes de branche sont couverts par la pull request lorsqu’elle existe. Voir les [exécutions de CI ZeFacture](https://github.com/fmacfa/zefacture/actions/workflows/django.yml).
 
-1. Les fichiers publics, leurs liens et la recherche de secrets dans l’historique.
+Le workflow réutilisable `ci-common.yml` contrôle la syntaxe GitHub Actions et recherche les secrets dans l’historique du dépôt appelant. L’action composite `install-chromium` installe le navigateur et ses dépendances depuis un miroir Ubuntu signé. Ces deux fichiers sont la référence commune. L’application les utilise au commit testé et tout autre dépôt les appelle au SHA du commit validé.
+
+1. Les contrôles communs, les fichiers publics et les liens des guides.
 2. Les erreurs Python et les vulnérabilités connues des dépendances verrouillées.
 3. Les tests PostgreSQL 17 sur Python 3.13 et 3.14, migrations et contrôles de production.
 4. Docker, les parcours navigateur, les exports et la restauration de données fictives.
-5. Le statut final **CI validée**, qui exige la réussite de tous les jobs précédents.
+5. L’archivage des sources après les contrôles de publication et le statut final **CI validée**, qui exige la réussite de tous les jobs précédents.
 
 Les actions sont fixées par SHA et le token du workflow est limité à la lecture. Les tests ne demandent aucun identifiant de production. Les artefacts publiés sont sélectionnés parmi les preuves synthétiques, avec conservation de sept jours ; les archives de sauvegarde et configurations des tests ne sont pas téléversées.
 

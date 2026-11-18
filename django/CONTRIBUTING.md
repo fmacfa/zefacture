@@ -10,7 +10,7 @@ Ne jamais ajouter de données client, fichiers PDF réels, secrets, mots de pass
 
 Les dépendances directes figurent dans `requirements.in`, leurs versions résolues dans `requirements.txt`. Tester la construction Docker et les migrations avant de proposer une mise à jour.
 
-La CI GitHub principale se trouve dans `../.github/workflows/django.yml`. Elle vérifie Python 3.13/3.14 et PostgreSQL 17, les dépendances, le build Docker, les parcours Playwright et la restauration d’une instance fictive. Le dépôt public exécute ces contrôles sur les push et pull requests ; suivre le résultat correspondant au commit proposé. Le statut `CI validée` rassemble les jobs requis.
+Le workflow **CI ZeFacture** se trouve dans `../.github/workflows/django.yml`. Il s’exécute sur les pull requests, les pushes sur `main`, les tags `v*` et à la demande. Il appelle les contrôles communs de syntaxe GitHub Actions et de recherche de secrets, puis regroupe les validations Django avec le statut **CI validée**. Les contrôles comprennent Python 3.13 et 3.14, PostgreSQL 17, l’audit des dépendances, Docker, Playwright et la restauration d’une instance fictive. Suivre le résultat du commit proposé.
 
 Pour les parcours navigateur, installer `npm ci --prefix tests/browser`, puis Chromium avec `npx playwright install chromium` depuis `tests/browser`. Le script `CI=true CI_HTTP_PORT=8093 bash tools/ci_e2e.sh` crée seulement ses propres projets fictifs et les nettoie à la fin. Choisir un port libre et un moteur Docker de validation ; aucun secret de production n’est nécessaire. Les fichiers de résultat restent ignorés par Git.
 
