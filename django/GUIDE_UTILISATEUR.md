@@ -6,6 +6,8 @@ Pour installer et administrer le serveur, lire le [guide d’auto-hébergement](
 
 ## 1. Premiers pas
 
+Sur une nouvelle installation, **Connexion** ouvre le formulaire **Créer le premier compte** dès que l’exploitant a généré un code privé. Saisissez votre adresse e-mail, votre nom, celui de l’entreprise et le mot de passe choisi, puis utilisez le code d’installation. Après création, cette adresse sert à vous connecter. La génération du code est expliquée dans le [guide d’auto-hébergement](GUIDE_AUTOHEBERGEMENT.md#3-nouvelle-installation-sans-données-antérieures).
+
 1. Ouvrir l’adresse fournie par l’exploitant et se connecter avec son propre compte, ou accepter l’invitation reçue. Il n’existe pas de mot de passe commun par défaut.
 2. Vérifier l’entreprise affichée en haut de l’écran. Le sélecteur permet de passer entre les entreprises dont on est membre ; les données et réglages appartiennent à l’entreprise sélectionnée.
 3. Dans **Mon compte → Sécurité**, activer la double authentification et conserver les codes de secours. Elle est obligatoire pour les administrateurs lorsque la politique de production est active.

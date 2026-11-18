@@ -14,9 +14,9 @@ Prérequis : Docker Engine avec Compose récent, 2 processeurs et 4 Go de RAM co
 
     python3 tools/configure.py
     docker compose up -d --build
-    docker compose exec web python manage.py bootstrap --email vous@example.com --name "Votre nom" --company "Votre entreprise"
+    docker compose exec web python manage.py setup_code
 
-Ouvrir http://127.0.0.1:8090. Le mot de passe du premier compte est demandé dans le terminal. Il n'existe aucun compte ou mot de passe par défaut. Les inscriptions publiques sont fermées ; le propriétaire invite ses collaborateurs.
+Ouvrir http://127.0.0.1:8090 puis **Connexion** pour saisir votre adresse e-mail, votre mot de passe, le nom de votre entreprise et le code privé. Le code est valable sept jours et l’écran d’installation se ferme dès la création du premier compte. Le propriétaire invite ensuite ses collaborateurs depuis l’interface.
 
 Le service web lance les migrations, le worker traite l'OCR et la boîte d'envoi. PostgreSQL et les documents utilisent des volumes nommés. Les fichiers ne sont jamais servis directement par le proxy.
 

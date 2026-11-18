@@ -62,10 +62,14 @@ Configurer le DNS `A` de `zefacture.com` vers le serveur. Ajouter `AAAA` uniquem
 ```sh
 docker compose --profile https up -d --build
 docker compose ps
-docker compose exec web python manage.py bootstrap --email vous@example.com --name "Votre nom" --company "Votre entreprise"
+docker compose exec web python manage.py setup_code
 ```
 
-Remplacer les coordonnées de l’exemple par celles du premier administrateur. `bootstrap` demande son mot de passe dans le terminal, sans mot de passe prédéfini. Se connecter à `https://zefacture.com`, activer immédiatement **Mon compte → Sécurité**, puis vérifier les réglages de l’entreprise.
+Ouvrir `https://zefacture.com/connexion` pour créer le premier compte administrateur. Saisir l’adresse e-mail, le nom, le nom de l’entreprise, le mot de passe choisi et le code d’installation généré par la dernière commande. Ce code est privé, valable sept jours et utilisable une seule fois. Pour remplacer un code perdu ou expiré, relancer `setup_code` depuis le serveur. `setup_code` est réservé aux instances vierges.
+
+Après création, activer la double authentification dans **Mon compte → Sécurité**, puis compléter les réglages de l’entreprise. À la connexion suivante, utiliser l’adresse e-mail du compte et son mot de passe. Le propriétaire invite ensuite ses collaborateurs.
+
+La commande `docker compose exec web python manage.py bootstrap --email vous@example.com --name "Votre nom" --company "Votre entreprise"` reste disponible pour créer le premier compte dans le terminal. Elle demande le mot de passe et ferme également le parcours d’installation.
 
 La clé proxy générée doit rester identique dans l’environnement de Caddy et celui de Django. Avec un autre reverse proxy, fixer `X-ZeFacture-Proxy-Key`, `X-ZeFacture-Client-IP` et `X-Forwarded-Proto` côté proxy, remplacer les valeurs reçues du navigateur et conserver Django inaccessible directement depuis Internet. Sans cette liaison, Django ne fait pas confiance aux en-têtes transmis.
 

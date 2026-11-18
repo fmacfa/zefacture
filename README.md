@@ -37,10 +37,10 @@ git clone https://github.com/fmacfa/zefacture.git
 cd zefacture/django
 python3 tools/configure.py
 docker compose up -d --build
-docker compose exec web python manage.py bootstrap --email vous@example.com --name "Votre nom" --company "Votre entreprise"
+docker compose exec web python manage.py setup_code
 ```
 
-Remplacer l’adresse d’exemple par la vôtre. Le premier mot de passe est demandé dans le terminal ; aucun compte prédéfini n’existe. Ouvrir **http://127.0.0.1:8090**. Les emails restent dans la boîte locale tant qu’aucune livraison n’a été configurée. Inviter ensuite les collaborateurs depuis l’interface.
+Ouvrir **http://127.0.0.1:8090**, puis **Connexion**. Saisir votre adresse e-mail, votre mot de passe, le nom de votre entreprise et le code privé affiché par la dernière commande. Il est valable sept jours et permet de créer une seule fois le premier compte. Les emails restent dans la boîte locale tant qu’aucune livraison n’a été configurée. Inviter ensuite les collaborateurs depuis l’interface.
 
 **Pour une instance avec des données existantes**, suivre la [migration PHP](django/MIGRATION.md) ou la [sauvegarde/restauration Django](django/GUIDE_AUTOHEBERGEMENT.md#4-déplacer-linstance-existante-sans-perdre-ses-données). Ne pas exécuter un import sur une base déjà utilisée ou supprimer ses volumes.
 
