@@ -20,12 +20,20 @@ async function run() {
     await page.goto(origin + '/connexion');
     assert.equal(new URL(page.url()).pathname, '/connexion/installation');
     await page.getByRole('heading', { name: 'Créer le premier compte' }).waitFor();
-    assert.ok(await page.getByRole('button', { name: 'Créer mon espace' }).isDisabled());
+    const submit = page.getByRole('button', { name: 'Créer mon espace' });
+    assert.ok(await submit.isDisabled());
+    const brand = page.getByRole('link', { name: 'ZeFacture, accueil', exact: true });
+    const mark = brand.locator('img');
+    assert.match(await mark.getAttribute('src'), /\/zefacture-mark(?:\.[a-z0-9]+)?\.svg$/);
+    assert.ok(await mark.evaluate(image => image.complete && image.naturalWidth > 0));
+    assert.equal(await page.locator('.setup-story').evaluate(panel =>
+      getComputedStyle(panel).backgroundColor), 'rgb(24, 60, 50)');
     await page.goto(setupLink);
     await page.waitForURL(origin + '/connexion/installation');
     await page.waitForFunction(() => !document.querySelector('fieldset').disabled);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.equal(await page.locator('[name="setup_code"], [name="terms"]').count(), 0);
+    assert.equal(await submit.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(227, 107, 67)');
     await page.screenshot({ path: path.join(output, 'first-connection-mobile.png'), fullPage: true });
 
     await page.setViewportSize({ width: 1440, height: 960 });
@@ -42,7 +50,7 @@ async function run() {
     await password.fill('DemoForBrowser123!');
     await Promise.all([
       page.waitForURL(origin + '/app'),
-      page.getByRole('button', { name: 'Créer mon espace' }).click(),
+      submit.click(),
     ]);
     await page.getByRole('heading', { name: "Vue d'ensemble" }).waitFor();
 
