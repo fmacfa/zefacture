@@ -15,6 +15,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflows:
+    name: Syntaxe GitHub Actions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Installer et exécuter actionlint 1.7.12
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 --max-time 45 \
+            --output "$archive" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          printf '%s  %s\n' 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 "$archive" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck=
+
   quality:
     name: Code et dépendances
     runs-on: ubuntu-24.04
@@ -176,17 +194,46 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  package:
+    name: Archive des sources publiques
+    needs: [publication]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Archiver le commit vérifié et calculer son empreinte
+        run: |
+          output="$RUNNER_TEMP/zefacture-source"
+          mkdir -p "$output"
+          git archive --format=tar.gz --prefix=zefacture/ --output="$output/zefacture-source.tar.gz" HEAD
+          cd "$output"
+          sha256sum zefacture-source.tar.gz > SHA256SUMS
+      - name: Conserver l’archive et son empreinte
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: zefacture-source
+          path: ${{ runner.temp }}/zefacture-source/
+          if-no-files-found: error
+          retention-days: 7
+
   ready:
     name: CI validée
     if: always()
-    needs: [quality, publication, tests, integration]
+    needs: [workflows, quality, publication, tests, integration, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Contrôles requis
         env:
+          WORKFLOWS_RESULT: ${{ needs.workflows.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           PUBLICATION_RESULT: ${{ needs.publication.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
           INTEGRATION_RESULT: ${{ needs.integration.result }}
-        run: test "$QUALITY_RESULT" = success && test "$PUBLICATION_RESULT" = success && test "$TESTS_RESULT" = success && test "$INTEGRATION_RESULT" = success
+          PACKAGE_RESULT: ${{ needs.package.result }}
+        run: |
+          for result in "$WORKFLOWS_RESULT" "$QUALITY_RESULT" "$PUBLICATION_RESULT" "$TESTS_RESULT" "$INTEGRATION_RESULT" "$PACKAGE_RESULT"; do
+            test "$result" = success || exit 1
+          done
