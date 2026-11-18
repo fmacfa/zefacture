@@ -32,6 +32,8 @@ async function run() {
     const source = page.getByRole('link', { name: 'Télécharger le code source' });
     assert.equal(await source.evaluate(link => getComputedStyle(link).backgroundColor), 'rgb(227, 107, 67)');
     assert.equal(await source.getAttribute('href'), '/source/archive');
+    assert.equal(await page.locator('.public-page').evaluate(card =>
+      getComputedStyle(card).borderTopColor), 'rgb(227, 107, 67)');
     await page.getByRole('link', { name: 'Connexion', exact: true }).click();
     assert.equal(new URL(page.url()).pathname, '/connexion/installation');
     await page.getByRole('heading', { name: 'Créer le premier compte' }).waitFor();

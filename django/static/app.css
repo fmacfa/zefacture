@@ -100,7 +100,7 @@ label small { font-weight: 400; }
 .public-sign-in { background: var(--zf-forest); color: #fff; }
 .public-sign-in:hover { background: var(--zf-green); }
 
-.public-page {
+.card.public-page {
   padding: clamp(1.25rem, 4vw, 2.75rem);
   border-top: 4px solid var(--zf-orange);
 }
