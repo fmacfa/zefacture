@@ -11,7 +11,7 @@ Sur une nouvelle installation, ouvrez **Créer le premier compte** pour renseign
 1. Ouvrir l’adresse fournie par l’exploitant et se connecter avec son propre compte, ou accepter l’invitation reçue. Il n’existe pas de mot de passe commun par défaut.
 2. Vérifier l’entreprise affichée en haut de l’écran. Le sélecteur permet de passer entre les entreprises dont on est membre ; les données et réglages appartiennent à l’entreprise sélectionnée.
 3. La double authentification s’active depuis **Mon compte → Sécurité**. Elle est facultative par défaut. L’exploitant peut l’exiger des administrateurs. Si vous l’activez, conservez vos codes de secours.
-4. Un administrateur complète **Mon entreprise**, puis **Personnalisation** : coordonnées, mentions, logo, couleurs, conditions de paiement et modèles d’emails.
+4. Un administrateur complète les rubriques de **Mon entreprise**, puis choisit le logo, les couleurs et les modèles d’emails dans **Personnalisation**.
 5. Créer une fiche client, préparer un devis ou une facture, vérifier ses lignes et télécharger son PDF avant de l’envoyer.
 
 En cas d’oubli du mot de passe, utiliser **Mot de passe oublié**. La réception du lien nécessite que l’exploitant ait activé la messagerie du serveur. Réinitialiser le mot de passe ne supprime pas le second facteur.
@@ -19,6 +19,8 @@ En cas d’oubli du mot de passe, utiliser **Mot de passe oublié**. La récepti
 ## 2. Entreprises, équipe et droits
 
 **Mes entreprises**, accessible par le sélecteur supérieur, permet de créer ou sélectionner une entreprise. Un même compte peut travailler dans plusieurs entreprises avec des rôles différents.
+
+Dans **Mon entreprise**, choisissez **Identité**, **Coordonnées**, **Immatriculation et TVA**, **Paiement** ou **Documents**. Cliquez sur **Enregistrer cette rubrique** avant de passer à la suivante. Si la page demande de confirmer votre mot de passe, ouvrez le lien proposé dans un nouvel onglet. Après confirmation, revenez au formulaire rempli et enregistrez la rubrique.
 
 | Rôle | Utilisation principale |
 | --- | --- |

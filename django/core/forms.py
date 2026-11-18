@@ -1,4 +1,5 @@
 from django import forms
+from .common import BusinessError, country, email
 from .models import Company, Customer, InventoryItem, BankAccount, Forecast
 from .services.documents import CUSTOMER_FIELDS, COMPANY_FIELDS
 
@@ -29,7 +30,7 @@ LABELS = {
     "rcs_number": "Numéro RCS",
     "ape_code": "Code APE",
     "vat_regime": "Régime TVA",
-    "has_vat_on_debits": "TVA sur les débits (0 ou 1)",
+    "has_vat_on_debits": "TVA sur les débits",
     "quote_number_prefix": "Préfixe des devis",
     "invoice_number_prefix": "Préfixe des factures",
     "credit_note_number_prefix": "Préfixe des avoirs",
@@ -123,6 +124,64 @@ class CompanyForm(StyledModelForm):
     class Meta:
         model = Company
         fields = COMPANY_FIELDS
+        widgets = {
+            "has_vat_on_debits": forms.Select(
+                choices=[("", "Non renseignée"), (0, "Non"), (1, "Oui")]
+            )
+        }
+
+    def __init__(self, *args, field_names=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if field_names is not None:
+            self.fields = {name: self.fields[name] for name in field_names}
+        for name, autocomplete in {
+            "legal_name": "organization",
+            "address_line1": "address-line1",
+            "address_line2": "address-line2",
+            "city": "address-level2",
+            "postal_code": "postal-code",
+            "country_code": "country",
+            "billing_email": "email",
+            "support_email": "email",
+            "phone": "tel",
+            "website": "url",
+        }.items():
+            if name in self.fields:
+                self.fields[name].widget.attrs["autocomplete"] = autocomplete
+
+    def _normalize(self, field_name, validator, **options):
+        try:
+            return validator(self.cleaned_data[field_name], **options)
+        except BusinessError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+
+    def clean_country_code(self):
+        return self._normalize("country_code", country)
+
+    def clean_billing_email(self):
+        return self._normalize("billing_email", email, optional=True)
+
+    def clean_support_email(self):
+        return self._normalize("support_email", email, optional=True)
+
+    def clean_has_vat_on_debits(self):
+        value = self.cleaned_data["has_vat_on_debits"]
+        if value not in (None, 0, 1):
+            raise forms.ValidationError("Choisissez Oui ou Non.")
+        return value
+
+    def clean(self):
+        cleaned = super().clean()
+        for name in (
+            "quote_number_prefix",
+            "invoice_number_prefix",
+            "credit_note_number_prefix",
+        ):
+            if name in cleaned:
+                value = cleaned[name]
+                if len(value) > 20 or not value.replace("-", "").isalnum():
+                    self.add_error(name, "Utilisez jusqu’à 20 lettres, chiffres ou tirets.")
+        return cleaned
 
 
 class InventoryForm(StyledModelForm):

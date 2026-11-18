@@ -1,0 +1,165 @@
+.company-settings-header,
+.company-settings-layout {
+  max-width: 1150px;
+  margin-inline: auto;
+}
+
+.company-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.company-settings-header h1 {
+  margin: 0;
+  font-size: clamp(1.65rem, 3vw, 2rem);
+}
+
+.company-settings-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+}
+
+.company-settings-layout {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.company-settings-navigation.card {
+  padding: .45rem;
+}
+
+.company-settings-navigation ul {
+  display: grid;
+  gap: .15rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.company-settings-navigation a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: .6rem .8rem;
+  border-inline-start: 3px solid transparent;
+  border-radius: 8px;
+  color: var(--ink);
+}
+
+.company-settings-navigation a:hover {
+  background: var(--paper);
+}
+
+.company-settings-navigation a[aria-current="page"] {
+  border-inline-start-color: var(--zf-orange);
+  background: var(--paper);
+  font-weight: 700;
+}
+
+.company-settings-panel.card {
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.company-settings-panel-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.company-settings-panel-header p {
+  margin: .3rem 0 0;
+}
+
+.company-settings-group {
+  padding-block: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.company-settings-panel-header + form,
+.company-settings-panel-header + .company-settings-group {
+  margin-top: 1.25rem;
+}
+
+.company-settings-group h3 {
+  margin: 0 0 .85rem;
+  color: var(--link);
+  font-size: 1rem;
+}
+
+.company-settings-field {
+  display: grid;
+  align-content: start;
+  gap: .35rem;
+  min-width: 0;
+}
+
+.company-settings-field .errorlist {
+  margin: 0;
+}
+
+.company-settings-field textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.company-settings-note p {
+  margin: 0 0 .3rem;
+}
+
+.company-settings-note a {
+  text-decoration: underline;
+}
+
+.company-settings-values {
+  margin: 0;
+}
+
+.company-settings-values dt {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.company-settings-values dd {
+  margin: .25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.company-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 880px) {
+  .company-settings-layout {
+    grid-template-columns: 1fr;
+    gap: .75rem;
+  }
+
+  .company-settings-navigation.card {
+    margin-bottom: 0;
+  }
+
+  .company-settings-navigation ul {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .company-settings-field input,
+  .company-settings-field select,
+  .company-settings-field textarea {
+    font-size: 1rem;
+  }
+
+  .company-settings-actions button {
+    width: 100%;
+  }
+}

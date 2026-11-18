@@ -1,4 +1,5 @@
 import secrets
+from copy import copy
 from datetime import date, timedelta
 from decimal import Decimal
 from django.conf import settings
@@ -6,8 +7,11 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.http import require_http_methods
 from core.common import (
     BusinessError,
     stamp,
@@ -16,7 +20,6 @@ from core.common import (
     digest,
     decimal,
     iso_date,
-    country,
 )
 from core.models import (
     Company,
@@ -159,49 +162,133 @@ def companies(request, company_uid=None, action=None):
     )
 
 
+COMPANY_SECTIONS = {
+    "identite": (
+        "Identité",
+        (
+            ("Nom de l’entreprise", ("legal_name", "trade_name")),
+            ("Statut juridique", ("legal_form", "share_capital")),
+        ),
+    ),
+    "coordonnees": (
+        "Coordonnées",
+        (
+            (
+                "Adresse",
+                ("address_line1", "address_line2", "postal_code", "city", "country_code"),
+            ),
+            ("Contact", ("billing_email", "support_email", "phone", "website")),
+        ),
+    ),
+    "fiscalite": (
+        "Immatriculation et TVA",
+        (
+            ("Immatriculation", ("siren", "siret", "rcs_number", "rcs_city", "ape_code")),
+            ("TVA", ("vat_number", "vat_regime", "has_vat_on_debits")),
+        ),
+    ),
+    "paiement": (
+        "Paiement",
+        (
+            ("Coordonnées bancaires", ("bank_iban", "bank_bic")),
+            ("Conditions", ("payment_terms",)),
+        ),
+    ),
+    "documents": (
+        "Documents",
+        (
+            (
+                "Préfixes de numérotation",
+                ("quote_number_prefix", "invoice_number_prefix", "credit_note_number_prefix"),
+            ),
+            ("Mentions", ("invoice_footer",)),
+        ),
+    ),
+}
+
+
+@sensitive_post_parameters("bank_iban")
+@require_http_methods(["GET", "HEAD", "POST"])
 @scoped()
-def company(request):
-    if request.method == "POST" and request.role not in ROLES["admin"]:
+def company(request, section=None):
+    posting = request.method == "POST"
+    can_edit = request.role in ROLES["admin"]
+    if posting and not can_edit:
         raise BusinessError(
             "Administration de l'entreprise réservée aux responsables.", 403
         )
-    if request.method == "POST":
-        destination = admin_security_redirect(request)
-        if destination:
-            return redirect(destination)
-    form = CompanyForm(request.POST or None, instance=request.company)
-    if request.method == "POST" and form.is_valid():
-        obj = form.save(commit=False)
-        obj.country_code = country(obj.country_code)
-        obj.billing_email = email(obj.billing_email, optional=True)
-        obj.support_email = email(obj.support_email, optional=True)
-        if obj.has_vat_on_debits not in (None, 0, 1):
-            raise BusinessError("L'option TVA doit valoir 0 ou 1.")
-        for name in (
-            "quote_number_prefix",
-            "invoice_number_prefix",
-            "credit_note_number_prefix",
-        ):
-            value = getattr(obj, name)
-            if not value or len(value) > 20 or not value.replace("-", "").isalnum():
-                raise BusinessError("Préfixe de numérotation invalide.")
-        obj.updated_at = stamp()
-        obj.save()
-        audit(request, "company.updated")
-        messages.success(request, "Entreprise mise à jour.")
-        return redirect("/app/entreprise")
+
+    current = section or "identite"
+    if current not in COMPANY_SECTIONS:
+        raise Http404
+
+    legacy_post = posting and section is None
+    verification = admin_security_redirect(request) if can_edit else ""
+    if legacy_post and verification:
+        return redirect(verification)
+    if (
+        posting
+        and section
+        and request.POST.get("company_uid") != request.company.company_uid
+    ):
+        raise BusinessError(
+            "L’entreprise sélectionnée a changé. Rouvrez cette rubrique dans l’entreprise à modifier.",
+            409,
+        )
+
+    heading, groups = COMPANY_SECTIONS[current]
+    fields = None if legacy_post else [name for _, group in groups for name in group]
+    form = CompanyForm(
+        request.POST if posting else None,
+        instance=copy(request.company) if posting else request.company,
+        field_names=fields,
+    )
+    if posting and not verification and form.is_valid():
+        with transaction.atomic():
+            obj = form.save(commit=False)
+            obj.updated_at = stamp()
+            obj.save(update_fields=[*form.changed_data, "updated_at"])
+            audit(request, "company.updated")
+        if legacy_post:
+            messages.success(request, "Entreprise mise à jour.")
+            return redirect("company_settings")
+        messages.success(request, f"Réglages enregistrés dans la rubrique « {heading} ».")
+        return redirect("company_settings_section", section=current)
+
+    if legacy_post:
+        # A form opened before this release may still submit to the old address.
+        return render(
+            request,
+            "core/form.html",
+            {"title": "Mon entreprise", "form": form, "can_write": can_edit},
+            status=422,
+        )
+
+    navigation = [
+        (label, reverse("company_settings_section", args=[key]), key == current)
+        for key, (label, _) in COMPANY_SECTIONS.items()
+    ]
     return render(
         request,
-        "core/form.html",
+        "core/company_settings.html",
         {
-            "title": "Mon entreprise",
+            "title": f"Mon entreprise · {heading}" if section else "Mon entreprise",
+            "heading": heading,
             "form": form,
-            "extra_link": "/app/entreprise/pdp"
-            if request.role in ROLES["admin"]
-            else "",
-            "extra_label": "Connexion SUPERPDP",
-            "can_write": request.role in ROLES["admin"],
+            "groups": [(label, [form[name] for name in names]) for label, names in groups],
+            "wide_fields": {
+                "address_line1",
+                "address_line2",
+                "payment_terms",
+                "invoice_footer",
+            },
+            "sections": navigation,
+            "section_url": reverse("company_settings_section", args=[current]),
+            "can_edit": can_edit,
+            "verification": verification,
+            "attempted_save": posting,
         },
+        status=403 if posting and verification else 422 if posting else 200,
     )
 
 

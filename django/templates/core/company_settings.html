@@ -1,0 +1,88 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block styles %}<link rel="stylesheet" href="{% static 'company-settings.css' %}">{% endblock %}
+{% block content %}
+<div class="company-settings-header">
+  <h1>Mon entreprise</h1>
+  {% if can_edit %}
+    <div class="company-settings-related">
+      <a class="button secondary" href="/app/entreprise/personnalisation">Personnalisation</a>
+      <a class="button secondary" href="/app/entreprise/pdp">Connexion SUPERPDP</a>
+    </div>
+  {% endif %}
+</div>
+
+<div class="company-settings-layout">
+  <nav class="card company-settings-navigation" aria-label="Réglages de l’entreprise">
+    <ul>
+      {% for label, url, current in sections %}
+        <li><a href="{{ url }}"{% if current %} aria-current="page"{% endif %}>{{ label }}</a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+
+  <section class="card company-settings-panel" aria-labelledby="company-settings-title">
+    <header class="company-settings-panel-header">
+      <h2 id="company-settings-title">{{ heading }}</h2>
+      {% if not can_edit %}<p class="muted">Lecture seule</p>{% endif %}
+    </header>
+
+    {% if can_edit %}
+      <form method="post" action="{{ section_url }}" data-company-settings-form
+            {% if attempted_save %}data-unsaved{% endif %}>
+        {% csrf_token %}
+        <input type="hidden" name="company_uid" value="{{ company.company_uid }}">
+        {% if verification %}
+          <div class="notice company-settings-note" role="status">
+            <p>Confirmez votre mot de passe pour enregistrer cette rubrique.</p>
+            <a href="{{ verification }}" target="_blank" rel="noopener">Confirmer dans un nouvel onglet</a>
+          </div>
+        {% endif %}
+        {{ form.non_field_errors }}
+    {% endif %}
+
+    {% for label, fields in groups %}
+      <section class="company-settings-group" aria-labelledby="company-group-{{ forloop.counter }}">
+        <h3 id="company-group-{{ forloop.counter }}">{{ label }}</h3>
+        {% if can_edit %}
+          <div class="form-grid">
+            {% for field in fields %}
+              <div class="company-settings-field{% if field.name in wide_fields %} full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {{ field.errors }}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <dl class="form-grid company-settings-values">
+            {% for field in fields %}
+              <div{% if field.name in wide_fields %} class="full"{% endif %}>
+                <dt>{{ field.label }}</dt>
+                {% with value=field.value %}
+                  <dd>
+                    {% if value is None or value == "" %}—
+                    {% elif field.name == "has_vat_on_debits" %}{{ value|yesno:"Oui,Non" }}
+                    {% else %}{{ value|linebreaksbr }}{% endif %}
+                  </dd>
+                {% endwith %}
+              </div>
+            {% endfor %}
+          </dl>
+        {% endif %}
+      </section>
+    {% endfor %}
+
+    {% if can_edit %}
+        <div class="company-settings-actions">
+          <button type="submit">Enregistrer cette rubrique</button>
+        </div>
+      </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {% if can_edit %}<script src="{% static 'company-settings.js' %}" defer></script>{% endif %}
+{% endblock %}

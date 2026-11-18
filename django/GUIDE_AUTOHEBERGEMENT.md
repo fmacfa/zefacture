@@ -270,7 +270,7 @@ Un administrateur accède à **Mon entreprise → Personnalisation**. Les régla
 - Présentation classique ou compacte des documents, devise et délais par défaut.
 - Adresse de réponse, signature et modèles des emails de devis, factures/avoirs et relances.
 
-Les coordonnées légales, l’IBAN/BIC, les conditions de paiement, les mentions de bas de facture et les préfixes de numérotation restent dans **Mon entreprise**. Le nom légal reste présent dans les documents, même avec un nom commercial d’affichage.
+Dans **Mon entreprise**, chaque rubrique possède son propre enregistrement. Utilisez **Identité** pour le nom et la forme juridique, **Coordonnées** pour l’adresse et les contacts, **Immatriculation et TVA** pour les identifiants, **Paiement** pour l’IBAN, le BIC et les conditions, et **Documents** pour les préfixes et les mentions de bas de facture. Le nom légal figure sur les documents.
 
 Exemple de modèle en texte simple :
 
