@@ -26,6 +26,7 @@ urlpatterns = [
         public.public,
     ),
     path("connexion", auth.authentication),
+    path("connexion/installation", auth.first_connection, name="first_connection"),
     path("connexion/verification", account_security.challenge),
     path("app/verification", account_security.verify),
     path("app/compte/securite", account_security.security),

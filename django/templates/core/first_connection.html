@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>{{ title }}</h1>
+  <p class="muted">Créez le compte administrateur et renseignez le nom de votre entreprise.</p>
+  <form method="post" class="stack">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="notice error" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+    {% for field in form %}
+      {% if field.name == "terms" %}
+        <label class="check" for="{{ field.id_for_label }}">
+          {{ field }} <span>J’accepte les <a href="/cgu">conditions d’utilisation</a>.</span>
+        </label>
+      {% else %}
+        <div>
+          <label for="{{ field.id_for_label }}">{{ field.label }} {{ field }}</label>
+          {% if field.help_text %}<small id="{{ field.auto_id }}_helptext">{{ field.help_text }}</small>{% endif %}
+        </div>
+      {% endif %}
+      {% if field.errors %}<div class="notice error" role="alert">{{ field.errors }}</div>{% endif %}
+    {% endfor %}
+    <button type="submit">Créer mon compte</button>
+  </form>
+</section>
+{% endblock %}

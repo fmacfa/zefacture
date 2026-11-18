@@ -553,6 +553,15 @@ class RateLimit(models.Model):
         db_table = "auth_rate_limits"
 
 
+class InstanceSetup(models.Model):
+    code_hash = models.CharField(max_length=64, blank=True, default="")
+    expires_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "django_instance_setup"
+
+
 class WebhookReceipt(models.Model):
     receipt_key = models.CharField(max_length=64, primary_key=True)
     document_uid = models.CharField(max_length=32, db_index=True, default="")

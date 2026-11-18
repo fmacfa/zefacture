@@ -7,10 +7,13 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import render, redirect
-from django.views.decorators.http import require_POST
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
+from django.views.decorators.http import require_http_methods, require_POST
 from core.common import BusinessError, email, stamp, digest
+from core.forms import FirstConnectionForm
 from core.models import User, Company, CompanyMember, CompanyInvitation, PasswordReset
 from core.security import throttle
+from core.services import instance_setup
 
 
 def start_session(request, user):
@@ -73,6 +76,12 @@ def register(data, token=""):
 
 
 def authentication(request, mode="login", token=""):
+    if (
+        mode == "login"
+        and request.method in {"GET", "HEAD"}
+        and instance_setup.setup_available()
+    ):
+        return redirect("first_connection")
     error = ""
     if request.method == "POST":
         try:
@@ -197,6 +206,45 @@ def authentication(request, mode="login", token=""):
             invite=request.GET.get("invite", ""),
             registration_open=settings.REGISTRATION_OPEN,
         ),
+    )
+
+
+@sensitive_post_parameters("setup_code", "password", "password_confirmation")
+@require_http_methods(["GET", "HEAD", "POST"])
+@sensitive_variables("form", "data")
+def first_connection(request):
+    if not instance_setup.setup_available():
+        return redirect("/connexion")
+    form = FirstConnectionForm(request.POST if request.method == "POST" else None)
+    status = 200
+    if request.method == "POST":
+        try:
+            throttle(request, "first-connection", limit=10, seconds=900)
+            if form.is_valid():
+                data = form.cleaned_data
+                user = instance_setup.create_first_owner(
+                    address=data["email"],
+                    name=data["name"],
+                    company_name=data["company_name"],
+                    password=data["password"],
+                    setup_code=data["setup_code"],
+                )
+                start_session(request, user)
+                return redirect(
+                    "/app/compte/securite" if settings.MFA_REQUIRED_FOR_ADMINS else "/app"
+                )
+            status = 422
+        except BusinessError as exc:
+            form.add_error(None, str(exc))
+            status = exc.status
+        except ValidationError as exc:
+            form.add_error("password", exc)
+            status = 422
+    return render(
+        request,
+        "core/first_connection.html",
+        {"title": "Créer le premier compte", "form": form},
+        status=status,
     )
 
 
