@@ -6,7 +6,7 @@ Pour installer et administrer le serveur, lire le [guide d’auto-hébergement](
 
 ## 1. Premiers pas
 
-Sur une nouvelle installation, ouvrez **Créer le premier compte** pour renseigner votre entreprise, votre nom, votre adresse e-mail et votre mot de passe. Ouvrez le lien privé transmis par l’exploitant pour autoriser la création du compte, puis cliquez sur **Créer mon espace**. Après création, cette adresse sert à vous connecter. La génération du lien est expliquée dans le [guide d’auto-hébergement](GUIDE_AUTOHEBERGEMENT.md#3-nouvelle-installation-sans-données-antérieures).
+Sur une nouvelle installation, ouvrez **Créer le premier compte** pour renseigner votre entreprise, votre nom, votre adresse e-mail et votre mot de passe. Ouvrez le lien privé transmis par l’exploitant dans le même navigateur, puis cliquez sur **Créer mon espace** dans le formulaire déjà rempli. Le lien peut être ouvert dans un autre onglet. Après création, cette adresse sert à vous connecter. La génération du lien est expliquée dans le [guide d’auto-hébergement](GUIDE_AUTOHEBERGEMENT.md#3-nouvelle-installation-sans-données-antérieures).
 
 1. Ouvrir l’adresse fournie par l’exploitant et se connecter avec son propre compte, ou accepter l’invitation reçue. Il n’existe pas de mot de passe commun par défaut.
 2. Vérifier l’entreprise affichée en haut de l’écran. Le sélecteur permet de passer entre les entreprises dont on est membre ; les données et réglages appartiennent à l’entreprise sélectionnée.

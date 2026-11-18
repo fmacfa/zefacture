@@ -26,7 +26,8 @@ async function run() {
   await mkdir(output, { recursive: true });
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await context.newPage();
     await page.goto(origin + '/source');
     await assertIdentity(page);
     const source = page.getByRole('link', { name: 'Télécharger le code source' });
@@ -39,6 +40,7 @@ async function run() {
     await page.getByRole('heading', { name: 'Créer le premier compte' }).waitFor();
     await assertIdentity(page);
     const submit = page.getByRole('button', { name: 'Créer mon espace' });
+    const verificationURL = origin + '/connexion/installation/autoriser';
     assert.ok(await submit.isEnabled());
     assert.equal(await page.locator('.setup-story').evaluate(panel =>
       getComputedStyle(panel).backgroundColor), 'rgb(24, 60, 50)');
@@ -60,15 +62,27 @@ async function run() {
       await field.click();
       await field.fill(value);
     }
-    await submit.click();
     const status = page.getByRole('status');
-    assert.match(await status.textContent(), /lien privé/);
-    assert.ok(await status.evaluate(element => document.activeElement === element));
+    const [missingAuthorization] = await Promise.all([
+      page.waitForResponse(response => response.url() === verificationURL && response.request().method() === 'GET'),
+      submit.click(),
+    ]);
+    assert.equal(missingAuthorization.status(), 403);
+    await page.waitForFunction(() => document.activeElement?.dataset.state === 'error');
+    assert.match(await status.textContent(), /Autorisation requise/);
 
-    await page.goto(setupLink);
-    await page.waitForURL(origin + '/connexion/installation');
-    await page.waitForFunction(() => document.querySelector('[data-setup-form]').dataset.setupAuthorized === 'true');
-    assert.ok(await status.isHidden());
+    const confirmation = await context.newPage();
+    const [privateLink] = await Promise.all([
+      confirmation.waitForResponse(response =>
+        response.url() === verificationURL && response.request().method() === 'POST'),
+      confirmation.goto(setupLink),
+    ]);
+    assert.equal(privateLink.status(), 204);
+    await confirmation.getByText('Lien privé vérifié. Vous pouvez créer votre compte.').waitFor();
+    await confirmation.waitForURL(origin + '/connexion/installation');
+    await confirmation.close();
+    await page.bringToFront();
+    assert.equal(await page.locator('[data-setup-form]').getAttribute('data-setup-authorized'), 'false');
     for (const [label, value] of fields) {
       assert.equal(await page.getByLabel(label, { exact: true }).inputValue(), value);
     }
@@ -92,9 +106,17 @@ async function run() {
     assert.equal(new URL(visitor.url()).pathname, '/connexion');
     await visitor.getByRole('button', { name: 'Se connecter' }).waitFor();
     await assertIdentity(visitor);
+    await visitor.getByLabel('Email', { exact: true }).fill(fields[2][1]);
+    await visitor.getByLabel('Mot de passe', { exact: true }).fill(fields[3][1]);
+    await Promise.all([
+      visitor.waitForURL(origin + '/app'),
+      visitor.getByRole('button', { name: 'Se connecter' }).click(),
+    ]);
+    await visitor.getByRole('heading', { name: "Vue d'ensemble" }).waitFor();
     await writeFile(path.join(output, 'report.json'), JSON.stringify({
       ok: true,
-      checks: ['shared-identity', 'editable-before-authorization', 'private-link', 'mobile-layout', 'owner-created', 'setup-closed'],
+      checks: ['shared-identity', 'editable-before-authorization', 'missing-authorization-message',
+        'private-link-in-another-tab', 'mobile-layout', 'owner-created', 'setup-closed', 'owner-login'],
     }, null, 2));
     console.log('First connection passed on the disposable instance.');
   } finally {

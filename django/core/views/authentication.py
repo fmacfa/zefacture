@@ -215,9 +215,14 @@ def authentication(request, mode="login", token=""):
 
 
 @sensitive_post_parameters("token")
-@require_POST
+@require_http_methods(["GET", "HEAD", "POST"])
 @sensitive_variables("token", "setup_hash")
 def authorize_first_connection(request):
+    if request.method != "POST":
+        setup_hash = request.session.get(INSTALLATION_SESSION_KEY)
+        authorized = setup_hash and instance_setup.setup_available(setup_hash)
+        return HttpResponse(status=204 if authorized else 403)
+
     if not instance_setup.setup_available():
         return HttpResponse(status=403)
     try:
