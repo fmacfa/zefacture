@@ -55,20 +55,26 @@ LABELS = {
 
 
 class FirstConnectionForm(forms.Form):
-    email = forms.EmailField(
-        label="Adresse e-mail",
+    company_name = forms.CharField(
+        label="Nom de l’entreprise",
         max_length=254,
-        widget=forms.EmailInput(attrs={"autocomplete": "username"}),
+        widget=forms.TextInput(
+            attrs={"autocomplete": "organization", "placeholder": "Mon entreprise"}
+        ),
     )
     name = forms.CharField(
         label="Votre nom",
         max_length=120,
-        widget=forms.TextInput(attrs={"autocomplete": "name"}),
+        widget=forms.TextInput(
+            attrs={"autocomplete": "name", "placeholder": "Prénom Nom"}
+        ),
     )
-    company_name = forms.CharField(
-        label="Nom de l’entreprise",
+    email = forms.EmailField(
+        label="Adresse e-mail",
         max_length=254,
-        widget=forms.TextInput(attrs={"autocomplete": "organization"}),
+        widget=forms.EmailInput(
+            attrs={"autocomplete": "username", "placeholder": "vous@example.com"}
+        ),
     )
     password = forms.CharField(
         label="Mot de passe",
@@ -76,30 +82,8 @@ class FirstConnectionForm(forms.Form):
         min_length=10,
         max_length=1024,
         widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        help_text="Au moins 10 caractères.",
     )
-    password_confirmation = forms.CharField(
-        label="Confirmer le mot de passe",
-        strip=False,
-        max_length=1024,
-        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
-    )
-    setup_code = forms.CharField(
-        label="Code d’installation",
-        max_length=128,
-        widget=forms.PasswordInput(attrs={"autocomplete": "off"}),
-        help_text="Utilisez le code privé fourni par l’exploitant de l’instance.",
-    )
-    terms = forms.BooleanField(label="Conditions d’utilisation")
-
-    def clean(self):
-        data = super().clean()
-        if (
-            "password" in data
-            and "password_confirmation" in data
-            and data["password"] != data["password_confirmation"]
-        ):
-            self.add_error("password_confirmation", "Les mots de passe diffèrent.")
-        return data
 
 
 class StyledModelForm(forms.ModelForm):

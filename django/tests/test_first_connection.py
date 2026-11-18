@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest import skipUnless
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -18,6 +19,7 @@ from core.services.instance_setup import create_first_owner, issue_setup_code
 
 
 INSTALLATION_URL = "/connexion/installation"
+AUTHORIZE_URL = INSTALLATION_URL + "/autoriser"
 
 
 @override_settings(REGISTRATION_OPEN=False, MFA_REQUIRED_FOR_ADMINS=True)
@@ -29,16 +31,18 @@ class FirstConnectionTests(TestCase):
             "name": "Premier propriétaire",
             "company_name": "Entreprise de test",
             "password": self.password,
-            "password_confirmation": self.password,
-            "terms": "1",
         }
 
     def issue_code(self):
         output = io.StringIO()
-        call_command("setup_code", stdout=output)
-        return output.getvalue().strip()
+        call_command("setup_link", stdout=output)
+        link = urlsplit(output.getvalue().strip())
+        self.assertEqual(link.path, INSTALLATION_URL)
+        self.assertEqual(link.query, "")
+        self.assertTrue(link.fragment.startswith("installation="))
+        return link.fragment.removeprefix("installation=")
 
-    def test_wizard_requires_a_code_and_an_empty_instance(self):
+    def test_wizard_requires_a_private_link_and_an_empty_instance(self):
         self.assertContains(self.client.get("/connexion"), "Se connecter")
         self.assertRedirects(self.client.get(INSTALLATION_URL), "/connexion")
         code = self.issue_code()
@@ -49,6 +53,10 @@ class FirstConnectionTests(TestCase):
         self.assertEqual(response.redirect_chain, [(INSTALLATION_URL, 302)])
         self.assertContains(response, "Créer le premier compte")
         self.assertNotContains(response, code)
+        self.assertContains(response, "<fieldset disabled>")
+        self.assertNotContains(response, 'name="setup_code"')
+        self.assertNotContains(response, 'name="terms"')
+        self.assertEqual(self.client.post(INSTALLATION_URL, self.data).status_code, 403)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
         self.assertFalse(User.objects.exists())
 
@@ -63,10 +71,16 @@ class FirstConnectionTests(TestCase):
         code = self.issue_code()
         browser = Client(enforce_csrf_checks=True)
         self.assertEqual(browser.get(INSTALLATION_URL).status_code, 200)
-        form = {**self.data, "setup_code": code}
+        self.assertEqual(browser.post(AUTHORIZE_URL, {"token": code}).status_code, 403)
+        csrf = {"csrfmiddlewaretoken": browser.cookies["csrftoken"].value}
+        form = {**self.data, **csrf}
         self.assertEqual(browser.post(INSTALLATION_URL, form).status_code, 403)
         self.assertFalse(User.objects.exists())
-        form["csrfmiddlewaretoken"] = browser.cookies["csrftoken"].value
+        self.assertEqual(
+            browser.post(AUTHORIZE_URL, {"token": code, **csrf}).status_code, 204
+        )
+        self.assertNotContains(browser.get(INSTALLATION_URL), code)
+        self.assertEqual(browser.post(INSTALLATION_URL, self.data).status_code, 403)
 
         response = browser.post(INSTALLATION_URL, form)
         self.assertRedirects(response, "/app/compte/securite")
@@ -77,7 +91,7 @@ class FirstConnectionTests(TestCase):
         self.assertEqual(user.name, self.data["name"])
         self.assertTrue(user.is_staff and user.is_superuser)
         self.assertTrue(user.check_password(self.password))
-        self.assertTrue(user.terms_accepted_at)
+        self.assertIsNone(user.terms_accepted_at)
         self.assertEqual(company.legal_name, self.data["company_name"])
         self.assertEqual(company.billing_email, user.email)
         self.assertEqual(company.owner_user_uid, user.user_uid)
@@ -85,6 +99,7 @@ class FirstConnectionTests(TestCase):
         self.assertEqual(member.company_uid, company.company_uid)
         self.assertEqual(member.role, "owner")
         self.assertEqual(browser.session["session_version"], user.session_version)
+        self.assertNotIn("installation_hash", browser.session)
         self.assertRedirects(browser.get("/app"), "/app/compte/securite")
 
         setup = InstanceSetup.objects.get()
@@ -92,6 +107,9 @@ class FirstConnectionTests(TestCase):
         self.assertIsNone(setup.expires_at)
         self.assertIsNotNone(setup.completed_at)
         other_client = Client()
+        self.assertEqual(
+            other_client.post(AUTHORIZE_URL, {"token": code}).status_code, 403
+        )
         self.assertRedirects(other_client.post(INSTALLATION_URL, form), "/connexion")
         self.assertEqual(User.objects.count(), 1)
         self.assertContains(other_client.get("/connexion"), "Se connecter")
@@ -105,32 +123,36 @@ class FirstConnectionTests(TestCase):
         with self.assertRaises(CommandError):
             self.issue_code()
 
-    def test_wrong_replaced_and_expired_codes_cannot_create_a_user(self):
+    def test_wrong_replaced_and_expired_links_cannot_create_a_user(self):
         old = self.issue_code()
+        self.assertEqual(
+            self.client.post(AUTHORIZE_URL, {"token": old}).status_code, 204
+        )
         current = self.issue_code()
+        self.assertEqual(self.client.post(INSTALLATION_URL, self.data).status_code, 403)
         for code in (old, secrets.token_urlsafe(32)):
-            response = self.client.post(
-                INSTALLATION_URL, {**self.data, "setup_code": code}
-            )
-            self.assertContains(
-                response, "Code d’installation invalide ou expiré", status_code=403
-            )
+            response = self.client.post(AUTHORIZE_URL, {"token": code})
             self.assertNotContains(response, code, status_code=403)
         InstanceSetup.objects.update(expires_at=timezone.now())
+        self.assertEqual(
+            self.client.post(AUTHORIZE_URL, {"token": current}).status_code, 403
+        )
         self.assertRedirects(
-            self.client.post(INSTALLATION_URL, {**self.data, "setup_code": current}),
-            "/connexion",
+            self.client.post(INSTALLATION_URL, self.data), "/connexion"
         )
         self.assertFalse(User.objects.exists())
         self.assertFalse(Company.objects.exists())
 
-    def test_bad_form_and_failed_creation_leave_the_code_usable(self):
+    def test_bad_form_and_failed_creation_leave_the_link_usable(self):
         code = self.issue_code()
-        form = {**self.data, "setup_code": code}
-        bad_form = {**form, "password_confirmation": "Un autre mot de passe"}
+        self.assertEqual(
+            self.client.post(AUTHORIZE_URL, {"token": code}).status_code, 204
+        )
+        bad_form = {**self.data, "password": "court"}
         response = self.client.post(INSTALLATION_URL, bad_form)
-        self.assertContains(response, "Les mots de passe diffèrent.", status_code=422)
-        self.assertNotContains(response, self.password, status_code=422)
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("password", response.context["form"].errors)
+        self.assertNotContains(response, 'value="court"', status_code=422)
         self.assertNotContains(response, code, status_code=422)
         with (
             patch(
@@ -140,17 +162,17 @@ class FirstConnectionTests(TestCase):
             self.assertRaises(IntegrityError),
         ):
             create_first_owner(
-                address=form["email"],
-                name=form["name"],
-                company_name=form["company_name"],
-                password=form["password"],
-                setup_code=code,
+                address=self.data["email"],
+                name=self.data["name"],
+                company_name=self.data["company_name"],
+                password=self.password,
+                setup_hash=digest(code),
             )
         self.assertFalse(User.objects.exists())
         self.assertFalse(Company.objects.exists())
         self.assertEqual(InstanceSetup.objects.get().code_hash, digest(code))
         self.assertRedirects(
-            self.client.post(INSTALLATION_URL, form), "/app/compte/securite"
+            self.client.post(INSTALLATION_URL, self.data), "/app/compte/securite"
         )
 
     def test_cli_bootstrap_disables_the_wizard(self):
@@ -159,9 +181,11 @@ class FirstConnectionTests(TestCase):
             call_command("bootstrap", email=self.data["email"], stdout=io.StringIO())
         self.assertTrue(User.objects.get().is_superuser)
         self.assertEqual(CompanyMember.objects.get().role, "owner")
+        self.assertEqual(
+            self.client.post(AUTHORIZE_URL, {"token": code}).status_code, 403
+        )
         self.assertRedirects(
-            self.client.post(INSTALLATION_URL, {**self.data, "setup_code": code}),
-            "/connexion",
+            self.client.post(INSTALLATION_URL, self.data), "/connexion"
         )
 
     def test_setup_does_not_open_public_registration(self):
@@ -185,7 +209,7 @@ class ConcurrentFirstConnectionTests(TransactionTestCase):
                     name="Propriétaire",
                     company_name="Entreprise de test",
                     password=secrets.token_urlsafe(24),
-                    setup_code=code,
+                    setup_hash=digest(code),
                 )
                 return True
             except BusinessError as exc:

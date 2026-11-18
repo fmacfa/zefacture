@@ -46,7 +46,7 @@ dc up -d --build --wait --wait-timeout 180 web
 dc up -d --no-deps worker
 export TEST_BASE_URL="http://127.0.0.1:$ci_port"
 export NODE_PATH="$PWD/tests/browser/node_modules${NODE_PATH:+:$NODE_PATH}"
-TEST_SETUP_CODE="$(dc exec -T web python manage.py setup_code)" node tests/browser-first-connection.cjs
+TEST_SETUP_LINK="$(dc exec -T web python manage.py setup_link)" node tests/browser-first-connection.cjs
 dc exec -T web python manage.py shell < tests/browser_fixture.py
 node tests/browser-smoke.cjs
 node tests/browser-imports.cjs

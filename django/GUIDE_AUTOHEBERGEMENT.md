@@ -62,10 +62,10 @@ Configurer le DNS `A` de `zefacture.com` vers le serveur. Ajouter `AAAA` uniquem
 ```sh
 docker compose --profile https up -d --build
 docker compose ps
-docker compose exec web python manage.py setup_code
+docker compose exec web python manage.py setup_link
 ```
 
-Ouvrir `https://zefacture.com/connexion` pour créer le premier compte administrateur. Saisir l’adresse e-mail, le nom, le nom de l’entreprise, le mot de passe choisi et le code d’installation généré par la dernière commande. Ce code est privé, valable sept jours et utilisable une seule fois. Pour remplacer un code perdu ou expiré, relancer `setup_code` depuis le serveur. `setup_code` est réservé aux instances vierges.
+Ouvrir dans le navigateur le lien privé affiché par `setup_link`. Renseigner l’entreprise, le nom, l’adresse e-mail et le mot de passe choisi. Le lien est valable sept jours et cesse de fonctionner à la création du premier compte. Pour remplacer un lien perdu ou expiré, relancer `setup_link` depuis le serveur. La commande est réservée aux instances vierges.
 
 Après création, activer la double authentification dans **Mon compte → Sécurité**, puis compléter les réglages de l’entreprise. À la connexion suivante, utiliser l’adresse e-mail du compte et son mot de passe. Le propriétaire invite ensuite ses collaborateurs.
 

@@ -1,3 +1,4 @@
+import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -6,6 +7,7 @@ from django.contrib import auth, messages
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_http_methods, require_POST
@@ -14,6 +16,9 @@ from core.forms import FirstConnectionForm
 from core.models import User, Company, CompanyMember, CompanyInvitation, PasswordReset
 from core.security import throttle
 from core.services import instance_setup
+
+
+INSTALLATION_SESSION_KEY = "installation_hash"
 
 
 def start_session(request, user):
@@ -209,15 +214,39 @@ def authentication(request, mode="login", token=""):
     )
 
 
-@sensitive_post_parameters("setup_code", "password", "password_confirmation")
+@sensitive_post_parameters("token")
+@require_POST
+@sensitive_variables("token", "setup_hash")
+def authorize_first_connection(request):
+    if not instance_setup.setup_available():
+        return HttpResponse(status=403)
+    try:
+        throttle(request, "first-connection-link", limit=10, seconds=900)
+    except BusinessError as exc:
+        return HttpResponse(status=exc.status)
+    token = request.POST.get("token", "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+        return HttpResponse(status=403)
+    setup_hash = digest(token)
+    if not instance_setup.setup_available(setup_hash):
+        return HttpResponse(status=403)
+    request.session.cycle_key()
+    request.session[INSTALLATION_SESSION_KEY] = setup_hash
+    return HttpResponse(status=204)
+
+
+@sensitive_post_parameters("password")
 @require_http_methods(["GET", "HEAD", "POST"])
-@sensitive_variables("form", "data")
+@sensitive_variables("form", "data", "setup_hash")
 def first_connection(request):
     if not instance_setup.setup_available():
         return redirect("/connexion")
-    form = FirstConnectionForm(request.POST if request.method == "POST" else None)
-    status = 200
-    if request.method == "POST":
+    setup_hash = request.session.get(INSTALLATION_SESSION_KEY)
+    authorized = bool(setup_hash and instance_setup.setup_available(setup_hash))
+    submitting = request.method == "POST"
+    form = FirstConnectionForm(request.POST if submitting and authorized else None)
+    status = 403 if submitting and not authorized else 200
+    if submitting and authorized:
         try:
             throttle(request, "first-connection", limit=10, seconds=900)
             if form.is_valid():
@@ -227,8 +256,9 @@ def first_connection(request):
                     name=data["name"],
                     company_name=data["company_name"],
                     password=data["password"],
-                    setup_code=data["setup_code"],
+                    setup_hash=setup_hash,
                 )
+                request.session.pop(INSTALLATION_SESSION_KEY, None)
                 start_session(request, user)
                 return redirect(
                     "/app/compte/securite" if settings.MFA_REQUIRED_FOR_ADMINS else "/app"
@@ -243,7 +273,7 @@ def first_connection(request):
     return render(
         request,
         "core/first_connection.html",
-        {"title": "Créer le premier compte", "form": form},
+        {"form": form, "authorized": authorized},
         status=status,
     )
 

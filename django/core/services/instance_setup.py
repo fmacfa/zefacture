@@ -24,11 +24,11 @@ def pending_setup():
     return InstanceSetup.objects.filter(pk=1, completed_at__isnull=True)
 
 
-def setup_available():
-    return (
-        pending_setup().filter(expires_at__gt=timezone.now()).exists()
-        and instance_is_empty()
-    )
+def setup_available(setup_hash=None):
+    pending = pending_setup().filter(expires_at__gt=timezone.now())
+    if setup_hash is not None:
+        pending = pending.filter(code_hash=setup_hash)
+    return pending.exists() and instance_is_empty()
 
 
 @sensitive_variables("code")
@@ -46,20 +46,20 @@ def issue_setup_code():
     return code
 
 
-@sensitive_variables("password", "setup_code")
-def create_first_owner(*, address, name, company_name, password, setup_code=None):
-    if setup_code is None:
+@sensitive_variables("password", "setup_hash")
+def create_first_owner(*, address, name, company_name, password, setup_hash=None):
+    if setup_hash is None:
         InstanceSetup.objects.get_or_create(pk=1)
     now = timezone.now()
     pending = pending_setup()
-    if setup_code is not None:
-        pending = pending.filter(code_hash=digest(setup_code), expires_at__gt=now)
+    if setup_hash is not None:
+        pending = pending.filter(code_hash=setup_hash, expires_at__gt=now)
     with transaction.atomic():
         # Update first to serialize provisioning in both PostgreSQL and SQLite.
-        # If validation or creation fails, the code remains usable.
+        # If validation or creation fails, the link remains usable.
         if not pending.update(code_hash="", expires_at=None, completed_at=now):
-            if setup_code is not None:
-                raise BusinessError("Code d’installation invalide ou expiré.", 403)
+            if setup_hash is not None:
+                raise BusinessError("Lien d’installation invalide ou expiré.", 403)
             raise BusinessError(INSTANCE_ALREADY_CONFIGURED, 409)
         if not instance_is_empty():
             raise BusinessError(INSTANCE_ALREADY_CONFIGURED, 409)
@@ -68,7 +68,6 @@ def create_first_owner(*, address, name, company_name, password, setup_code=None
             name=name,
             is_staff=True,
             is_superuser=True,
-            terms_accepted_at=stamp(),
         )
         validate_password(password, user)
         user.set_password(password)

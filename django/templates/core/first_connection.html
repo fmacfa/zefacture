@@ -1,27 +1,60 @@
-{% extends "core/base.html" %}
-{% block content %}
-<section class="card auth-card">
-  <h1>{{ title }}</h1>
-  <p class="muted">Créez le compte administrateur et renseignez le nom de votre entreprise.</p>
-  <form method="post" class="stack">
-    {% csrf_token %}
-    {% if form.non_field_errors %}
-      <div class="notice error" role="alert">{{ form.non_field_errors }}</div>
-    {% endif %}
-    {% for field in form %}
-      {% if field.name == "terms" %}
-        <label class="check" for="{{ field.id_for_label }}">
-          {{ field }} <span>J’accepte les <a href="/cgu">conditions d’utilisation</a>.</span>
-        </label>
-      {% else %}
-        <div>
-          <label for="{{ field.id_for_label }}">{{ field.label }} {{ field }}</label>
-          {% if field.help_text %}<small id="{{ field.auto_id }}_helptext">{{ field.help_text }}</small>{% endif %}
-        </div>
-      {% endif %}
-      {% if field.errors %}<div class="notice error" role="alert">{{ field.errors }}</div>{% endif %}
-    {% endfor %}
-    <button type="submit">Créer mon compte</button>
-  </form>
-</section>
-{% endblock %}
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Créer le premier compte · ZeFacture</title>
+  <link rel="stylesheet" href="{% static 'first-connection.css' %}">
+  <script src="{% static 'first-connection.js' %}" defer></script>
+</head>
+<body class="setup-page">
+  <a class="setup-skip" href="#main">Aller au formulaire</a>
+  <aside class="setup-story" aria-label="ZeFacture">
+    <a class="setup-brand" href="/"><span aria-hidden="true">z.</span>ZeFacture</a>
+    <div class="setup-story-content">
+      <p>Votre facturation,<br><strong>sur votre serveur.</strong></p>
+      <div class="setup-art" aria-hidden="true">
+        <div class="setup-art-sheet"><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <a class="setup-source" href="/source">Logiciel libre · AGPL-3.0</a>
+  </aside>
+  <main class="setup-panel" id="main">
+    <section class="setup-card">
+      <h1>Créer le premier compte</h1>
+      <p class="setup-intro">Créez votre entreprise et son premier compte administrateur.</p>
+      <form method="post" data-setup-form data-authorize-url="{% url 'authorize_first_connection' %}">
+        {% csrf_token %}
+        <p class="setup-status" data-setup-status role="status"{% if authorized %} hidden{% endif %}>
+          Ouvrez votre lien privé d’installation pour activer le formulaire.
+        </p>
+        {% if not authorized %}
+          <noscript>Le lien d’installation a besoin de JavaScript pour activer le formulaire.</noscript>
+        {% endif %}
+        {{ form.non_field_errors }}
+        <fieldset{% if not authorized %} disabled{% endif %}>
+          <legend class="setup-visually-hidden">Identité du premier administrateur</legend>
+          {% for field in form %}
+          <div class="setup-field">
+            <div class="setup-field-head">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {% if field.name == "password" %}
+                <button class="setup-password-toggle" type="button" data-password-toggle
+                        aria-controls="{{ field.id_for_label }}" aria-pressed="false" hidden>
+                  Afficher le mot de passe
+                </button>
+              {% endif %}
+            </div>
+            {{ field }}
+            {% if field.help_text %}<small id="{{ field.auto_id }}_helptext">{{ field.help_text }}</small>{% endif %}
+            {{ field.errors }}
+          </div>
+          {% endfor %}
+          <button class="setup-submit" type="submit">Créer mon espace <span aria-hidden="true">→</span></button>
+        </fieldset>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
