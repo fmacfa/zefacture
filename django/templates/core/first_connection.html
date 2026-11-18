@@ -31,12 +31,6 @@
       <form method="post" data-setup-form data-setup-authorized="{{ authorized|yesno:'true,false' }}"
             data-authorize-url="{% url 'authorize_first_connection' %}">
         {% csrf_token %}
-        <p class="setup-status" data-setup-status role="status" tabindex="-1"{% if authorized %} hidden{% endif %}>
-          Ouvrez votre lien privé d’installation pour valider la création du compte.
-        </p>
-        {% if not authorized %}
-          <noscript>Activez JavaScript pour vérifier le lien d’installation.</noscript>
-        {% endif %}
         {{ form.non_field_errors }}
         <fieldset>
           <legend class="setup-visually-hidden">Identité du premier administrateur</legend>
@@ -56,6 +50,17 @@
             {{ field.errors }}
           </div>
           {% endfor %}
+          <p class="setup-status" data-setup-status data-state="{{ authorized|yesno:'ready,hint' }}"
+             role="status" tabindex="-1">
+            {% if authorized %}
+              Lien privé vérifié. Vous pouvez créer votre compte.
+            {% else %}
+              Ouvrez votre lien privé d’installation dans ce navigateur pour autoriser la création du compte.
+            {% endif %}
+          </p>
+          {% if not authorized %}
+            <noscript>Activez JavaScript pour vérifier le lien d’installation.</noscript>
+          {% endif %}
           <button class="setup-submit" type="submit">Créer mon espace <span aria-hidden="true">→</span></button>
         </fieldset>
       </form>

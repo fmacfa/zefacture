@@ -58,6 +58,7 @@ class FirstConnectionTests(TestCase):
         self.assertNotContains(response, 'name="setup_code"')
         self.assertNotContains(response, 'name="terms"')
         self.assertEqual(self.client.post(INSTALLATION_URL, self.data).status_code, 403)
+        self.assertEqual(self.client.get(AUTHORIZE_URL).status_code, 403)
         self.assertEqual(response.headers["Cache-Control"], "private, no-store")
         self.assertFalse(User.objects.exists())
 
@@ -80,6 +81,10 @@ class FirstConnectionTests(TestCase):
         self.assertEqual(
             browser.post(AUTHORIZE_URL, {"token": code, **csrf}).status_code, 204
         )
+        authorized = browser.get(AUTHORIZE_URL)
+        self.assertEqual(authorized.status_code, 204)
+        self.assertEqual(authorized.headers["Cache-Control"], "private, no-store")
+        self.assertEqual(Client().get(AUTHORIZE_URL).status_code, 403)
         self.assertNotContains(browser.get(INSTALLATION_URL), code)
         self.assertEqual(browser.post(INSTALLATION_URL, self.data).status_code, 403)
 
@@ -107,6 +112,7 @@ class FirstConnectionTests(TestCase):
         self.assertEqual(setup.code_hash, "")
         self.assertIsNone(setup.expires_at)
         self.assertIsNotNone(setup.completed_at)
+        self.assertEqual(browser.get(AUTHORIZE_URL).status_code, 403)
         other_client = Client()
         self.assertEqual(
             other_client.post(AUTHORIZE_URL, {"token": code}).status_code, 403
@@ -130,6 +136,7 @@ class FirstConnectionTests(TestCase):
             self.client.post(AUTHORIZE_URL, {"token": old}).status_code, 204
         )
         current = self.issue_code()
+        self.assertEqual(self.client.get(AUTHORIZE_URL).status_code, 403)
         self.assertEqual(self.client.post(INSTALLATION_URL, self.data).status_code, 403)
         for code in (old, secrets.token_urlsafe(32)):
             response = self.client.post(AUTHORIZE_URL, {"token": code})

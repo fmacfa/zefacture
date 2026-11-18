@@ -96,7 +96,10 @@ button, input { font: inherit; }
 .setup-card { width: min(100%, 30rem); }
 .setup-card h1 { margin: 0; font-size: clamp(1.8rem, 3.4vw, 2.65rem); line-height: 1.1; letter-spacing: -.045em; }
 .setup-intro { margin: .8rem 0 1.5rem; color: #4b6257; line-height: 1.55; }
-.setup-status { margin: 0 0 1rem; padding: .75rem .9rem; background: var(--zf-orange-pale); border-radius: .55rem; color: var(--zf-forest); line-height: 1.4; }
+.setup-status { margin: 0; padding: .75rem .9rem; background: var(--zf-orange-pale); border: 1px solid transparent; border-radius: .55rem; color: var(--zf-forest); line-height: 1.4; }
+.setup-status[data-state="ready"] { background: var(--zf-sage); }
+.setup-status[data-state="error"] { border-color: var(--zf-orange-dark); color: var(--zf-ink); }
+.setup-status:focus { outline: 2px solid var(--zf-orange-dark); outline-offset: 2px; }
 
 .setup-card fieldset { display: grid; gap: .9rem; min-width: 0; margin: 0; padding: 0; border: 0; }
 .setup-field { display: grid; gap: .35rem; }
