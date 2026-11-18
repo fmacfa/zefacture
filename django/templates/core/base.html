@@ -9,8 +9,11 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'zefacture-mark.svg' %}">
   <link rel="stylesheet" href="{% static 'identity.css' %}">
   <link rel="stylesheet" href="{% static 'app.css' %}">
+  <link rel="stylesheet" href="{% static 'forms.css' %}">
+  <link rel="stylesheet" href="{% static 'sidebar.css' %}">
   {% block styles %}{% endblock %}
   <script src="{% static 'app.js' %}" defer></script>
+  <script src="{% static 'form-draft.js' %}" defer></script>
   {% if palette %}
     <style nonce="{{ csp_nonce }}">
       :root {
@@ -26,40 +29,7 @@
 <body>
   <a class="skip-link" href="#main">Aller au contenu</a>
   {% if user.is_authenticated %}
-    <aside class="sidebar">
-      <a class="brand" href="/app" aria-label="{{ branding.display_name|default:'ZeFacture' }}, accueil">
-        {% include "core/wordmark.html" with name=branding.display_name logo=branding.logo_path only %}
-      </a>
-      <p class="eyebrow">Espace de gestion</p>
-      <nav aria-label="Espace de gestion">
-        <a href="/app">Vue d'ensemble</a>
-        <a href="/app/devis">Devis</a>
-        <a href="/app/factures">Factures</a>
-        <a href="/app/avoirs">Avoirs</a>
-        <a href="/app/clients">Clients</a>
-        <a href="/app/crm">CRM</a>
-        {% if can_write %}<a href="/app/inventaire">Inventaire</a>{% endif %}
-        <div class="nav-label">Achats &amp; finances</div>
-        <a href="/app/reception">Factures fournisseurs</a>
-        {% if can_write %}<a href="/app/imports">Imports</a>{% endif %}
-        <a href="/app/notes-de-frais">Notes de frais</a>
-        {% if can_finance %}
-          <a href="/app/finances">Finances</a>
-          <a href="/app/rapports">Rapports</a>
-        {% endif %}
-        <div class="nav-label">Administration</div>
-        <a href="/app/entreprise">Mon entreprise</a>
-        {% if can_admin %}
-          <a href="/app/entreprise/personnalisation">Personnalisation</a>
-          <a href="/app/collaborateurs">Collaborateurs</a>
-          <a href="/app/emails">Emails</a>
-          <a href="/app/developpeurs">API &amp; intégrations</a>
-          <a href="/app/entreprise/journal">Journal de sécurité</a>
-        {% endif %}
-        <a href="/app/compte">Mon compte</a>
-      </nav>
-      <div class="sidebar-footer"><a href="/source">ZeFacture · AGPL-3.0</a></div>
-    </aside>
+    {% include "core/sidebar.html" %}
   {% endif %}
   <div class="{% if user.is_authenticated %}workspace{% else %}public-workspace{% endif %}">
     <header class="topbar">

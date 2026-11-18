@@ -1,12 +1,68 @@
 {% extends "core/base.html" %}{% block content %}
 <div class="page-head"><div><h1>Connexion SUPERPDP</h1><p>Émission, réception des originaux et suivi des statuts par entreprise.</p></div></div>
-<div class="notice">Connexion : {{ pdp.status }} · Entreprise : {{ pdp.company_verification_status|default:"non vérifiée" }}{% if pdp.pdp_company_env %} · Environnement : {{ pdp.pdp_company_env }}{% endif %}</div>
+<section class="card" aria-labelledby="pdp-status">
+  <h2 id="pdp-status">État de la connexion</h2>
+  <dl class="form-grid settings-summary">
+    <div><dt>Connexion</dt><dd>{{ connection_label }}</dd></div>
+    {% if pdp.status != 'not_configured' and pdp.status != 'sandbox' %}
+      <div><dt>Entreprise</dt><dd>{{ verification_label }}</dd></div>
+    {% endif %}
+    {% if pdp.pdp_company_env %}
+      <div><dt>Environnement</dt><dd>{% if pdp.pdp_company_env == 'sandbox' %}Bac à sable{% elif pdp.pdp_company_env == 'production' %}Production{% else %}{{ pdp.pdp_company_env }}{% endif %}</dd></div>
+    {% endif %}
+    {% if pdp.last_checked_at %}<div><dt>Dernier contrôle</dt><dd>{{ pdp.last_checked_at }}</dd></div>{% endif %}
+  </dl>
+  {% if has_pdp_credentials %}
+    <form method="post" class="form-actions">
+      {% csrf_token %}
+      <button name="action" value="verify" class="secondary">Vérifier la connexion SUPERPDP</button>
+    </form>
+  {% endif %}
+</section>
 <div class="grid two">
-<section class="card stack"><h2>Lier votre compte</h2><p>Autorisez cette instance ZeFacture depuis SUPERPDP. Le compte doit correspondre à cette entreprise.</p><form method="post" action="/app/entreprise/pdp/connecter">{% csrf_token %}<button>Se connecter à SUPERPDP</button></form><p>URL de retour à déclarer :</p><code class="break">{{ redirect_uri }}</code>
-<form method="post">{% csrf_token %}<button name="action" value="verify" class="secondary">Lire le profil SUPERPDP</button></form>
-<p>Entreprise distante : {{ pdp.pdp_company_id|default:"—" }} · Dernier contrôle : {{ pdp.last_checked_at|default:"—" }}</p>
-<form method="post" data-confirm="Déconnecter les accès SUPERPDP ? L'historique et les originaux seront conservés.">{% csrf_token %}<button class="danger" name="action" value="disconnect">Déconnecter SUPERPDP</button></form></section>
-<form method="post" class="card stack">{% csrf_token %}<h2>Identifiants techniques</h2><p class="muted">Alternative pour un compte technique autorisé. Pour OAuth, l’exploitant configure l’application sur le serveur.</p><label>URL de l'API<input name="api_base" value="{{ pdp.api_base }}" required></label><label>Client ID<input name="client_id" value="{{ pdp.client_id|default:'' }}"></label><label>Client secret (laisser vide pour conserver)<input name="client_secret" type="password" autocomplete="new-password"></label><label>Token d'accès (laisser vide pour conserver)<input name="access_token" type="password" autocomplete="new-password"></label>{% if allow_sandbox %}<label class="check"><input type="checkbox" name="sandbox" value="1" {% if pdp.status == "sandbox" %}checked{% endif %}>Simulation locale sans envoi au fournisseur</label>{% endif %}<button>Enregistrer</button></form>
+  <section class="card stack">
+    <h2>Autorisation OAuth</h2>
+    {% if external_services_disabled %}
+      <p>Les connexions aux services externes sont désactivées sur cette instance.</p>
+    {% elif oauth_ready %}
+      <p>Autorisez ZeFacture à accéder au compte SUPERPDP de cette entreprise.</p>
+      <form method="post" action="/app/entreprise/pdp/connecter">
+        {% csrf_token %}
+        <button>Se connecter à SUPERPDP</button>
+      </form>
+    {% else %}
+      <p>L’application OAuth de cette instance doit être configurée par l’exploitant. Vous pouvez utiliser les identifiants techniques de votre compte.</p>
+      <button type="button" disabled>Se connecter à SUPERPDP</button>
+    {% endif %}
+    <details>
+      <summary>Adresse de retour OAuth</summary>
+      <code class="break">{{ redirect_uri }}</code>
+    </details>
+    {% if has_pdp_credentials %}
+      <form method="post" data-confirm="Déconnecter les accès SUPERPDP ?">
+        {% csrf_token %}
+        <button class="danger" name="action" value="disconnect">Déconnecter SUPERPDP</button>
+      </form>
+    {% endif %}
+  </section>
+  <form method="post" class="card stack">
+    {% csrf_token %}
+    <h2>Identifiants techniques</h2>
+    <p class="form-help">Utilisez l’identifiant et le secret client SUPERPDP, ou un jeton d’accès pour cette entreprise.</p>
+    <div class="form-grid">
+      <label>Identifiant client<input name="client_id" value="{{ pdp.client_id|default:'' }}" autocomplete="off"></label>
+      <label>Secret client<input name="client_secret" type="password" autocomplete="new-password" placeholder="{% if pdp.client_secret_encrypted %}Laissez vide pour conserver{% endif %}"></label>
+      <label class="full">Jeton d’accès (facultatif)<input name="access_token" type="password" autocomplete="new-password"></label>
+    </div>
+    <details>
+      <summary>Paramètres avancés</summary>
+      <label>URL de l’API<input name="api_base" value="{{ pdp.api_base }}" required></label>
+      {% if allow_sandbox %}
+        <label class="check"><input type="checkbox" name="sandbox" value="1"{% if pdp.status == "sandbox" %} checked{% endif %}>Simulation locale sans envoi au fournisseur</label>
+      {% endif %}
+    </details>
+    <button name="action" value="save_and_verify">Enregistrer et vérifier</button>
+  </form>
 </div>
 <section class="card stack"><h2>Factures et statuts</h2><p>{{ invoice_count }} facture{{ invoice_count|pluralize }} liée{{ invoice_count|pluralize }} · Dernière synchronisation réussie : {{ sync.last_success_at|date:"d/m/Y H:i"|default:"jamais" }}</p>
 {% if sync.last_error %}<p class="notice error" role="alert">{{ sync.last_error }}</p>{% endif %}

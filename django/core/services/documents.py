@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 from collections import defaultdict
+import re
 from django.db import transaction
 from core.common import (
     BusinessError,
@@ -63,6 +64,13 @@ def snapshot(party, seller=False):
         result["branding"] = branding_snapshot(party)
         for key in "bank_iban bank_bic payment_terms invoice_footer vat_regime has_vat_on_debits legal_form share_capital rcs_city rcs_number".split():
             result[key] = getattr(party, key, "") or ""
+        siren = "".join(result["siren"].split())
+        if (
+            result["country_code"].upper() == "FR"
+            and result["rcs_city"]
+            and re.fullmatch(r"[0-9]{9}", siren)
+        ):
+            result["rcs_number"] = siren
         session = PdpSession.objects.filter(company_uid=party.company_uid).first()
         for key in "pdp_company_id pdp_company_number pdp_company_number_scheme pdp_company_env".split():
             result[key] = getattr(session, key, "") or ""

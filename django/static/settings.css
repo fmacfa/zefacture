@@ -1,10 +1,10 @@
-.company-settings-header,
-.company-settings-layout {
+.settings-header,
+.settings-layout {
   max-width: 1150px;
   margin-inline: auto;
 }
 
-.company-settings-header {
+.settings-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -13,29 +13,29 @@
   margin-bottom: 1.5rem;
 }
 
-.company-settings-header h1 {
+.settings-header h1 {
   margin: 0;
   font-size: clamp(1.65rem, 3vw, 2rem);
 }
 
-.company-settings-related {
+.settings-related {
   display: flex;
   flex-wrap: wrap;
   gap: .65rem;
 }
 
-.company-settings-layout {
+.settings-layout {
   display: grid;
   grid-template-columns: 14rem minmax(0, 1fr);
   align-items: start;
   gap: 1.5rem;
 }
 
-.company-settings-navigation.card {
+.settings-navigation.card {
   padding: .45rem;
 }
 
-.company-settings-navigation ul {
+.settings-navigation ul {
   display: grid;
   gap: .15rem;
   padding: 0;
@@ -43,7 +43,7 @@
   list-style: none;
 }
 
-.company-settings-navigation a {
+.settings-navigation a {
   display: flex;
   align-items: center;
   min-height: 2.75rem;
@@ -53,84 +53,68 @@
   color: var(--ink);
 }
 
-.company-settings-navigation a:hover {
+.settings-navigation a:hover {
   background: var(--paper);
 }
 
-.company-settings-navigation a[aria-current="page"] {
+.settings-navigation a[aria-current="page"] {
   border-inline-start-color: var(--zf-orange);
   background: var(--paper);
   font-weight: 700;
 }
 
-.company-settings-panel.card {
+.settings-panel.card {
   padding: clamp(1rem, 3vw, 2rem);
 }
 
-.company-settings-panel-header h2 {
+.settings-panel-header h2 {
   margin: 0;
   font-size: 1.35rem;
 }
 
-.company-settings-panel-header p {
+.settings-panel-header p {
   margin: .3rem 0 0;
 }
 
-.company-settings-group {
+.settings-group {
   padding-block: 1.5rem;
   border-top: 1px solid var(--line);
 }
 
-.company-settings-panel-header + form,
-.company-settings-panel-header + .company-settings-group {
+.settings-panel-header + form,
+.settings-panel-header + .settings-group {
   margin-top: 1.25rem;
 }
 
-.company-settings-group h3 {
+.settings-group h3 {
   margin: 0 0 .85rem;
   color: var(--link);
   font-size: 1rem;
 }
 
-.company-settings-field {
-  display: grid;
-  align-content: start;
-  gap: .35rem;
-  min-width: 0;
-}
-
-.company-settings-field .errorlist {
-  margin: 0;
-}
-
-.company-settings-field textarea {
-  min-height: 6rem;
-  resize: vertical;
-}
-
-.company-settings-note p {
+.settings-note p {
   margin: 0 0 .3rem;
 }
 
-.company-settings-note a {
+.settings-note a {
   text-decoration: underline;
 }
 
-.company-settings-values {
+.settings-values {
   margin: 0;
 }
 
-.company-settings-values dt {
+.settings-values dt {
   color: var(--muted);
   font-size: .85rem;
 }
 
-.company-settings-values dd {
+.settings-values dd {
   margin: .25rem 0 0;
   overflow-wrap: anywhere;
 }
 
-.company-settings-actions {
+.settings-actions {
   display: flex;
   justify-content: flex-end;
   padding-top: 1rem;
@@ -138,28 +122,57 @@
 }
 
 @media (max-width: 880px) {
-  .company-settings-layout {
+  .settings-layout {
     grid-template-columns: 1fr;
     gap: .75rem;
   }
 
-  .company-settings-navigation.card {
+  .settings-navigation.card {
     margin-bottom: 0;
   }
 
-  .company-settings-navigation ul {
+  .settings-navigation ul {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
   }
 }
 
 @media (max-width: 700px) {
-  .company-settings-field input,
-  .company-settings-field select,
-  .company-settings-field textarea {
-    font-size: 1rem;
-  }
-
-  .company-settings-actions button {
+  .settings-actions button {
     width: 100%;
   }
+}
+
+fieldset.settings-group {
+  border: 1px solid var(--line);
+  margin: 0 0 1.25rem;
+  padding: .85rem 1rem 1rem;
+}
+
+fieldset.settings-group legend {
+  padding: 0 .35rem;
+  color: var(--link);
+  font-size: .95rem;
+  font-weight: 700;
+}
+
+.settings-group label {
+  margin: 0;
+}
+
+.settings-group .form-help {
+  margin-top: 0;
+}
+
+.template-variables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem .6rem;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.template-variables code {
+  white-space: nowrap;
 }

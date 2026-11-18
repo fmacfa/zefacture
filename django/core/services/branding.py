@@ -97,43 +97,49 @@ def normalized_logo(uploaded, company_uid):
     ).hexdigest()
 
 
-@transaction.atomic
-def save(company, data, uploaded=None):
-    row, _ = CompanyBranding.objects.get_or_create(company_uid=company.company_uid)
-    row = CompanyBranding.objects.select_for_update().get(pk=row.pk)
+def identity_values(data):
     color = str(data.get("accent_color", DEFAULT_ACCENT))
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
         raise BusinessError(f"Utilisez un code couleur hexadécimal comme {DEFAULT_ACCENT}.")
-    row.accent_color = color.lower()
-    row.display_name = str(data.get("display_name", "")).strip()
-    if len(row.display_name) > 120 or any(c in row.display_name for c in "\r\n"):
+    name = str(data.get("display_name", "")).strip()
+    if len(name) > 120 or any(c in name for c in "\r\n"):
         raise BusinessError("Nom d’affichage limité à 120 caractères, sur une ligne.")
-    row.document_layout = data.get("document_layout", "classic")
-    if row.document_layout not in {"classic", "compact"}:
-        raise BusinessError("Modèle de document inconnu.")
-    from iso4217 import Currency
+    return {"display_name": name, "accent_color": color.lower()}
 
+
+def document_values(data):
+    layout = data.get("document_layout", "classic")
+    if layout not in {"classic", "compact"}:
+        raise BusinessError("Modèle de document inconnu.")
     try:
-        row.default_currency = Currency(
-            str(data.get("default_currency", "EUR")).upper()
-        ).code
-        if row.default_currency not in SUPPORTED_CURRENCIES:
+        currency = str(data.get("default_currency", "EUR")).upper()
+        if currency not in SUPPORTED_CURRENCIES:
             raise ValueError()
-        row.payment_due_days = int(data.get("payment_due_days", 30))
-        row.quote_validity_days = int(data.get("quote_validity_days", 30))
-        if (
-            not 0 <= row.payment_due_days <= 365
-            or not 1 <= row.quote_validity_days <= 365
-        ):
+        payment = int(data.get("payment_due_days", 30))
+        quote = int(data.get("quote_validity_days", 30))
+        if not 0 <= payment <= 365 or not 1 <= quote <= 365:
             raise ValueError()
     except (ValueError, TypeError):
         raise BusinessError(
             "Devise ISO valide et délais de 0 à 365 jours requis (devis : 1 minimum)."
         )
-    row.reply_to = email(data.get("reply_to"), optional=True)
-    row.email_signature = str(data.get("email_signature", "")).strip()
-    if len(row.email_signature) > 4000:
+    return {
+        "document_layout": layout,
+        "default_currency": currency,
+        "payment_due_days": payment,
+        "quote_validity_days": quote,
+    }
+
+
+def email_values(data):
+    reply_to = email(data.get("reply_to"), optional=True)
+    signature = str(data.get("email_signature", "")).strip()
+    if len(signature) > 4000:
         raise BusinessError("Signature limitée à 4 000 caractères.")
+    return {"reply_to": reply_to, "email_signature": signature}
+
+
+def template_values(data):
     templates = {}
     for key in TEMPLATE_NAMES:
         subject, body = (
@@ -155,12 +161,37 @@ def save(company, data, uploaded=None):
         validate_template(subject)
         validate_template(body)
         templates[key] = {"subject": subject, "body": body}
-    row.email_templates = templates
-    if data.get("remove_logo") == "1":
-        row.logo_path, row.logo_sha256 = "", ""
-    if uploaded:
-        row.logo_path, row.logo_sha256 = normalized_logo(uploaded, company.company_uid)
-    row.save()
+    return {"email_templates": templates}
+
+
+SECTION_VALUES = {
+    "identite": identity_values,
+    "documents": document_values,
+    "emails": email_values,
+    "modeles": template_values,
+}
+
+
+@transaction.atomic
+def save(company, data, uploaded=None, *, section=None):
+    validators = SECTION_VALUES.values() if section is None else (SECTION_VALUES[section],)
+    updates = {}
+    for validate in validators:
+        updates.update(validate(data))
+    row, _ = CompanyBranding.objects.get_or_create(
+        company_uid=company.company_uid, defaults={"accent_color": DEFAULT_ACCENT}
+    )
+    row = CompanyBranding.objects.select_for_update().get(pk=row.pk)
+    if section in (None, "identite"):
+        if uploaded:
+            updates["logo_path"], updates["logo_sha256"] = normalized_logo(
+                uploaded, company.company_uid
+            )
+        elif data.get("remove_logo") == "1":
+            updates["logo_path"], updates["logo_sha256"] = "", ""
+    for field, value in updates.items():
+        setattr(row, field, value)
+    row.save(update_fields=[*updates, "updated_at"])
     return row
 
 

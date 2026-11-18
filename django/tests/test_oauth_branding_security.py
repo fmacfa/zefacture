@@ -440,6 +440,34 @@ class BrandingTests(ApplicationCase):
             | changes
         )
 
+    def test_branding_sections_save_only_their_settings(self):
+        branding.save(self.company, self.data_brand(quote_subject="Devis", quote_body="{original_body}"))
+        base = "/app/entreprise/personnalisation"
+        email_url = base + "/emails"
+        self.assertContains(self.client.get(base), "Aperçu de la facture")
+        self.assertContains(self.client.get(base + "/documents"), "FA-EXEMPLE")
+        self.assertNotContains(self.client.get(email_url), "Nom d’affichage")
+        data = {
+            "company_uid": self.company.company_uid,
+            "reply_to": "change@example.test",
+            "email_signature": "Nouvelle signature",
+            "display_name": "Modification hors rubrique",
+            "document_layout": "classic",
+        }
+        self.assertRedirects(self.client.post(email_url, data), email_url)
+        row = branding.for_company(self.company)
+        self.assertEqual(row.reply_to, "change@example.test")
+        self.assertEqual(row.document_layout, "compact")
+        self.assertEqual(row.display_name, "Studio Exemple")
+        self.assertEqual(row.email_templates["quote"]["subject"], "Devis")
+        self.assertEqual(self.client.post(email_url, data | {"company_uid": self.other.company_uid}).status_code, 409)
+        self.assertContains(
+            self.client.post(base + "/identite", data | {"accent_color": "red"}),
+            "code couleur",
+            status_code=422,
+        )
+        self.assertEqual(branding.for_company(self.company).accent_color, "#9b156b")
+
     def test_logo_is_normalized_and_tenant_branding_is_snapshotted_and_immutable_after_issue(
         self,
     ):

@@ -263,12 +263,12 @@ Pour TLS direct, utiliser le port fourni, `SMTP_SSL=1` et `SMTP_TLS=0`. Faire co
 
 ## 8. Personnalisation pour les clients
 
-Un administrateur accède à **Mon entreprise → Personnalisation**. Les réglages appartiennent à l’entreprise sélectionnée :
+Un administrateur accède à **Mon entreprise → Personnalisation**. Les quatre rubriques de l’entreprise sélectionnée s’enregistrent séparément.
 
-- Nom d’affichage et couleur principale ; contraste adapté pour garder le texte lisible.
-- Logo PNG/JPEG/WebP, limité à 2 Mo et 16 mégapixels, normalisé en PNG sans métadonnées ; SVG refusé.
-- Présentation classique ou compacte des documents, devise et délais par défaut.
-- Adresse de réponse, signature et modèles des emails de devis, factures/avoirs et relances.
+- **Identité visuelle** permet de prévisualiser le nom, la couleur et le logo sur une facture d’exemple. Les logos PNG, JPEG et WebP sont normalisés en PNG. Limites de 2 Mo et 16 mégapixels.
+- **Documents** règle la présentation classique ou compacte, la devise et les délais par défaut. L’aperçu reprend ces réglages.
+- **Adresse et signature** règle l’adresse de réponse et la signature des emails.
+- **Modèles d’emails** édite les messages pour devis, factures, avoirs et relances.
 
 Dans **Mon entreprise**, chaque rubrique possède son propre enregistrement. Utilisez **Identité** pour le nom et la forme juridique, **Coordonnées** pour l’adresse et les contacts, **Immatriculation et TVA** pour les identifiants, **Paiement** pour l’IBAN, le BIC et les conditions, et **Documents** pour les préfixes et les mentions de bas de facture. Le nom légal figure sur les documents.
 
@@ -317,7 +317,7 @@ La transcription locale suggère les champs courants des tickets, même sans fou
 | Google Gemini | `GEMINI_API_KEY` | `GEMINI_MODEL` |
 | Anthropic Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` |
 
-Choisir un modèle texte compatible avec les sorties JSON de son API. Utiliser la clé de l’API du fournisseur, distincte des identifiants de messagerie et de la clé ZeFacture pour Codex. `INGESTION_AI_PROVIDER` peut placer `openrouter`, `openai`, `google` ou `anthropic` en tête du menu lorsque la paire correspondante est configurée. Après modification, relancer `docker compose up -d web worker` depuis le dossier de déploiement pour charger la nouvelle configuration.
+Choisir un modèle texte compatible avec les sorties JSON de son API. Utiliser la clé de l’API du fournisseur, distincte des identifiants de messagerie et de la clé ZeFacture pour Codex. `INGESTION_AI_PROVIDER` peut placer `openrouter`, `openai`, `google` ou `anthropic` en tête du menu lorsque la paire correspondante est configurée. Après modification, relancer `docker compose up -d web worker` depuis le dossier de déploiement pour charger la nouvelle configuration. Avec une installation native systemd, modifier le fichier privé indiqué par `ZEFACTURE_ENV_FILE`, puis redémarrer les services web et worker de l’instance.
 
 Les clés et modèles sont configurés par l’exploitant pour l’instance entière. Vérifier les conditions de traitement et de conservation du fournisseur avant d’autoriser cette fonction sur des pièces réelles. Seul le texte transcrit, jusqu’à 80 000 caractères, est transmis après une action explicite. ZeFacture n’envoie pas l’image ou le PDF et ne change pas de fournisseur en cas d’échec. `EXTERNAL_SERVICES_DISABLED=1` bloque les analyses externes tout en laissant fonctionner l’OCR. Vérifier chaque fournisseur souhaité sur un justificatif fictif avant usage réel.
 

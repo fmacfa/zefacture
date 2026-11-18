@@ -30,6 +30,10 @@ Dans **Mon entreprise**, choisissez **Identité**, **Coordonnées**, **Immatricu
 | Membre | Création et suivi métier, CRM, inventaire et ses frais ; pas d’accès aux écrans financiers et aux exports de rapports |
 | Lecteur | Consultation des écrans autorisés, sans modification ; inventaire, imports et finances restent réservés à leurs rôles respectifs |
 
+Pour une entreprise française, **Forme juridique** reprend les formes courantes (EI, EURL, SARL, SASU, SAS, etc.). Choisissez celle de votre justificatif d’immatriculation, ou **Autre (préciser)**. Dans **Immatriculation et TVA**, saisissez le SIREN une seule fois. Si vous êtes immatriculé au RCS, indiquez la ville du greffe pour composer la mention RCS. [Identifiants des entreprises](https://entreprendre.service-public.gouv.fr/vosdroits/F31190).
+
+Choisissez le **Régime TVA** indiqué dans **Déclarer la TVA**, dans l’espace professionnel impots.gouv.fr. Le menu propose la franchise en base, le réel normal et le réel simplifié français jusqu’à fin 2026. Une valeur antérieure reste consultable. En cas de doute, laissez **Non renseigné**. La TVA reste calculée d’après les lignes du document. [Où retrouver votre régime](https://www.impots.gouv.fr/facturation-electronique-qu-est-ce-que-ca-change-pour-moi) · [Fin du régime simplifié en 2027](https://www.impots.gouv.fr/professionnel/questions/quelles-differences-y-t-il-entre-le-regime-simplifie-dimposition-et-le-reel).
+
 ### Inviter plusieurs collaborateurs
 
 1. Un propriétaire ou administrateur ouvre **Collaborateurs**.
@@ -42,7 +46,7 @@ Les membres ne partagent pas de mot de passe. Aucun nombre maximal de membres n�
 
 ## 3. Clients professionnels, particuliers et CRM
 
-Dans **Clients**, créer une fiche **professionnel** ou **particulier**. Renseigner le nom, les coordonnées, le pays et, pour les professionnels concernés, les identifiants d’entreprise et de TVA. L’annuaire et le contrôle VIES dépendent de leurs services externes ; la saisie manuelle reste disponible.
+Dans **Clients → Nouveau client**, choisir **Professionnel** ou **Particulier**, puis compléter le nom et les coordonnées. Pour les professionnels, ouvrir **Immatriculation et facturation électronique** pour renseigner les identifiants lorsque nécessaire. Terminer avec **Créer le client**. La vérification dans l’annuaire ou via VIES est disponible depuis la fiche.
 
 Dans la fiche, choisir la relation : **Prospect**, **Client**, **Fournisseur** ou **Client et fournisseur**. Les anciennes fiches sont conservées et considérées comme clients jusqu’à modification de cette relation.
 
@@ -106,6 +110,8 @@ Pour une facture fournisseur, passer par **Imports → Facture fournisseur**. Ap
 
 Après transcription, **Analyser avec l’IA** propose les fournisseurs configurés sur le serveur. Ce bouton transmet le texte transcrit au fournisseur sélectionné. Le résultat peut suggérer les champs et les lignes lisibles. Les montants, la TVA et les dates doivent être relus avant enregistrement. Les informations déjà saisies dans la fiche de frais restent prioritaires. Voir la [configuration des fournisseurs](GUIDE_AUTOHEBERGEMENT.md#analyse-facultative-des-justificatifs).
 
+Pour retirer une note de la liste active, ouvrir sa fiche et choisir **Archiver le justificatif**. Depuis **Notes de frais → Voir les archives**, ouvrir la note puis **Restaurer le justificatif**. L’original et la facture liée sont conservés. Les rapports de notes de frais portent sur les justificatifs actifs.
+
 Les administrateurs et comptables peuvent traiter les frais de l’entreprise. Les autres utilisateurs gardent la visibilité de leurs propres justificatifs. Enregistrer les champs du ticket conserve l’original et ne crée pas de facture ni de paiement.
 
 ## 7. Finances et rapprochement
@@ -161,7 +167,7 @@ Un administrateur ouvre **Emails → Configurer ma messagerie**. Chaque entrepri
 
 En SMTP, renseigner expéditeur, hôte, port, TLS, identifiant et secret. En Google/Microsoft, l’exploitant crée d’abord l’application OAuth en suivant le [guide d’auto-hébergement](GUIDE_AUTOHEBERGEMENT.md), puis chaque entreprise autorise son compte depuis l’interface.
 
-**Vérifier la connexion** ne livre pas de message. **Envoyer un test à mon adresse** prépare un véritable email vers le compte connecté. Vérifier ensuite le résultat dans **Emails** et sa réception. Le statut `sent` signifie que le serveur ou fournisseur a accepté l’envoi, sans garantir sa réception ou sa lecture.
+**Enregistrer et tester** vérifie le serveur SMTP et affiche un résumé après succès. Pour rouvrir le formulaire, choisir **Modifier**. **Tester la connexion sans envoyer** vérifie l’accès à la messagerie. **Envoyer un test à mon adresse** prépare un email d’essai. Vérifier ensuite le résultat dans **Emails** et dans votre boîte de réception. Le statut `sent` signifie que le serveur ou fournisseur a accepté l’envoi, sans garantir sa réception ou sa lecture.
 
 Après un changement de connexion, les anciens messages ne sont pas reroutés automatiquement. Vérifier destinataire et expéditeur avant leur relance explicite. Une erreur réseau peut survenir après acceptation distante : consulter la messagerie avant de réessayer pour éviter un doublon.
 
@@ -169,11 +175,11 @@ Les clés API se créent dans **API & intégrations** ; les webhooks sortants da
 
 ## 11. Personnalisation et utilisation sur téléphone
 
-**Personnalisation** règle logo, nom d’affichage, couleur, présentation classique/compacte, devise et délais par défaut, adresse de réponse, signature et modèles d’emails de l’entreprise sélectionnée. Les mentions légales et bancaires restent dans **Mon entreprise**. Les variables autorisées des modèles figurent dans l’écran et le [guide d’administration](GUIDE_AUTOHEBERGEMENT.md#8-personnalisation-pour-les-clients).
+Dans **Personnalisation**, les rubriques **Identité visuelle**, **Documents**, **Adresse et signature** et **Modèles d’emails** possèdent chacune leur propre enregistrement. L’aperçu de facture dans les deux premières rubriques réagit au nom, au logo, à la couleur, à la présentation, à la devise et à l’échéance avant enregistrement. Les mentions légales et bancaires restent dans **Mon entreprise**. Les variables autorisées des modèles figurent dans l’écran et le [guide d’administration](GUIDE_AUTOHEBERGEMENT.md#8-personnalisation-pour-les-clients).
 
 Une nouvelle identité visuelle s’applique aux nouveaux documents et aux brouillons sauvegardés ; elle ne modifie pas les originaux déjà émis. Les entreprises d’une même instance conservent leurs réglages distincts.
 
-**Mon compte → Préférences d’affichage** propose thème clair, sombre ou système et tableaux confortables/compacts. Sur téléphone, les blocs et formulaires se réorganisent ; faire défiler horizontalement les tableaux larges dans leur zone. Les mêmes comptes et droits s’appliquent sur ordinateur et mobile. L’application nécessite une connexion au serveur ; il n’existe pas de mode de travail hors ligne avec synchronisation.
+**Mon compte → Préférences d’affichage** propose thème clair, sombre ou système et tableaux confortables/compacts. Sur téléphone, ouvrir la navigation avec **Menu**. Les blocs et formulaires se réorganisent ; faire défiler horizontalement les tableaux larges dans leur zone. Les mêmes comptes et droits s’appliquent sur ordinateur et mobile. L’application nécessite une connexion au serveur ; il n’existe pas de mode de travail hors ligne avec synchronisation.
 
 ## 12. Résoudre les difficultés courantes
 

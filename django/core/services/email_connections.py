@@ -514,11 +514,14 @@ def smtp_client(connection):
 
 def check_connection(connection):
     if connection.provider == "smtp":
-        with smtp_client(connection) as client:
-            if client.noop()[0] != 250:
-                raise BusinessError(
-                    "Le serveur SMTP n'a pas confirmé la connexion.", 502
-                )
+        try:
+            with smtp_client(connection) as client:
+                if client.noop()[0] != 250:
+                    raise BusinessError(
+                        "Le serveur SMTP n’a pas confirmé la connexion.", 502
+                    )
+        except OSError as exc:
+            raise BusinessError("Le serveur SMTP a interrompu la connexion.", 502) from exc
     elif connection.provider in OAUTH:
         profile = api_json(
             OAUTH[connection.provider]["profile"], token=access_token(connection)
@@ -532,8 +535,12 @@ def check_connection(connection):
             )
     else:
         raise BusinessError("Choisissez une messagerie à tester.")
-    connection.last_tested_at = timezone.now()
-    connection.save(update_fields=["last_tested_at"])
+    checked_at = timezone.now()
+    if not EmailConnection.objects.filter(pk=connection.pk, version=connection.version).update(
+        last_tested_at=checked_at
+    ):
+        raise BusinessError("La configuration a changé pendant le test. Réessayez.", 409)
+    connection.last_tested_at = checked_at
 
 
 def deliver(item, message):

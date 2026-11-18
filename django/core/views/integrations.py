@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_post_parameters
 from core.common import BusinessError
 from core.models import WebhookEndpoint, WebhookDelivery, EmailConnection
 from core.security import scoped, scoped_get, throttle
@@ -12,6 +13,7 @@ from core.services.network import checked_url, resolve_host
 from core.services.account_security import audit
 
 
+@sensitive_post_parameters("smtp_password", "client_secret")
 @scoped("admin")
 def email_connection(request, provider=None, action=None):
     if action == "retour":
@@ -32,13 +34,13 @@ def email_connection(request, provider=None, action=None):
             seconds=900,
         )
         selected = request.POST.get("action", "save")
-        if selected == "save":
-            mail_service.save_settings(request.company, request.POST)
+        if selected in {"save", "save_and_test"}:
+            connection = mail_service.save_settings(request.company, request.POST)
             audit(request, "email.settings_updated")
-            messages.success(
-                request,
-                "Paramètres enregistrés. Les anciens emails ne sont pas envoyés automatiquement.",
-            )
+            if selected == "save_and_test" and connection.provider == "smtp":
+                report_mail_check(request, connection)
+            else:
+                messages.success(request, "Paramètres de messagerie enregistrés.")
         elif selected == "connect":
             audit(request, "email.oauth_started")
             return redirect(mail_service.begin_oauth(request, connection))
@@ -57,6 +59,7 @@ def email_connection(request, provider=None, action=None):
                     connection.sender_email,
                 ) = None, "", ""
                 connection.status = "disconnected"
+                connection.last_tested_at = None
                 connection.version += 1
                 connection.save()
             audit(request, "email.oauth_use_server")
@@ -65,12 +68,7 @@ def email_connection(request, provider=None, action=None):
                 "Application du serveur sélectionnée. Reconnectez maintenant votre compte.",
             )
         elif selected == "test":
-            mail_service.check_connection(connection)
-            audit(request, "email.connection_checked")
-            messages.success(
-                request,
-                "La messagerie a confirmé la connexion. Aucun email n'a été envoyé.",
-            )
+            report_mail_check(request, connection)
         elif selected == "send_test":
             from core.services.mail import queue
 
@@ -102,6 +100,7 @@ def email_connection(request, provider=None, action=None):
                 connection.password_encrypted = ""
                 connection.smtp_username = ""
                 connection.status = "disconnected"
+                connection.last_tested_at = None
                 connection.provider = "outbox"
                 connection.version += 1
                 connection.save()
@@ -115,12 +114,15 @@ def email_connection(request, provider=None, action=None):
         return redirect("/app/emails/connexion")
     if action:
         raise BusinessError("Méthode non autorisée.", 405)
+    smtp_verified = connection.provider == "smtp" and connection.last_tested_at is not None
     return render(
         request,
         "core/email_connection.html",
         {
             "title": "Connexion email",
             "connection": connection,
+            "smtp_verified": smtp_verified,
+            "show_settings": not smtp_verified or request.GET.get("modifier") == "1",
             "providers": mail_service.PROVIDERS,
             "oauth_provider": connection.provider in mail_service.OAUTH,
             "redirect_uri": mail_service.redirect_uri(connection.provider)
@@ -131,6 +133,20 @@ def email_connection(request, provider=None, action=None):
             "readiness": mail_service.oauth_readiness(connection),
         },
     )
+
+
+def report_mail_check(request, connection):
+    try:
+        mail_service.check_connection(connection)
+    except BusinessError as exc:
+        if connection.provider == "smtp":
+            EmailConnection.objects.filter(pk=connection.pk, version=connection.version).update(
+                last_tested_at=None
+            )
+        messages.error(request, str(exc))
+    else:
+        audit(request, "email.connection_checked")
+        messages.success(request, "Le serveur a confirmé la connexion.")
 
 
 @scoped("admin")

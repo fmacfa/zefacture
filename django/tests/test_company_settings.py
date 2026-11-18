@@ -1,9 +1,10 @@
+import json
 from django.test import override_settings
 from django.urls import reverse
 
 from core.forms import CompanyForm
 from core.models import CompanyMember
-from core.services.documents import COMPANY_FIELDS
+from core.services.documents import COMPANY_FIELDS, snapshot
 from .test_application import ApplicationCase
 
 
@@ -39,7 +40,38 @@ class CompanySettingsTests(ApplicationCase):
                 response, f'href="{self.section(section)}" aria-current="page"'
             )
             names.extend(response.context["form"].fields)
-        self.assertCountEqual(names, COMPANY_FIELDS)
+        self.assertCountEqual(names, set(COMPANY_FIELDS) - {"rcs_number"})
+        self.company.country_code = "DE"
+        self.company.save(update_fields=["country_code"])
+        self.assertIn("rcs_number", self.client.get(self.section("fiscalite")).context["form"].fields)
+
+    def test_french_choices_keep_existing_data_and_compose_rcs_from_siren(self):
+        self.company.vat_regime = "Régime historique spécifique"
+        self.company.rcs_number = "Ancien numéro de registre"
+        self.company.save(update_fields=["vat_regime", "rcs_number"])
+        tax = self.client.get(self.section("fiscalite"))
+        self.assertContains(tax, "Franchise en base de TVA")
+        self.assertContains(tax, "Régime historique spécifique")
+        self.assertNotContains(tax, 'name="rcs_number"')
+        self.assertRedirects(
+            self.client.post(
+                self.section("identite"),
+                self.section_data("identite", legal_form="__other__", legal_form_other="SELARL"),
+            ),
+            self.section("identite"),
+        )
+        self.assertRedirects(
+            self.client.post(
+                self.section("fiscalite"),
+                self.section_data("fiscalite", vat_regime="Réel normal", rcs_city="Paris"),
+            ),
+            self.section("fiscalite"),
+        )
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.legal_form, "SELARL")
+        self.assertEqual(self.company.vat_regime, "Réel normal")
+        self.assertEqual(self.company.rcs_number, "Ancien numéro de registre")
+        self.assertEqual(json.loads(snapshot(self.company, seller=True))["rcs_number"], self.company.siren)
 
     def test_saving_a_section_preserves_other_settings_and_number_counters(self):
         payment = self.section_data("paiement", payment_terms="Paiement à 15 jours.")

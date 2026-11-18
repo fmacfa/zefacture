@@ -3,10 +3,13 @@ from django.db import transaction
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib import messages
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 from core.common import BusinessError, stamp, unpack
 from core.models import Ingestion
 from core.security import scoped, ROLES
 from core.services import extraction_ai, ingestion, files, jobs
+from core.services.account_security import audit
 from core.services.receipt_extraction import (
     EXPENSE_KINDS,
     expense_suggestion,
@@ -14,10 +17,27 @@ from core.services.receipt_extraction import (
     local_suggestion,
 )
 
+SOURCE_LABELS = {
+    "supplier_invoice": "Facture fournisseur",
+    "expense_note": "Note de frais",
+    "expense": "Note de frais",
+    "expense_receipt": "Ticket de caisse",
+    "receipt": "Ticket de caisse",
+}
+STATUS_LABELS = {
+    "uploaded": "Importé",
+    "transcribed": "Transcrit",
+    "analyzed": "Analysé",
+    "converted": "Facture créée",
+    "failed": "Traitement à vérifier",
+}
+
 
 @transaction.atomic
 def review(request, item, action):
     item = Ingestion.objects.select_for_update().get(pk=item.pk)
+    if item.archived_at:
+        raise BusinessError("Restaurez cet import pour le modifier.", 409)
     if item.document_uid:
         raise BusinessError("Cet import a déjà été converti.", 409)
     jobs.require_idle(item)
@@ -69,6 +89,7 @@ def review(request, item, action):
     return ingestion.convert(request.company, request.user, item, data)
 
 
+@require_http_methods(["GET", "HEAD", "POST"])
 @scoped("write")
 def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     if not expenses and request.role not in ROLES["write"]:
@@ -99,6 +120,23 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         )
         response["Cache-Control"] = "private, no-store"
         return response
+    if action in {"archiver", "restaurer"}:
+        if request.method != "POST":
+            return HttpResponse(status=405, headers={"Allow": "POST"})
+        with transaction.atomic():
+            item = Ingestion.objects.select_for_update().get(pk=item.pk)
+            jobs.require_idle(item)
+            archived = action == "archiver"
+            if bool(item.archived_at) != archived:
+                item.archived_at = timezone.now() if archived else None
+                item.updated_at = stamp()
+                item.save(update_fields=["archived_at", "updated_at"])
+                audit(request, "ingestion.archived" if archived else "ingestion.restored", item.ingestion_uid)
+        if archived:
+            messages.success(request, "Le justificatif est disponible dans les archives.")
+            return redirect("/app/notes-de-frais" if item.source_kind in EXPENSE_KINDS else "/app/imports")
+        messages.success(request, "Justificatif restauré.")
+        return redirect("/app/imports/" + item.ingestion_uid)
     if request.method == "POST":
         if not item:
             kind = request.POST.get(
@@ -177,14 +215,22 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 "expense": expense,
                 "suggested": suggested,
                 "ai_choices": extraction_ai.choices(),
+                "source_label": SOURCE_LABELS.get(item.source_kind, "Justificatif"),
+                "state_label": STATUS_LABELS.get(item.status, "À vérifier"),
             },
         )
+    archived = request.GET.get("archives") == "1"
+    rows = list(query.filter(archived_at__isnull=not archived).order_by("-id")[:200])
+    for row in rows:
+        row.source_label = SOURCE_LABELS.get(row.source_kind, "Justificatif")
+        row.state_label = STATUS_LABELS.get(row.status, "À vérifier")
     return render(
         request,
         "core/ingestions.html",
         {
             "title": "Notes de frais" if expenses else "Imports",
-            "items": query.order_by("-id")[:200],
+            "items": rows,
             "expenses": expenses,
+            "archives": archived,
         },
     )

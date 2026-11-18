@@ -16,6 +16,8 @@ def require_idle(item):
 @transaction.atomic
 def enqueue(item, operation, provider=""):
     item = Ingestion.objects.select_for_update().get(pk=item.pk)
+    if item.archived_at:
+        raise BusinessError("Restaurez cet import pour reprendre le traitement.", 409)
     if item.document_uid:
         raise BusinessError("Import déjà converti.", 409)
     if operation not in {"transcribe", "analyze"}:

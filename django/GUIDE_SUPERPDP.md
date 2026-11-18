@@ -46,12 +46,12 @@ Pour une instance restaurée, utiliser la fonction Compose et le fichier de conf
 1. Sélectionner la bonne entreprise et vérifier son SIREN dans **Mon entreprise**.
 2. Un propriétaire ou administrateur ouvre **Mon entreprise → Connexion SUPERPDP**.
 3. Choisir **Se connecter à SUPERPDP**, puis lire et accorder personnellement le consentement chez le fournisseur.
-4. De retour dans ZeFacture, utiliser **Lire le profil SUPERPDP** et contrôler l’identifiant distant, l’environnement et la vérification de l’entreprise.
+4. De retour dans ZeFacture, utiliser **Vérifier la connexion SUPERPDP** et contrôler l’environnement et l’état de vérification de l’entreprise.
 5. Commencer la synchronisation lorsque le fournisseur indique `company_verification_status=verified`.
 
 L’état OAuth est lié à l’utilisateur, l’entreprise, la version de configuration et la paire d’identifiants serveur. Il expire après dix minutes et est consommé en base avant l’échange, même si cet échange échoue. Les jetons sont chiffrés avec `app.key` et les renouvellements sont sérialisés pour préserver leur rotation.
 
-L’alternative **Identifiants techniques** accepte un Client ID/secret de compte autorisé ou un token. Modifier le Client ID exige le secret associé. Les comptes connectés avant cette mise à jour restent conservés ; la synchronisation automatique n’est pas activée par la migration.
+Lorsque l’application OAuth de l’instance est absente, utiliser **Identifiants techniques** avec l’identifiant et le secret client d’un compte autorisé, ou son jeton d’accès. **Enregistrer et vérifier** vérifie les nouveaux identifiants et l’entreprise avant d’afficher le résultat. Modifier le Client ID exige le secret associé. **Connexion vérifiée** et **Entreprise vérifiée** indiquent que le profil correspond. Si SUPERPDP examine encore le dossier, suivre son état chez le fournisseur. La synchronisation automatique s’active séparément.
 
 Le compte distant doit correspondre au SIREN local lorsqu’il utilise le schéma `fr_siren`. Une première synchronisation lie les données à l’identifiant d’entreprise et à l’environnement du fournisseur. Une autre entreprise ou le passage de sandbox à production demande une entreprise ZeFacture distincte ; les historiques ne sont pas fusionnés silencieusement.
 
