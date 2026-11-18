@@ -116,10 +116,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 TRUST_PROXY = os.getenv("TRUST_PROXY", "0") == "1"
 PROXY_SHARED_SECRET = os.getenv("PROXY_SHARED_SECRET", "")
-MFA_REQUIRED_FOR_ADMINS = (
-    os.getenv("MFA_REQUIRED_FOR_ADMINS", "1" if ENVIRONMENT == "production" else "0")
-    == "1"
-)
+MFA_REQUIRED_FOR_ADMINS = os.getenv("MFA_REQUIRED_FOR_ADMINS", "0") == "1"
 SENSITIVE_REAUTH_REQUIRED = (
     os.getenv("SENSITIVE_REAUTH_REQUIRED", "1" if ENVIRONMENT == "production" else "0")
     == "1"

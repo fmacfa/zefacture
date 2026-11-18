@@ -41,7 +41,6 @@ if args.production:
         "ALLOWED_HOSTS": args.domain.lower() + ",localhost,127.0.0.1",
         "DOMAIN": args.domain.lower(),
         "TRUST_PROXY": "1",
-        "MFA_REQUIRED_FOR_ADMINS": "1",
         "SENSITIVE_REAUTH_REQUIRED": "1",
     }
     text = "\n".join(

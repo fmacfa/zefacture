@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import secrets
 from concurrent.futures import ThreadPoolExecutor
@@ -150,6 +151,46 @@ class FirstConnectionTests(TestCase):
         )
         self.assertFalse(User.objects.exists())
         self.assertFalse(Company.objects.exists())
+
+    @override_settings(MFA_REQUIRED_FOR_ADMINS=False)
+    def test_first_owner_can_open_dashboard_before_enabling_mfa(self):
+        token = self.issue_code()
+        self.assertEqual(
+            self.client.post(AUTHORIZE_URL, {"token": token}).status_code, 204
+        )
+        self.assertRedirects(self.client.post(INSTALLATION_URL, self.data), "/app")
+        security = self.client.get("/app/compte/securite")
+        self.assertContains(security, "Double authentification facultative")
+        self.assertContains(security, 'href="/app">Accéder au tableau de bord')
+
+    @override_settings(ENVIRONMENT="testing")
+    def test_readiness_requires_mfa_enrollment_only_when_enabled(self):
+        create_first_owner(
+            address=self.data["email"],
+            name=self.data["name"],
+            company_name=self.data["company_name"],
+            password=self.password,
+        )
+        for required in (False, True):
+            with (
+                self.subTest(required=required),
+                self.settings(MFA_REQUIRED_FOR_ADMINS=required),
+            ):
+                output = io.StringIO()
+                # This test instance has APP_ENV=testing, so --production reports other blockers.
+                with self.assertRaises(CommandError):
+                    call_command(
+                        "check_readiness", production=True, json=True, stdout=output
+                    )
+                checks = {
+                    item["check"]: item
+                    for item in json.loads(output.getvalue())["checks"]
+                }
+                self.assertEqual(checks["admin_mfa_policy"]["status"], "ok")
+                if required:
+                    self.assertEqual(checks["admin_mfa_enrollment"]["status"], "block")
+                else:
+                    self.assertNotIn("admin_mfa_enrollment", checks)
 
     def test_bad_form_and_failed_creation_leave_the_link_usable(self):
         code = self.issue_code()
