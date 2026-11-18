@@ -74,7 +74,12 @@ urlpatterns = [
         r"^app/entreprises/(?P<company_uid>[a-f0-9]{32})/selectionner$",
         management.companies,
     ),
-    path("app/entreprise", management.company),
+    path("app/entreprise", management.company, name="company_settings"),
+    path(
+        "app/entreprise/reglages/<slug:section>",
+        management.company,
+        name="company_settings_section",
+    ),
     path("app/entreprise/pdp", pdp.pdp),
     re_path(r"^app/documents/(?P<document_uid>[a-f0-9]{32})/pdp$", pdp.document_pdp),
     re_path(r"^app/entreprise/pdp/(?P<action>connecter|callback)$", pdp.pdp),

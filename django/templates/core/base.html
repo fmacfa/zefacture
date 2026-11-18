@@ -9,6 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'zefacture-mark.svg' %}">
   <link rel="stylesheet" href="{% static 'identity.css' %}">
   <link rel="stylesheet" href="{% static 'app.css' %}">
+  {% block styles %}{% endblock %}
   <script src="{% static 'app.js' %}" defer></script>
   {% if palette %}
     <style nonce="{{ csp_nonce }}">

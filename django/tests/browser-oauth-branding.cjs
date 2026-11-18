@@ -34,6 +34,18 @@ function totp(secret) {
     await passwordLogin();
     await page.waitForURL('**/app');
     assert.match(await page.locator('.company-switch').textContent(), /Atelier Démonstration/);
+    await page.goto(base + '/app/entreprise');
+    const sections = page.getByRole('navigation', { name: 'Réglages de l’entreprise' });
+    await sections.getByRole('link', { name: 'Coordonnées', exact: true }).click();
+    await page.waitForURL('**/app/entreprise/reglages/coordonnees');
+    assert.equal(await sections.getByRole('link', { name: 'Coordonnées', exact: true }).getAttribute('aria-current'), 'page');
+    await page.getByLabel('Téléphone', { exact: true }).fill('0100000000');
+    await page.getByRole('button', { name: 'Enregistrer cette rubrique' }).click();
+    await page.getByText('Réglages enregistrés dans la rubrique « Coordonnées ».').waitFor();
+    assert.equal(await page.getByLabel('Téléphone', { exact: true }).inputValue(), '0100000000');
+    await sections.getByRole('link', { name: 'Paiement', exact: true }).click();
+    await page.getByRole('heading', { name: 'Paiement', exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Téléphone', { exact: true }).count(), 0);
     await page.goto(base + '/app/entreprise/personnalisation');
     await page.getByLabel('Nom d’affichage', { exact: true }).fill('Atelier Studio');
     await page.getByLabel('Couleur principale', { exact: true }).fill('#74245c');
@@ -86,7 +98,7 @@ function totp(secret) {
     const responsive = [];
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
-      for (const [name, route] of [['branding', '/app/entreprise/personnalisation'], ['oauth', '/app/emails/connexion/guide'], ['mail', '/app/emails/connexion'], ['security', '/app/compte/securite'], ['reports', '/app/rapports'], ['crm', '/app/crm'], ['dashboard', '/app']]) {
+      for (const [name, route] of [['company', '/app/entreprise/reglages/coordonnees'], ['branding', '/app/entreprise/personnalisation'], ['oauth', '/app/emails/connexion/guide'], ['mail', '/app/emails/connexion'], ['security', '/app/compte/securite'], ['reports', '/app/rapports'], ['crm', '/app/crm'], ['dashboard', '/app']]) {
         await page.goto(base + route);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Overflow ${width}: ${route}`);
         responsive.push({ width, route, ok: true });
