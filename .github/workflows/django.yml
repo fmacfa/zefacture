@@ -1,8 +1,8 @@
-name: Django CI
+name: CI ZeFacture
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -11,27 +11,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: django-ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  workflows:
-    name: Syntaxe GitHub Actions
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - name: Installer et exécuter actionlint 1.7.12
-        run: |
-          archive="$RUNNER_TEMP/actionlint.tar.gz"
-          curl --fail --silent --show-error --location --retry 3 --max-time 45 \
-            --output "$archive" \
-            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
-          printf '%s  %s\n' 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 "$archive" | sha256sum --check
-          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" -shellcheck=
+  common:
+    name: Contrôles communs
+    uses: ./.github/workflows/ci-common.yml
 
   quality:
     name: Code et dépendances
@@ -62,7 +48,7 @@ jobs:
           "$RUNNER_TEMP/zefacture-mcp/bin/python" django/tests/check_mcp.py
 
   publication:
-    name: Fichiers publics et secrets
+    name: Fichiers et historique publics
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -77,13 +63,6 @@ jobs:
         run: python -m unittest discover -s .github/tests
       - name: Contrôler les fichiers et les guides suivis
         run: python .github/scripts/check_publication.py
-      - name: Installer Gitleaks avec empreinte vérifiée
-        run: python .github/scripts/install_gitleaks.py --output "$RUNNER_TEMP/gitleaks"
-      - name: Rechercher les secrets dans tout l'historique
-        run: >-
-          "$RUNNER_TEMP/gitleaks" git --redact=100 --ignore-gitleaks-allow
-          --no-banner --report-format json --report-path "$RUNNER_TEMP/gitleaks.json"
-          --log-opts="--all" .
 
   tests:
     name: Tests Python ${{ matrix.python }} et PostgreSQL 17
@@ -172,39 +151,13 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: django/tests/browser/package-lock.json
-      - name: Navigateur de test
+      - name: Installer les dépendances JavaScript
+        run: npm ci --prefix django/tests/browser
+      - name: Installer Chromium
         timeout-minutes: 8
-        run: |
-          npm ci --prefix django/tests/browser
-          cd django/tests/browser
-          mirror=
-          for candidate in https://archive.ubuntu.com/ubuntu https://mirrors.edge.kernel.org/ubuntu https://security.ubuntu.com/ubuntu; do
-            if curl --head --fail --silent --show-error --max-time 8 --output /dev/null "$candidate/dists/noble-updates/InRelease" &&
-               curl --head --fail --silent --show-error --max-time 8 --output /dev/null "$candidate/dists/noble-security/InRelease"; then
-              mirror="$candidate"
-              break
-            fi
-          done
-          if [[ -z "$mirror" ]]; then
-            echo '::error::Aucun miroir Ubuntu signé accessible.'
-            exit 1
-          fi
-          echo "Dépendances navigateur via $mirror"
-          sudo tee /etc/apt/zefacture-ci.sources > /dev/null <<EOF
-          Types: deb
-          URIs: $mirror/
-          Suites: noble noble-updates noble-security
-          Components: main restricted universe multiverse
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          EOF
-          sudo tee /etc/apt/apt.conf.d/99-zefacture-ci > /dev/null <<'EOF'
-          Dir::Etc::sourcelist "/etc/apt/zefacture-ci.sources";
-          Dir::Etc::sourceparts "-";
-          Acquire::Retries "2";
-          Acquire::https::Timeout "20";
-          EOF
-          trap 'sudo unlink /etc/apt/apt.conf.d/99-zefacture-ci; sudo unlink /etc/apt/zefacture-ci.sources' EXIT
-          npx playwright install --with-deps chromium
+        uses: ./.github/actions/install-chromium
+        with:
+          working-directory: django/tests/browser
       - name: Parcours complets sur données fictives
         run: bash django/tools/ci_e2e.sh
         env:
@@ -224,7 +177,7 @@ jobs:
 
   package:
     name: Archive des sources publiques
-    needs: [publication]
+    needs: [common, publication]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -249,19 +202,19 @@ jobs:
   ready:
     name: CI validée
     if: always()
-    needs: [workflows, quality, publication, tests, integration, package]
+    needs: [common, quality, publication, tests, integration, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: Contrôles requis
         env:
-          WORKFLOWS_RESULT: ${{ needs.workflows.result }}
+          COMMON_RESULT: ${{ needs.common.result }}
           QUALITY_RESULT: ${{ needs.quality.result }}
           PUBLICATION_RESULT: ${{ needs.publication.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
           INTEGRATION_RESULT: ${{ needs.integration.result }}
           PACKAGE_RESULT: ${{ needs.package.result }}
         run: |
-          for result in "$WORKFLOWS_RESULT" "$QUALITY_RESULT" "$PUBLICATION_RESULT" "$TESTS_RESULT" "$INTEGRATION_RESULT" "$PACKAGE_RESULT"; do
+          for result in "$COMMON_RESULT" "$QUALITY_RESULT" "$PUBLICATION_RESULT" "$TESTS_RESULT" "$INTEGRATION_RESULT" "$PACKAGE_RESULT"; do
             test "$result" = success || exit 1
           done

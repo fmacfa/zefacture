@@ -1,0 +1,61 @@
+name: Contrôles communs ZeFacture
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  workflows:
+    name: Syntaxe GitHub Actions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Installer et exécuter actionlint 1.7.12
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 --max-time 45 \
+            --output "$archive" \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          printf '%s  %s\n' 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8 "$archive" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck=
+
+  secrets:
+    name: Secrets dans l’historique Git
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+      # actionlint 1.7.12 ne connaît pas encore les champs job.workflow_*.
+      - name: Récupérer l’installateur à la révision du workflow
+        if: github.repository != fromJSON(toJSON(job)).workflow_repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ fromJSON(toJSON(job)).workflow_repository }}
+          ref: ${{ fromJSON(toJSON(job)).workflow_sha }}
+          sparse-checkout: .github/scripts/install_gitleaks.py
+          sparse-checkout-cone-mode: false
+          path: ci-tools
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Installer Gitleaks avec empreinte vérifiée
+        env:
+          CI_TOOLS: ${{ github.repository == fromJSON(toJSON(job)).workflow_repository && 'source' || 'ci-tools' }}
+        run: python "$CI_TOOLS/.github/scripts/install_gitleaks.py" --output "$RUNNER_TEMP/gitleaks"
+      - name: Rechercher les secrets dans toutes les références récupérées
+        working-directory: source
+        run: >-
+          "$RUNNER_TEMP/gitleaks" git --redact=100 --ignore-gitleaks-allow
+          --no-banner --report-format json --report-path "$RUNNER_TEMP/gitleaks.json"
+          --log-opts="--all" .
