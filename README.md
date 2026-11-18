@@ -1,5 +1,7 @@
 # ZeFacture
 
+[Vitrine](https://zefacture.com/) · [Visite guidée](https://zefacture.com/guide-illustre) · [CI GitHub](https://github.com/fmacfa/zefacture/actions/workflows/django.yml)
+
 **Facturation, CRM et gestion d’activité libres, à héberger sur votre serveur.**
 
 ZeFacture réunit devis, factures Factur-X, clients professionnels et particuliers, suivi commercial, stocks, équipe, finances et exports dans une application Django. Les données métier restent dans votre base PostgreSQL et votre stockage.
@@ -18,10 +20,10 @@ ZeFacture réunit devis, factures Factur-X, clients professionnels et particulie
 | Entreprises et équipe | Plusieurs entreprises, invitations, propriétaire, administrateur, comptable, membre et lecteur |
 | Pilotage | Dashboard, tableaux, périodes libres, comparatifs et évolution mensuelle |
 | Exports | PDF, CSV et Excel sur toutes les lignes sélectionnées, selon les droits |
-| Achats | Factures fournisseurs, notes de frais, justificatifs et OCR local |
+| Achats | Factures fournisseurs, notes de frais, justificatifs, OCR local et lecture assistée facultative |
 | Finances | Transactions, import CSV, paiements partiels, rapprochement, prévisions et états de TVA |
 | Messagerie | SMTP, Gmail/Google Workspace et Outlook/Microsoft 365, avec signature et modèles par entreprise |
-| Automatisation | Clés API par entreprise et webhooks sortants signés avec suivi des livraisons |
+| Automatisation | Clés API, webhooks signés avec suivi et connecteur MCP en lecture seule |
 | SUPERPDP | Dépôts Factur-X, réception, originaux PDF/XML et synchronisation des événements |
 | Personnalisation | Logo, couleurs, documents et emails par entreprise ; thème et densité par utilisateur |
 | Sécurité | Permissions, isolation des entreprises, TOTP, codes de secours, vérification récente et journal |
@@ -52,7 +54,7 @@ Chaque instance utilise **son propre domaine et ses propres identifiants**. `zef
 
 ## État de la version candidate
 
-La validation locale de cette candidate comprend **131 tests applicatifs sous Python 3.13 et 3.14**, des parcours navigateur, des contrôles responsive à 320/390/768/1440 px et une restauration comparée par empreintes. La CI GitHub recalcule ces contrôles sur le commit publié ; consulter [ses résultats](https://github.com/fmacfa/zefacture/actions/workflows/django.yml).
+La CI GitHub valide les workflows, exécute les tests sur Python 3.13 et 3.14 avec PostgreSQL 17, couvre la première connexion et les parcours navigateur, puis vérifie une restauration par empreintes. Le job de publication contrôle les fichiers et l’historique avant de produire l’archive de sources et son SHA-256. Consultez les [résultats GitHub Actions](https://github.com/fmacfa/zefacture/actions/workflows/django.yml).
 
 Limites à connaître avant les essais :
 
