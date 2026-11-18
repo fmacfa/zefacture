@@ -92,6 +92,19 @@ const output=path.resolve('test-results/browser-crm');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile overflow: '+route);
   }
   await page.screenshot({path:path.join(output,'mobile.png'),fullPage:true});
+  await page.setViewportSize({width:1440,height:1050});
+  await page.goto(base+'/app/developpeurs');
+  await page.getByLabel('Nom',{exact:true}).fill('Intégration fictive');
+  await page.getByRole('button',{name:'Créer la clé',exact:true}).click();
+  const apiKeys=page.getByRole('table',{name:'Clés de l’entreprise'});
+  const row=apiKeys.getByRole('row').filter({hasText:'Intégration fictive'});
+  await row.getByText('Active',{exact:true}).waitFor();
+  assert.ok(await row.locator('td').evaluateAll(cells=>cells.every(cell=>getComputedStyle(cell).verticalAlign==='middle')));
+  await page.setViewportSize({width:320,height:844});
+  await page.goto(base+'/app/developpeurs');
+  await row.getByRole('button',{name:'Révoquer',exact:true}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+
   assert.equal(errors.length,0,errors.join('\n'));
   await fs.writeFile(path.join(output,'report.json'),JSON.stringify({ok:true,flows:['individual_prospect','contact','opportunity','task','crm_search','period_comparison','pdf_excel_csv_downloads','smtp_interface_encrypted_secret','google_interface','microsoft_interface','webhook_create_secret_once_pause','mobile'],javascript_errors:errors},null,2));
   await browser.close();console.log('CRM and integration browser checks passed.');
