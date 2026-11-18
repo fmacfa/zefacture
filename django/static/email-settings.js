@@ -5,6 +5,7 @@
     document.querySelectorAll('[data-mail-provider]').forEach(group => {
       const active = group.dataset.mailProvider.split(' ').includes(provider.value);
       group.hidden = !active;
+      if (group instanceof HTMLButtonElement) group.disabled = !active;
       group.querySelectorAll('input,select').forEach(input => { input.disabled = !active; });
     });
   }

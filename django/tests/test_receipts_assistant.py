@@ -175,6 +175,33 @@ class ProviderTests(SimpleTestCase):
 
 
 class ReceiptFlowTests(ApplicationCase):
+    def test_archiving_and_restoring_preserves_the_original_and_expense(self):
+        raw = b"%PDF-original-fictif"
+        from core.services.files import put
+
+        item = Ingestion.objects.create(
+            company_uid=self.company.company_uid,
+            uploaded_by_user_uid=self.user.user_uid,
+            source_kind="receipt",
+            original_filename="ticket-archive-fictif.pdf",
+            storage_path=put("tests/ticket-archive-fictif.pdf", raw),
+            sha256=digest(raw),
+            mime_type="application/pdf",
+            expense_amount=Decimal("16.50"),
+        )
+        url = f"/app/imports/{item.ingestion_uid}"
+        self.assertEqual(self.client.get(url + "/archiver").status_code, 405)
+        self.assertRedirects(self.client.post(url + "/archiver"), "/app/notes-de-frais")
+        self.assertNotContains(self.client.get("/app/notes-de-frais"), item.original_filename)
+        self.assertContains(self.client.get("/app/notes-de-frais?archives=1"), item.original_filename)
+        self.assertEqual(self.client.post(url + "/transcrire").status_code, 409)
+        self.assertEqual(self.client.get(url + "/telecharger").content, raw)
+        self.assertRedirects(self.client.post(url + "/restaurer"), url)
+        self.assertContains(self.client.get("/app/notes-de-frais"), item.original_filename)
+        item.refresh_from_db()
+        self.assertIsNone(item.archived_at)
+        self.assertEqual(item.expense_amount, Decimal("16.50"))
+
     @override_settings(EXTERNAL_SERVICES_DISABLED=True)
     def test_ticket_upload_and_ocr_suggest_fields_before_review(self):
         if not shutil.which("tesseract"):

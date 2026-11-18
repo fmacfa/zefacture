@@ -237,6 +237,11 @@ def company(request, section=None):
         )
 
     heading, groups = COMPANY_SECTIONS[current]
+    if current == "fiscalite" and (request.company.country_code or "").upper() == "FR":
+        groups = [
+            (label, tuple(name for name in names if name != "rcs_number"))
+            for label, names in groups
+        ]
     fields = None if legacy_post else [name for _, group in groups for name in group]
     form = CompanyForm(
         request.POST if posting else None,
@@ -320,11 +325,11 @@ def customers(request, customer_uid=None, action=None):
             {"title": "Recherche entreprise", "customer": obj, "result": result},
         )
     if obj or action == "new" or request.method == "POST":
-        form = CustomerForm(request.POST or None, instance=obj)
-        if request.method == "POST" and form.is_valid():
-            from core.services import crm
+        from core.services import crm
 
-            relationship = request.POST.get("relationship", "customer")
+        form = CustomerForm(request.POST or None, instance=obj)
+        relationship = request.POST.get("relationship", "customer")
+        if request.method == "POST" and form.is_valid():
             if relationship not in dict(crm.RELATIONSHIPS):
                 raise BusinessError("Relation commerciale invalide.")
             with transaction.atomic():
@@ -335,11 +340,13 @@ def customers(request, customer_uid=None, action=None):
             return redirect("/app/clients/" + customer.customer_uid)
         return render(
             request,
-            "core/form.html",
+            "core/customer_form.html",
             {
                 "title": obj.legal_name if obj else "Nouveau client",
                 "form": form,
                 "new_customer": not obj,
+                "relationship": relationship,
+                "relationships": crm.RELATIONSHIPS,
                 "archive_url": "/app/clients/" + obj.customer_uid + "/archiver"
                 if obj
                 else "",

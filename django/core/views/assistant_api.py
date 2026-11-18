@@ -145,7 +145,9 @@ def receipt_data(item):
 
 def receipt_result(company, params, receipt_uid):
     receipts = Ingestion.objects.filter(
-        company_uid=company.company_uid, source_kind__in=EXPENSE_KINDS
+        company_uid=company.company_uid,
+        source_kind__in=EXPENSE_KINDS,
+        archived_at__isnull=True,
     )
     if receipt_uid:
         receipt = receipts.filter(ingestion_uid=receipt_uid).first()

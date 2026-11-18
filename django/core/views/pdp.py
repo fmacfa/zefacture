@@ -10,10 +10,11 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.debug import sensitive_post_parameters
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 from core.common import BusinessError, stamp, digest, json_text
 from core.models import (
     Company,
@@ -24,6 +25,7 @@ from core.models import (
     PdpInvoice,
     PdpOutbox,
     PdpSession,
+    PdpSyncState,
 )
 from core.security import scoped, scoped_get, ROLES
 from core.services import pdp as service
@@ -32,6 +34,51 @@ from core.services.account_security import audit
 from core.services.files import encrypt
 
 
+def save_pdp_settings(session, sync, data):
+    session.api_base = service.base(
+        data.get("api_base") or "https://api.superpdp.tech"
+    )
+    new_client_id = (data.get("client_id") or "").strip() or session.client_id
+    if (
+        new_client_id != session.client_id
+        and session.client_secret_encrypted
+        and not data.get("client_secret")
+    ):
+        raise BusinessError(
+            "Ressaisir le secret associé au nouveau Client ID SUPERPDP."
+        )
+    credentials_changed = bool(
+        data.get("client_secret")
+        or data.get("access_token")
+        or new_client_id != session.client_id
+    )
+    session.client_id = new_client_id
+    if credentials_changed:
+        session.token_expires_at = session.last_checked_at = None
+        session.access_token_encrypted = session.refresh_token_encrypted = None
+        session.company_verification_status = "needs_review"
+    for source, destination in (
+        ("client_secret", "client_secret_encrypted"),
+        ("access_token", "access_token_encrypted"),
+    ):
+        if data.get(source):
+            setattr(session, destination, encrypt(data[source].strip()))
+    if data.get("sandbox") == "1":
+        if settings.ENVIRONMENT == "production":
+            raise BusinessError("Simulation indisponible en production.")
+        session.status = "sandbox"
+    elif credentials_changed or session.status != "active":
+        session.status = "configured"
+    session.updated_at = stamp()
+    session.save()
+    if credentials_changed:
+        sync.auth_mode = "technical" if session.client_id else "auto"
+        sync.version += 1
+        sync.save(update_fields=["auth_mode", "version"])
+
+
+@sensitive_post_parameters("client_secret", "access_token")
+@require_http_methods(["GET", "HEAD", "POST"])
 @scoped("admin")
 def pdp(request, action=None):
     session = service.session_for(request.company)
@@ -40,16 +87,19 @@ def pdp(request, action=None):
         os.getenv("SUPERPDP_OAUTH_REDIRECT_URI")
         or settings.APP_URL + "/app/entreprise/pdp/callback"
     )
+    client_id = os.getenv("SUPERPDP_OAUTH_CLIENT_ID", "").strip()
+    client_secret = os.getenv("SUPERPDP_OAUTH_CLIENT_SECRET", "").strip()
+    oauth_ready = bool(client_id and client_secret) and not settings.EXTERNAL_SERVICES_DISABLED
     if action == "connecter" and request.method == "POST":
         if settings.EXTERNAL_SERVICES_DISABLED:
             raise BusinessError(
                 "Les services externes sont désactivés sur cette instance.", 503
             )
-        client_id = os.getenv("SUPERPDP_OAUTH_CLIENT_ID", "")
-        if not client_id:
-            raise BusinessError(
-                "Configurez l'application OAuth SUPERPDP sur le serveur."
+        if not oauth_ready:
+            messages.error(
+                request, "L’application OAuth de cette instance doit être configurée pour utiliser ce bouton."
             )
+            return redirect("/app/entreprise/pdp")
         state = secrets.token_urlsafe(32)
         request.session["pdp_oauth"] = {
             "state": state,
@@ -57,14 +107,8 @@ def pdp(request, action=None):
             "created": time.time(),
             "user_uid": request.user.user_uid,
             "version": sync.version,
-            "client": digest(
-                json_text([client_id, os.getenv("SUPERPDP_OAUTH_CLIENT_SECRET", "")])
-            ),
+            "client": digest(json_text([client_id, client_secret])),
         }
-        if not os.getenv("SUPERPDP_OAUTH_CLIENT_SECRET", ""):
-            raise BusinessError(
-                "Paire Client ID / secret SUPERPDP requise sur le serveur."
-            )
         OAuthAttempt.objects.create(
             state_hash=digest(state),
             company_uid=request.company.company_uid,
@@ -99,14 +143,7 @@ def pdp(request, action=None):
             or state.get("user_uid") != request.user.user_uid
             or state.get("version") != sync.version
             or state.get("client")
-            != digest(
-                json_text(
-                    [
-                        os.getenv("SUPERPDP_OAUTH_CLIENT_ID", ""),
-                        os.getenv("SUPERPDP_OAUTH_CLIENT_SECRET", ""),
-                    ]
-                )
-            )
+            != digest(json_text([client_id, client_secret]))
             or not 0 <= time.time() - state.get("created", 0) < 600
         ):
             raise BusinessError("Session OAuth expirée ou invalide.", 403)
@@ -135,8 +172,8 @@ def pdp(request, action=None):
                 "grant_type": "authorization_code",
                 "code": request.GET["code"],
                 "redirect_uri": redirect_uri,
-                "client_id": os.getenv("SUPERPDP_OAUTH_CLIENT_ID", ""),
-                "client_secret": os.getenv("SUPERPDP_OAUTH_CLIENT_SECRET", ""),
+                "client_id": client_id,
+                "client_secret": client_secret,
             },
         )
         session.refresh_token_encrypted = None
@@ -189,50 +226,49 @@ def pdp(request, action=None):
                 session.client_secret_encrypted
             ) = None
             session.status = "not_configured"
+            session.last_checked_at = None
             session.save()
             audit(request, "pdp.disconnected", session.session_uid)
-        elif operation == "verify":
-            service.verify(request.company, session)
-        else:
-            session.api_base = service.base(
-                request.POST.get("api_base") or "https://api.superpdp.tech"
-            )
-            new_client_id = request.POST.get("client_id") or session.client_id
-            if (
-                new_client_id != session.client_id
-                and session.client_secret_encrypted
-                and not request.POST.get("client_secret")
-            ):
-                raise BusinessError(
-                    "Ressaisir le secret associé au nouveau Client ID SUPERPDP."
-                )
-            credentials_changed = bool(
-                request.POST.get("client_secret")
-                or request.POST.get("access_token")
-                or new_client_id != session.client_id
-            )
-            session.client_id = new_client_id
-            if credentials_changed:
-                session.access_token_encrypted = session.refresh_token_encrypted = None
-                session.company_verification_status = "needs_review"
-            for source, destination in (
-                ("client_secret", "client_secret_encrypted"),
-                ("access_token", "access_token_encrypted"),
-            ):
-                if request.POST.get(source):
-                    setattr(session, destination, encrypt(request.POST[source]))
-            if request.POST.get("sandbox") == "1":
-                if settings.ENVIRONMENT == "production":
-                    raise BusinessError("Simulation indisponible en production.")
-                session.status = "sandbox"
+        elif operation in {"verify", "save_and_verify", "", "save"}:
+            try:
+                with transaction.atomic():
+                    company = Company.objects.select_for_update().get(pk=request.company.pk)
+                    session = PdpSession.objects.select_for_update().get(pk=session.pk)
+                    sync = PdpSyncState.objects.select_for_update().get(pk=sync.pk)
+                    if operation != "verify":
+                        save_pdp_settings(session, sync, request.POST)
+                        audit(request, "pdp.configuration_saved", session.session_uid)
+                    if operation in {"verify", "save_and_verify"} and session.status != "sandbox":
+                        service.verify(company, session)
+                        audit(request, "pdp.connection_checked", session.session_uid)
+            except service.PdpHttpError as exc:
+                if exc.http_status in (401, 403):
+                    messages.error(
+                        request,
+                        "SUPERPDP refuse l’accès. Vérifiez les identifiants techniques et leurs droits pour cette entreprise.",
+                    )
+                else:
+                    messages.error(request, str(exc))
+            except BusinessError as exc:
+                if operation in {"", "save"}:
+                    raise
+                messages.error(request, str(exc))
             else:
-                session.status = "configured"
-            session.updated_at = stamp()
-            session.save()
-            sync.auth_mode = "technical" if session.client_id else "auto"
-            sync.version += 1
-            sync.save(update_fields=["auth_mode", "version"])
-            audit(request, "pdp.configuration_saved", session.session_uid)
+                if session.status == "sandbox":
+                    messages.success(request, "Simulation locale enregistrée.")
+                elif operation not in {"verify", "save_and_verify"}:
+                    messages.success(request, "Paramètres SUPERPDP enregistrés.")
+                elif session.company_verification_status == "verified":
+                    messages.success(request, "Connexion SUPERPDP confirmée et entreprise vérifiée.")
+                elif session.company_verification_status == "failed":
+                    messages.warning(request, "SUPERPDP a refusé la vérification de cette entreprise.")
+                else:
+                    messages.warning(
+                        request,
+                        "Connexion établie. Consultez l’état de vérification dans SUPERPDP.",
+                    )
+        else:
+            raise BusinessError("Action SUPERPDP inconnue.")
         return redirect("/app/entreprise/pdp")
     operations = list(
         PdpOutbox.objects.filter(company_uid=request.company.company_uid).order_by(
@@ -249,6 +285,24 @@ def pdp(request, action=None):
         {
             "title": "Connexion SUPERPDP",
             "pdp": session,
+            "oauth_ready": oauth_ready,
+            "external_services_disabled": settings.EXTERNAL_SERVICES_DISABLED,
+            "has_pdp_credentials": bool(
+                session.access_token_encrypted
+                or session.refresh_token_encrypted
+                or (session.client_id and session.client_secret_encrypted)
+            ),
+            "connection_label": {
+                "not_configured": "À configurer",
+                "configured": "Paramètres enregistrés",
+                "active": "Connexion vérifiée",
+                "sandbox": "Simulation locale",
+            }.get(session.status, "À vérifier"),
+            "verification_label": {
+                "verified": "Entreprise vérifiée",
+                "needs_review": "En cours d’examen chez SUPERPDP" if session.last_checked_at else "Entreprise à vérifier",
+                "failed": "Vérification refusée",
+            }.get(session.company_verification_status, "Entreprise à vérifier"),
             "redirect_uri": redirect_uri,
             "webhook_url": settings.APP_URL + "/webhooks/superpdp",
             "allow_sandbox": settings.ENVIRONMENT != "production",

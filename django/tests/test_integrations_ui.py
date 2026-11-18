@@ -73,6 +73,25 @@ class EmailConnectionTests(ApplicationCase):
         self.assertEqual(decrypt(connection.password_encrypted), "SecretTestOnly")
         self.assertEqual(connection.smtp_port, 587)
 
+    def test_smtp_test_shows_summary_until_user_edits_or_check_fails(self):
+        connection = self.smtp()
+        url = "/app/emails/connexion"
+        self.assertContains(self.client.get(url), 'id="email-settings"')
+        with patch("core.services.email_connections.smtp_client") as smtp:
+            smtp.return_value.__enter__.return_value.noop.return_value = (250, b"OK")
+            response = self.client.post(url, {"action": "test"}, follow=True)
+        self.assertContains(response, "Connexion SMTP vérifiée")
+        self.assertContains(response, "?modifier=1")
+        self.assertNotContains(response, 'id="email-settings"')
+        self.assertContains(self.client.get(url + "?modifier=1"), 'id="email-settings"')
+        self.assertFalse(Email.objects.exists())
+        with patch("core.services.email_connections.smtp_client", side_effect=BusinessError("Connexion refusée", 502)):
+            response = self.client.post(url, {"action": "test"}, follow=True)
+        self.assertContains(response, "Connexion refusée")
+        self.assertContains(response, 'id="email-settings"')
+        connection.refresh_from_db()
+        self.assertIsNone(connection.last_tested_at)
+
     def test_company_route_and_changed_configuration_need_explicit_retry(self):
         connection = self.smtp()
         item = mail.queue(

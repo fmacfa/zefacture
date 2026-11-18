@@ -395,6 +395,7 @@ class Ingestion(models.Model):
     )
     expense_currency = models.TextField(default="EUR")
     expense_status = models.TextField(default="pending")
+    archived_at = models.DateTimeField(null=True, blank=True)
     original_filename = models.TextField(default="")
     storage_path = models.TextField(default="")
     mime_type = models.TextField(null=True, blank=True)

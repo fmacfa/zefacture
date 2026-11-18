@@ -740,6 +740,7 @@ def dataset(request, name, selected, report=None):
         query = Ingestion.objects.filter(
             company_uid=company_uid,
             source_kind__in=["expense_note", "expense", "expense_receipt", "receipt"],
+            archived_at__isnull=True,
         )
         return [
             "Date",

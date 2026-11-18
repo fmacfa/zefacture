@@ -1,68 +1,101 @@
-{% extends "core/base.html" %}{% load static %}
+{% extends "core/base.html" %}
+{% load static %}
 {% block content %}
 <div class="page-head">
-  <div><p class="eyebrow">{{ item.source_kind }} · {{ item.status }}</p><h1>{{ item.original_filename }}</h1></div>
-  <a class="button secondary" href="/app/imports/{{ item.ingestion_uid }}/telecharger">Télécharger l'original</a>
-</div>
-{% if item.last_error %}<p class="notice error">{{ item.last_error }}</p>{% endif %}
-{% if item.document_uid %}
-<div class="notice success">Import converti. <a href="/app/reception/{{ item.document_uid }}">Ouvrir la facture reçue</a></div>
-{% else %}
-{% if item.transcription_status == "queued" or item.extraction_status == "queued" %}
-<p class="notice" role="status">Traitement en cours ou en attente. Actualisez la page pour afficher les résultats.</p>
-{% endif %}
-<div class="grid two">
-  <form class="card" method="post" action="/app/imports/{{ item.ingestion_uid }}/transcrire">
-    {% csrf_token %}
-    <h2>Transcrire sur le serveur</h2>
-    <p>L’OCR lit le document et propose le commerçant, la date et les montants qu’il reconnaît.</p>
-    <button>Transcrire</button>
-  </form>
-  {% if ai_choices and item.transcription_text %}
-  <form class="card stack" method="post" action="/app/imports/{{ item.ingestion_uid }}/analyser" data-confirm="Envoyer le texte transcrit au fournisseur IA sélectionné ?">
-    {% csrf_token %}
-    <h2>Analyser avec l’IA</h2>
-    <label>Fournisseur
-      <select name="provider">
-        {% for provider, name in ai_choices %}<option value="{{ provider }}">{{ name }}</option>{% endfor %}
-      </select>
-    </label>
-    <p>Le fournisseur sélectionné reçoit le texte transcrit. Vérifiez ensuite les champs proposés.</p>
-    <div><button class="secondary">Analyser</button></div>
-  </form>
-  {% elif item.transcription_text %}
-  <section class="card">
-    <h2>Analyser avec l’IA</h2>
-    <p>L’analyse externe est indisponible sur cette instance. Vous pouvez utiliser les suggestions locales ou compléter les champs.</p>
-  </section>
-  {% endif %}
-</div>
-{% if is_expense %}
-<form class="card stack" method="post" action="/app/imports/{{ item.ingestion_uid }}/enregistrer-justificatif">
-  {% csrf_token %}
-  <h2>Informations du justificatif</h2>
-  {% if item.transcription_text %}
-  <p>Comparez les suggestions à l’original avant d’enregistrer.{% if suggested.vat %} TVA totale repérée : {{ suggested.vat }} {{ suggested.currency }}.{% endif %}</p>
-  {% endif %}
-  <div class="form-grid">
-    <label>Commerçant<input name="merchant_name" value="{{ expense.merchant }}" maxlength="255" required></label>
-    <label>Date de dépense<input name="expense_date" type="date" value="{{ expense.date }}" required></label>
-    <label>Montant TTC<input name="expense_amount" type="number" step="0.01" min="0" value="{{ expense.amount }}" required></label>
-    <label>Devise<input name="expense_currency" value="{{ expense.currency }}" placeholder="EUR" maxlength="3" required></label>
-    <label>Catégorie<input name="expense_category" value="{{ item.expense_category|default_if_none:'' }}" placeholder="Repas, transport…" maxlength="255"></label>
-    <label>Description<input name="expense_description" value="{{ item.expense_description|default_if_none:'' }}" maxlength="2000"></label>
+  <div>
+    <h1>{% if is_expense %}{{ item.merchant_name|default:source_label }}{% else %}{{ source_label }}{% endif %}</h1>
+    <p class="muted break">{{ item.original_filename }}</p>
   </div>
-  <div class="form-actions"><button>Enregistrer le justificatif</button></div>
-</form>
-<details class="card"><summary>Détails de facturation et texte transcrit</summary>
-{% endif %}
+  <div class="inline wrap">
+    <a class="button secondary" href="/app/imports/{{ item.ingestion_uid }}/telecharger">Télécharger l’original</a>
+    <a class="button secondary" href="{% if is_expense %}/app/notes-de-frais{% else %}/app/imports{% endif %}{% if item.archived_at %}?archives=1{% endif %}">Retour à la liste</a>
+  </div>
+</div>
+
+{% if item.archived_at %}
+  <section class="card stack">
+    <h2>Justificatif archivé</h2>
+    <p>L’original est disponible et vous pouvez restaurer le justificatif à tout moment.</p>
+    <form method="post" action="/app/imports/{{ item.ingestion_uid }}/restaurer">
+      {% csrf_token %}<button>Restaurer le justificatif</button>
+    </form>
+    {% if item.document_uid %}<a href="/app/reception/{{ item.document_uid }}">Ouvrir la facture liée</a>{% endif %}
+  </section>
+{% elif item.document_uid %}
+  <div class="notice success">Facture reçue créée. <a href="/app/reception/{{ item.document_uid }}">Ouvrir la facture</a></div>
+{% else %}
+  {% if item.last_error %}<p class="notice error" role="alert">{{ item.last_error }}</p>{% endif %}
+  {% if item.transcription_status == "queued" or item.extraction_status == "queued" %}
+    <p class="notice" role="status">Traitement en attente ou en cours. Actualisez la page pour afficher les résultats.</p>
+  {% endif %}
+  <div class="grid two">
+    {% if is_expense %}
+      <form class="card stack" method="post" action="/app/imports/{{ item.ingestion_uid }}/enregistrer-justificatif">
+        {% csrf_token %}
+        <h2>Détails de la dépense</h2>
+        {% if item.transcription_text %}
+          <p class="form-help">Vérifiez les suggestions avec l’original.{% if suggested.vat %} TVA repérée {{ suggested.vat }} {{ suggested.currency }}.{% endif %}</p>
+        {% endif %}
+        <fieldset class="form-section">
+          <legend>Justificatif</legend>
+          <div class="form-grid">
+            <label>Commerçant<input name="merchant_name" value="{{ expense.merchant }}" maxlength="255" required></label>
+            <label>Date de dépense<input name="expense_date" type="date" value="{{ expense.date }}" required></label>
+            <label>Montant TTC<input name="expense_amount" type="number" step="0.01" min="0" value="{{ expense.amount }}" inputmode="decimal" required></label>
+            <label>Devise<input name="expense_currency" value="{{ expense.currency }}" placeholder="EUR" maxlength="3" required></label>
+          </div>
+        </fieldset>
+        <fieldset class="form-section">
+          <legend>Classement</legend>
+          <div class="stack">
+            <label>Catégorie<input name="expense_category" value="{{ item.expense_category|default_if_none:'' }}" placeholder="Repas, transport…" maxlength="255"></label>
+            <label>Description<textarea name="expense_description" rows="2" maxlength="2000">{{ item.expense_description|default_if_none:'' }}</textarea></label>
+          </div>
+        </fieldset>
+        <div class="form-actions end-actions"><button>Enregistrer le justificatif</button></div>
+      </form>
+    {% endif %}
+    <section class="card stack" aria-labelledby="reading-title">
+      <div class="section-head"><h2 id="reading-title">Lire le justificatif</h2><span class="badge">{{ state_label }}</span></div>
+      <form class="stack" method="post" action="/app/imports/{{ item.ingestion_uid }}/transcrire">
+        {% csrf_token %}
+        <fieldset class="form-section">
+          <legend>Transcription locale</legend>
+          <p class="form-help">L’OCR propose le commerçant, la date et les montants détectés.</p>
+          <button>{% if item.transcription_text %}Relancer la transcription{% else %}Transcrire{% endif %}</button>
+        </fieldset>
+      </form>
+      {% if ai_choices and item.transcription_text %}
+        <form method="post" action="/app/imports/{{ item.ingestion_uid }}/analyser" data-confirm="Envoyer le texte transcrit au fournisseur IA sélectionné ?">
+          {% csrf_token %}
+          <fieldset class="form-section stack">
+            <legend>Analyse avec l’IA</legend>
+            <label>Fournisseur<select name="provider">{% for provider, name in ai_choices %}<option value="{{ provider }}">{{ name }}</option>{% endfor %}</select></label>
+            <p class="form-help">Le fournisseur reçoit le texte transcrit pour proposer les champs et les lignes.</p>
+            <button class="secondary">Analyser le texte</button>
+          </fieldset>
+        </form>
+      {% else %}
+        <section>
+          <h3>Analyse avec l’IA</h3>
+          <p class="form-help">{% if ai_choices %}Transcrivez d’abord le justificatif pour analyser le texte.{% else %}L’exploitant doit configurer une clé API et un modèle pour activer cette option.{% endif %}</p>
+        </section>
+      {% endif %}
+      <a href="https://zefacture.com/documentation/autohebergement#analyse-facultative-des-justificatifs">Configurer une clé API pour l’IA</a>
+    </section>
+  </div>
+  {% if is_expense %}
+    <details class="card form-disclosure"><summary>Facturation détaillée et texte transcrit</summary>
+  {% endif %}
 <form id="document-form" method="post" action="/app/imports/{{ item.ingestion_uid }}/enregistrer" class="stack">
   {% csrf_token %}
   <input type="hidden" name="extraction_json">
   <input type="hidden" name="lines_json" id="lines-json">
   <section class="card">
     <h2>Vérifier les informations de facturation</h2>
-    <div class="form-grid">
+    <fieldset class="form-section">
+      <legend>Fournisseur</legend>
+      <div class="form-grid">
       <label>Nom du fournisseur<input data-extract="supplier.legal_name" required></label>
       <label>Pays<input data-extract="supplier.country_code" maxlength="2" required></label>
       <label>Adresse<input data-extract="supplier.address_line1"></label>
@@ -72,13 +105,19 @@
       <label>SIREN<input data-extract="supplier.siren"></label>
       <label>SIRET<input data-extract="supplier.siret"></label>
       <label>Numéro de TVA<input data-extract="supplier.vat_number"></label>
+      </div>
+    </fieldset>
+    <fieldset class="form-section">
+      <legend>Facture</legend>
+      <div class="form-grid">
       <label>Numéro de facture<input data-extract="invoice.number" required></label>
       <label>Date d'émission<input data-extract="invoice.issue_date" type="date" required></label>
       <label>Échéance<input data-extract="invoice.due_date" type="date"></label>
       <label>Devise<input name="currency_code" data-extract="invoice.currency_code" maxlength="3" required></label>
       <label>Total TTC sur l’original<input data-extract="totals.total_including_tax" type="number" step="0.01" min="0"></label>
       <label>Référence<input data-extract="invoice.reference"></label>
-    </div>
+      </div>
+    </fieldset>
   </section>
   <section class="card">
     <h2>Lignes de facturation</h2>
@@ -103,8 +142,17 @@
 {{ lines|json_script:"initial-lines" }}
 {{ inventory|json_script:"inventory-data" }}
 {% endif %}
+{% if not item.archived_at and can_write %}
+  <section class="card stack" aria-labelledby="archive-title">
+    <h2 id="archive-title">Archiver le justificatif</h2>
+    <p class="form-help">Retirez-le de la liste active. Vous pourrez retrouver l’original et restaurer le justificatif dans les archives.{% if item.document_uid %} La facture liée reste accessible dans les factures fournisseurs.{% endif %}</p>
+    <form method="post" action="/app/imports/{{ item.ingestion_uid }}/archiver" data-confirm="Archiver ce justificatif ?">
+      {% csrf_token %}<button class="secondary">Archiver le justificatif</button>
+    </form>
+  </section>
+{% endif %}
 {% endblock %}
-{% block scripts %}{% if not item.document_uid %}
+{% block scripts %}{% if not item.document_uid and not item.archived_at %}
 <script src="{% static 'money.js' %}"></script>
 <script src="{% static 'document-editor.js' %}" defer></script>
 <script src="{% static 'ingestion-editor.js' %}" defer></script>

@@ -1,0 +1,144 @@
+.form-panel {
+  max-width: 68rem;
+  margin-inline: auto;
+}
+
+.form-section {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.form-section legend {
+  margin-bottom: .8rem;
+  padding: 0;
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.form-section label {
+  margin: 0;
+}
+
+.form-field {
+  display: grid;
+  align-content: start;
+  gap: .4rem;
+  min-width: 0;
+}
+
+.form-field .errorlist {
+  margin: 0;
+}
+
+.form-field textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.form-help {
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.form-help a,
+.form-field small a {
+  text-decoration: underline;
+}
+
+.form-group-stack {
+  display: grid;
+  gap: .65rem;
+}
+
+.form-panel > .form-section + .form-section {
+  border-top: 1px solid var(--line);
+  margin-top: 1.4rem;
+  padding-top: 1.25rem;
+}
+
+/* Keep each editor and action group inside the available viewport. */
+form :is(input, select, textarea) {
+  max-inline-size: 100%;
+}
+
+form [hidden] {
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  form :is(input:not([type=checkbox], [type=radio]), select, textarea) {
+    font-size: 1rem;
+  }
+
+  .form-actions > :is(button, .button) {
+    flex: 1 1 8rem;
+  }
+}
+
+.settings-summary {
+  margin: 0;
+}
+
+.settings-summary dt {
+  color: var(--muted);
+  font-size: .83rem;
+}
+
+.settings-summary dd {
+  margin: .2rem 0 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.form-choice {
+  flex-direction: row;
+  align-items: center;
+  gap: .75rem;
+  min-height: 4.25rem;
+  padding: .7rem .85rem;
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  cursor: pointer;
+}
+
+.form-choice:has(input:checked) {
+  border-color: var(--link);
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--link);
+}
+
+.form-choice input[type=radio] {
+  width: 1rem;
+  min-height: 0;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--link);
+}
+
+.form-choice small {
+  display: block;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.form-choice-grid {
+  gap: .8rem;
+}
+
+.form-disclosure summary {
+  cursor: pointer;
+  color: var(--link);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.form-disclosure[open] summary {
+  margin-bottom: 1.1rem;
+}
+
+.end-actions {
+  justify-content: flex-end;
+}

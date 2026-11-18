@@ -46,21 +46,41 @@ function totp(secret) {
     await sections.getByRole('link', { name: 'Paiement', exact: true }).click();
     await page.getByRole('heading', { name: 'Paiement', exact: true }).waitFor();
     assert.equal(await page.getByLabel('Téléphone', { exact: true }).count(), 0);
+    await sections.getByRole('link', { name: 'Immatriculation et TVA', exact: true }).click();
+    await page.getByLabel('Régime TVA', { exact: true }).selectOption('Franchise en base');
+    assert.equal(await page.locator('input[name=rcs_number]').count(), 0);
+    await page.getByRole('button', { name: 'Enregistrer cette rubrique' }).click();
+    await page.getByText('Réglages enregistrés dans la rubrique « Immatriculation et TVA ».').waitFor();
     await page.goto(base + '/app/entreprise/personnalisation');
+    const brandingMenu = page.getByRole('navigation', { name: 'Rubriques de personnalisation' });
+    const preview = page.locator('[data-invoice-preview]');
     await page.getByLabel('Nom d’affichage', { exact: true }).fill('Atelier Studio');
     await page.getByLabel('Couleur principale', { exact: true }).fill('#74245c');
-    await page.getByLabel('Présentation des documents', { exact: true }).selectOption('compact');
-    await page.getByLabel('Devise par défaut', { exact: true }).fill('CHF');
     await page.getByLabel('Logo de l’entreprise', { exact: true }).setInputFiles({name:'demo.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAs0lEQVR4nO3awQ2CUBAG4WFCKdqVdiFVUIZl2YwNeMAIwQl8583LJnv48zY7PC43yiRO4iRO4iRO4iRO4iRO4iRO4iRu/Kp6fj23aGK63o87AYmTOImTOImTODlUkG1k/pSPC9Nt3CtT1wp1iZM4iZM4iZM4iZM4iZM4iZM4iZM4iZO4cd3nNto9/vuXcjp3o2ESJ3ESJ3ESJ3HDeXK2M4mTOImTOImTOImTOImTOPdu4FdvS60OcfCAoMoAAAAASUVORK5CYII=','base64')});
-    await page.getByLabel('Adresse de réponse', { exact: true }).fill('contact@example.test');
-    await page.getByLabel('Signature des emails', { exact: true }).fill('Merci,\nAtelier Studio — données fictives');
-    await page.getByRole('button', { name: 'Enregistrer la personnalisation', exact: true }).click();
-    await page.getByText('Personnalisation enregistrée pour cette entreprise.', { exact: false }).waitFor();
+    await preview.getByText('Atelier Studio', { exact: true }).waitFor();
+    await page.waitForFunction(() => document.querySelector('[data-invoice-preview] .company-logo').src.startsWith('data:image/png'));
+    assert.equal(await preview.locator('.masthead').evaluate(node => getComputedStyle(node).borderBottomColor), 'rgb(116, 36, 92)');
+    await page.getByRole('button', { name: 'Enregistrer cette rubrique', exact: true }).click();
+    await page.getByText('Réglages enregistrés dans la rubrique « Identité visuelle ».').waitFor();
     const brand = page.getByRole('link', { name: 'Atelier Studio, accueil', exact: true });
     assert.equal(await brand.locator('img').getAttribute('src'), '/app/entreprise/logo');
-    const saveBranding = page.getByRole('button', { name: 'Enregistrer la personnalisation', exact: true });
+    const saveBranding = page.getByRole('button', { name: 'Enregistrer cette rubrique', exact: true });
     assert.equal(await saveBranding.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(116, 36, 92)');
     await page.screenshot({ path: path.join(output, 'branding-desktop.png'), fullPage: true });
+    await brandingMenu.getByRole('link', { name: 'Documents', exact: true }).click();
+    await page.getByLabel('Présentation des documents', { exact: true }).selectOption('compact');
+    await page.getByLabel('Devise par défaut', { exact: true }).selectOption('CHF');
+    assert.equal(await preview.evaluate(node => node.classList.contains('compact')), true);
+    assert.equal(await preview.locator('.document-currency').first().textContent(), 'CHF');
+    await saveBranding.click();
+    await page.getByText('Réglages enregistrés dans la rubrique « Documents ».').waitFor();
+    await brandingMenu.getByRole('link', { name: 'Adresse et signature', exact: true }).click();
+    await page.getByLabel('Adresse de réponse', { exact: true }).fill('contact@example.test');
+    await page.getByLabel('Signature des emails', { exact: true }).fill('Merci,\nAtelier Studio — données fictives');
+    await saveBranding.click();
+    await page.getByText('Réglages enregistrés dans la rubrique « Adresse et signature ».').waitFor();
+    await brandingMenu.getByRole('link', { name: 'Identité visuelle', exact: true }).click();
+    assert.equal(await page.getByLabel('Nom d’affichage', { exact: true }).inputValue(), 'Atelier Studio');
     await page.goto(base + '/app/devis/nouveau');
     assert.equal(await page.getByLabel('Devise', { exact: true }).inputValue(), 'CHF');
     await page.locator('select[name=customer_uid]').selectOption({ label: 'Maison des Exemples · FR' });
@@ -98,13 +118,23 @@ function totp(secret) {
     const responsive = [];
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: width < 700 ? 844 : 1000 });
-      for (const [name, route] of [['company', '/app/entreprise/reglages/coordonnees'], ['branding', '/app/entreprise/personnalisation'], ['oauth', '/app/emails/connexion/guide'], ['mail', '/app/emails/connexion'], ['security', '/app/compte/securite'], ['reports', '/app/rapports'], ['crm', '/app/crm'], ['dashboard', '/app']]) {
+      for (const [name, route] of [['company', '/app/entreprise/reglages/coordonnees'], ['branding', '/app/entreprise/personnalisation'], ['oauth', '/app/emails/connexion/guide'], ['mail', '/app/emails/connexion'], ['client', '/app/clients/nouveau'], ['document', '/app/devis/nouveau'], ['imports', '/app/imports'], ['security', '/app/compte/securite'], ['reports', '/app/rapports'], ['crm', '/app/crm'], ['dashboard', '/app']]) {
         await page.goto(base + route);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Overflow ${width}: ${route}`);
         responsive.push({ width, route, ok: true });
-        if ((width === 390 || width === 1440) && ['branding', 'mail', 'dashboard'].includes(name)) await page.screenshot({ path: path.join(output, `${name}-${width}.png`), fullPage: true });
+        if ((width === 390 || width === 1440) && ['branding', 'mail', 'client', 'dashboard'].includes(name)) await page.screenshot({ path: path.join(output, `${name}-${width}.png`), fullPage: true });
       }
     }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(base + '/app/clients/nouveau');
+    const workspaceMenu = page.getByRole('navigation', { name: 'Espace de gestion' });
+    await workspaceMenu.waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    await workspaceMenu.waitFor({ state: 'visible' });
+    assert.equal(await workspaceMenu.getByRole('link', { name: 'Clients', exact: true }).getAttribute('aria-current'), 'page');
+    assert.equal(await workspaceMenu.getByRole('link', { name: 'Clients', exact: true }).locator('svg').count(), 1);
+    await page.keyboard.press('Escape');
+    await workspaceMenu.waitFor({ state: 'hidden' });
     assert.equal(errors.length, 0, errors.join('\n'));
     await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ ok: true, synthetic_data_only: true, flows: ['tenant_branding', 'document_defaults', 'branded_pdf', 'oauth_setup_callbacks', 'dark_theme', 'compact_density', 'mfa_enrollment', 'recovery_login'], responsive, javascript_and_csp_errors: errors }, null, 2));
     console.log('OAuth, personnalisation, MFA et responsive : OK.');

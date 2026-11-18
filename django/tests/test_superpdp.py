@@ -67,6 +67,18 @@ class SuperpdpTests(ApplicationCase):
     def sync(self):
         return pdp_sync.sync_company(self.company.company_uid, force=True)
 
+    def test_technical_credentials_are_verified_from_the_settings_page(self):
+        url = "/app/entreprise/pdp"
+        response = self.client.post(
+            url, {"action": "save_and_verify", "api_base": self.provider.origin}, follow=True
+        )
+        self.assertContains(response, "Connexion SUPERPDP confirmée et entreprise vérifiée.")
+        self.assertContains(response, "Connexion vérifiée")
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, "active")
+        self.assertEqual(self.session.company_verification_status, "verified")
+        self.assertFalse(PdpSyncState.objects.get().enabled)
+
     def original(self, document, raw=None):
         raw = raw or pdf_bytes()
         return DocumentFile.objects.create(

@@ -1,0 +1,107 @@
+{% extends "core/base.html" %}
+{% block content %}
+<div class="page-head form-panel">
+  <h1>{% if new_customer %}Nouveau client{% else %}Modifier le client{% endif %}</h1>
+  <a class="button secondary" href="{% if new_customer %}/app/clients{% else %}/app/clients/{{ form.instance.customer_uid }}{% endif %}">Retour aux clients</a>
+</div>
+
+<form method="post" class="form-panel stack customer-form" data-form-draft data-customer-form{% if form.errors %} data-unsaved{% endif %}>
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <section class="card stack" aria-labelledby="customer-identity">
+    <h2 id="customer-identity">Identité du client</h2>
+    <fieldset class="form-section">
+      <legend>Type de client</legend>
+      <div class="form-grid form-choice-grid">
+        <label class="form-choice">
+          <input type="radio" name="type" value="business" required{% if form.type.value == 'business' %} checked{% endif %}>
+          <span><strong>Professionnel</strong><small>Entreprise ou indépendant</small></span>
+        </label>
+        <label class="form-choice">
+          <input type="radio" name="type" value="individual" required{% if form.type.value == 'individual' %} checked{% endif %}>
+          <span><strong>Particulier</strong><small>Personne physique</small></span>
+        </label>
+      </div>
+      {{ form.type.errors }}
+    </fieldset>
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="{{ form.legal_name.id_for_label }}" data-customer-name>Nom / raison sociale</label>
+        {{ form.legal_name }}
+        {{ form.legal_name.errors }}
+      </div>
+      {% if new_customer %}
+        <label>Relation commerciale
+          <select name="relationship" aria-label="Relation commerciale">
+            {% for key, label in relationships %}<option value="{{ key }}"{% if relationship == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card stack" aria-labelledby="customer-contact">
+    <h2 id="customer-contact">Coordonnées</h2>
+    <div class="form-grid">
+      {% include "core/form_field.html" with field=form.email %}
+      {% include "core/form_field.html" with field=form.phone %}
+    </div>
+    <fieldset class="form-section">
+      <legend>Adresse de facturation</legend>
+      <div class="form-grid">
+        {% include "core/form_field.html" with field=form.address_line1 %}
+        {% include "core/form_field.html" with field=form.address_line2 %}
+        {% include "core/form_field.html" with field=form.postal_code %}
+        {% include "core/form_field.html" with field=form.city %}
+        {% include "core/form_field.html" with field=form.country_code %}
+        <datalist id="customer-countries">
+          <option value="FR">France</option><option value="BE">Belgique</option><option value="CH">Suisse</option>
+          <option value="LU">Luxembourg</option><option value="DE">Allemagne</option><option value="IT">Italie</option>
+          <option value="ES">Espagne</option><option value="PT">Portugal</option><option value="NL">Pays-Bas</option>
+          <option value="GB">Royaume-Uni</option><option value="CA">Canada</option><option value="US">États-Unis</option>
+        </datalist>
+      </div>
+    </fieldset>
+  </section>
+
+  <details class="card form-disclosure" data-customer-business-details{% if form.errors or form.siren.value or form.siret.value or form.vat_number.value %} open{% endif %}>
+    <summary>Immatriculation et facturation électronique</summary>
+    <div class="stack">
+      <div class="form-grid">
+        {% include "core/form_field.html" with field=form.trade_name %}
+        {% include "core/form_field.html" with field=form.vat_number %}
+        {% include "core/form_field.html" with field=form.siren %}
+        {% include "core/form_field.html" with field=form.siret %}
+      </div>
+      <fieldset class="form-section">
+        <legend>Adresse de facturation électronique</legend>
+        <div class="form-grid">
+          {% include "core/form_field.html" with field=form.electronic_address %}
+          {% include "core/form_field.html" with field=form.electronic_address_scheme %}
+        </div>
+      </fieldset>
+    </div>
+  </details>
+
+  <div class="form-actions end-actions">
+    <a class="button secondary" href="{% if new_customer %}/app/clients{% else %}/app/clients/{{ form.instance.customer_uid }}{% endif %}">Annuler</a>
+    <button type="submit">{% if new_customer %}Créer le client{% else %}Enregistrer le client{% endif %}</button>
+  </div>
+</form>
+
+{% if directory_url %}
+  <section class="card form-panel">
+    <h2>Vérifier les coordonnées</h2>
+    <form class="inline" method="post" action="{{ directory_url }}">
+      {% csrf_token %}
+      <button class="secondary" name="lookup" value="directory">Annuaire SUPERPDP</button>
+      <button class="secondary" name="lookup" value="vies">Vérifier la TVA avec VIES</button>
+    </form>
+  </section>
+{% endif %}
+{% if archive_url and can_write %}
+  <form class="form-panel form-actions" method="post" action="{{ archive_url }}" data-confirm="Archiver ce client ?">
+    {% csrf_token %}<button class="danger">Archiver le client</button>
+  </form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+<nav class="card settings-navigation" aria-label="{{ menu_label }}">
+  <ul>
+    {% for label, url, current in sections %}
+      <li><a href="{{ url }}"{% if current %} aria-current="page"{% endif %}>{{ label }}</a></li>
+    {% endfor %}
+  </ul>
+</nav>

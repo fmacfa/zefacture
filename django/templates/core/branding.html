@@ -1,8 +1,149 @@
-{% extends "core/base.html" %}{% block content %}
-<div class="page-head"><div><p class="eyebrow">PROPRE À CETTE ENTREPRISE</p><h1>Personnalisation</h1><p class="muted">Votre identité visuelle, vos documents et vos emails. Chaque entreprise conserve ses propres réglages.</p></div><a class="button secondary" href="/app/entreprise">Réglages de l’entreprise</a></div>
-<form method="post" enctype="multipart/form-data" class="stack">{% csrf_token %}
-<div class="grid two"><section class="card stack"><h2>Identité visuelle</h2><label>Nom d’affichage<input name="display_name" value="{{ branding.display_name }}" maxlength="120" placeholder="{{ company.legal_name }}"></label><p class="muted">Le nom légal de l’émetteur reste présent dans les documents. Ce nom d’affichage personnalise votre espace et l’en-tête des documents.</p><label>Couleur principale<input name="accent_color" type="color" value="{{ branding.accent_color }}" required></label><small>Les contrastes sont ajustés automatiquement pour garder les textes et boutons lisibles.</small><label>Logo de l’entreprise<input type="file" name="logo" accept="image/png,image/jpeg,image/webp"></label><small>PNG, JPEG ou WebP, 2 Mo maximum, 16 mégapixels maximum. Le logo est converti en PNG sans métadonnées.</small>{% if branding.logo_path %}<img class="branding-preview" src="/app/entreprise/logo" alt="Logo actuel"><label class="check"><input type="checkbox" name="remove_logo" value="1">Retirer le logo pour les prochains documents</label>{% endif %}</section>
-<section class="card stack"><h2>Documents</h2><label>Présentation des documents<select name="document_layout" aria-label="Présentation des documents"><option value="classic" {% if branding.document_layout == 'classic' %}selected{% endif %}>Classique</option><option value="compact" {% if branding.document_layout == 'compact' %}selected{% endif %}>Compacte</option></select></label><label>Devise par défaut<input name="default_currency" value="{{ branding.default_currency }}" required maxlength="3"></label><small>Devises prises en charge : EUR, USD, GBP, CHF, CAD, JPY, SEK, NOK, DKK et PLN.</small><label>Délai de paiement par défaut (jours)<input type="number" name="payment_due_days" value="{{ branding.payment_due_days }}" min="0" max="365" required></label><label>Validité des devis par défaut (jours)<input type="number" name="quote_validity_days" value="{{ branding.quote_validity_days }}" min="1" max="365" required></label><p>Les coordonnées, conditions de paiement, mentions de bas de facture, coordonnées bancaires et préfixes de numérotation se règlent dans <a href="/app/entreprise">Mon entreprise</a>.</p><div class="notice">La présentation est enregistrée dans chaque nouveau document ou brouillon sauvegardé. Un document déjà émis garde son PDF original et son identité visuelle.</div></section></div>
-<section class="card stack"><h2>Emails de votre entreprise</h2><label>Adresse de réponse<input type="email" name="reply_to" value="{{ branding.reply_to }}" placeholder="contact@example.com"></label><small>Facultatif. Ne remplace pas le compte d’envoi, à connecter dans <a href="/app/emails/connexion">Emails → Connexion</a>.</small><label>Signature des emails<textarea name="email_signature" rows="4" maxlength="4000">{{ branding.email_signature }}</textarea></label><p>Les modèles sont en texte simple. Variables disponibles : <code>{company}</code>, <code>{customer}</code>, <code>{document_number}</code>, <code>{total}</code>, <code>{currency}</code>, <code>{due_date}</code>, <code>{document_link}</code>, <code>{original_body}</code>, <code>{signature}</code>. Le lien d’acceptation des devis est conservé même si le modèle l’omet.</p>{% for entry in mail_templates %}<details><summary>Modèle : {{ entry.label }}</summary><div class="stack"><label>Objet — {{ entry.label }}<input name="{{ entry.key }}_subject" value="{{ entry.subject }}" maxlength="240" placeholder="{{ entry.label }} {document_number} — {company}"></label><label>Message — {{ entry.label }}<textarea name="{{ entry.key }}_body" rows="7" maxlength="10000" placeholder="{original_body}&#10;&#10;{signature}">{{ entry.body }}</textarea></label><small>Laisser objet et message vides pour utiliser le modèle standard. La signature est ajoutée si le modèle ne l’inclut pas.</small></div></details>{% endfor %}</section>
-<div class="form-actions"><button>Enregistrer la personnalisation</button><a class="button secondary" href="/app">Retour au tableau de bord</a></div></form>
+{% extends "core/base.html" %}
+{% load static %}
+{% block styles %}
+<link rel="stylesheet" href="{% static 'settings.css' %}">
+<link rel="stylesheet" href="{% static 'branding-preview.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="settings-header">
+  <h1>Personnalisation</h1>
+  <div class="settings-related">
+    {% if invoice_preview %}<a class="button secondary preview-link" href="#apercu-facture">Voir l’aperçu</a>{% endif %}
+    <a class="button secondary" href="{% url 'company_settings' %}">Réglages de l’entreprise</a>
+  </div>
+</div>
+
+<div class="settings-layout">
+  {% include "core/settings_menu.html" with menu_label="Rubriques de personnalisation" %}
+
+  <div class="branding-panels{% if invoice_preview %} with-preview{% endif %}">
+    <section class="card settings-panel" aria-labelledby="branding-title">
+      <header class="settings-panel-header"><h2 id="branding-title">{{ heading }}</h2></header>
+      <form method="post" action="{{ section_url }}" data-form-draft
+            {% if attempted_save %}data-unsaved{% endif %}
+            {% if section == 'identite' %}enctype="multipart/form-data"{% endif %}
+            {% if invoice_preview %}data-branding-preview-form{% endif %}>
+        {% csrf_token %}
+        <input type="hidden" name="company_uid" value="{{ company.company_uid }}">
+        {% include "core/settings_verification.html" %}
+        {% if form_error %}<p class="notice error" role="alert">{{ form_error }}</p>{% endif %}
+        {% if select_logo_again %}<p class="notice">Sélectionnez de nouveau votre fichier logo avant d’enregistrer.</p>{% endif %}
+
+        {% if section == 'identite' %}
+          <fieldset class="settings-group">
+            <legend>Nom et couleur</legend>
+            <div class="stack">
+              <div class="form-field">
+                <label for="display-name">Nom d’affichage</label>
+                <input id="display-name" name="display_name" value="{{ values.display_name }}"
+                       maxlength="120" placeholder="{{ company.legal_name }}" aria-describedby="display-name-help">
+                <small id="display-name-help">Il apparaît dans l’en-tête. Le nom légal figure dans les coordonnées de l’émetteur.</small>
+              </div>
+              <label for="accent-color">Couleur principale
+                <input id="accent-color" name="accent_color" type="color" value="{{ values.accent_color }}" required>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset class="settings-group">
+            <legend>Logo</legend>
+            <div class="stack">
+              <div class="form-field">
+                <label for="company-logo">Logo de l’entreprise</label>
+                <input id="company-logo" type="file" name="logo" accept="image/png,image/jpeg,image/webp" aria-describedby="logo-help">
+                <small id="logo-help">PNG, JPEG ou WebP, jusqu’à 2 Mo et 16 mégapixels.</small>
+              </div>
+              <p class="notice error" role="alert" data-preview-file-error hidden></p>
+              {% if has_logo %}
+                <label class="check"><input type="checkbox" name="remove_logo" value="1"{% if values.remove_logo %} checked{% endif %}>Retirer le logo des prochains documents</label>
+              {% endif %}
+            </div>
+          </fieldset>
+        {% elif section == 'documents' %}
+          <fieldset class="settings-group">
+            <legend>Présentation</legend>
+            <div class="form-grid">
+              <label>Présentation des documents
+                <select name="document_layout" aria-label="Présentation des documents">
+                  <option value="classic"{% if values.document_layout == 'classic' %} selected{% endif %}>Classique</option>
+                  <option value="compact"{% if values.document_layout == 'compact' %} selected{% endif %}>Compacte</option>
+                </select>
+              </label>
+              <label>Devise par défaut
+                <select name="default_currency" aria-label="Devise par défaut" required>
+                  {% for currency in currencies %}
+                    <option value="{{ currency }}"{% if values.default_currency == currency %} selected{% endif %}>{{ currency }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+          </fieldset>
+          <fieldset class="settings-group">
+            <legend>Délais par défaut</legend>
+            <div class="form-grid">
+              <label>Délai de paiement (jours)<input type="number" name="payment_due_days" value="{{ values.payment_due_days }}" min="0" max="365" required></label>
+              <label>Validité des devis (jours)<input type="number" name="quote_validity_days" value="{{ values.quote_validity_days }}" min="1" max="365" required></label>
+            </div>
+          </fieldset>
+          <p class="form-help">Les nouveaux documents utilisent ces réglages. <a href="{% url 'company_settings_section' section='documents' %}">Modifier les mentions et la numérotation</a>.</p>
+        {% elif section == 'emails' %}
+          <fieldset class="settings-group">
+            <legend>Réponses et signature</legend>
+            <div class="stack">
+              <div class="form-field">
+                <label for="reply-to">Adresse de réponse</label>
+                <input id="reply-to" type="email" name="reply_to" value="{{ values.reply_to }}" placeholder="contact@example.com" aria-describedby="reply-to-help">
+                <small id="reply-to-help">Adresse à laquelle vos clients pourront répondre. Le compte d’envoi se configure dans <a href="/app/emails/connexion">Connexion email</a>.</small>
+              </div>
+              <label>Signature des emails<textarea name="email_signature" rows="5" maxlength="4000">{{ values.email_signature }}</textarea></label>
+            </div>
+          </fieldset>
+        {% else %}
+          <fieldset class="settings-group">
+            <legend>Messages automatiques</legend>
+            <p class="form-help">Vous pouvez insérer ces variables dans l’objet ou le message.</p>
+            <ul class="template-variables" aria-label="Variables disponibles">
+              {% for variable in mail_variables %}<li><code>{% templatetag openbrace %}{{ variable }}{% templatetag closebrace %}</code></li>{% endfor %}
+            </ul>
+            <div class="stack">
+              {% for entry in mail_templates %}
+                <details{% if attempted_save %} open{% endif %}>
+                  <summary>{{ entry.label }}</summary>
+                  <div class="stack">
+                    <label>Objet — {{ entry.label }}
+                      <input name="{{ entry.key }}_subject" value="{{ entry.subject }}" maxlength="240" placeholder="{{ entry.label }} {document_number}">
+                    </label>
+                    <label>Message — {{ entry.label }}
+                      <textarea name="{{ entry.key }}_body" rows="6" maxlength="10000" placeholder="{original_body}&#10;&#10;{signature}">{{ entry.body }}</textarea>
+                    </label>
+                    <small>Laissez les deux champs vides pour utiliser le message standard.</small>
+                  </div>
+                </details>
+              {% endfor %}
+            </div>
+          </fieldset>
+        {% endif %}
+
+        <div class="settings-actions"><button type="submit">Enregistrer cette rubrique</button></div>
+      </form>
+    </section>
+
+    {% if invoice_preview %}
+      <aside id="apercu-facture" class="card invoice-preview" aria-labelledby="preview-title">
+        <h2 id="preview-title">Aperçu de la facture</h2>
+        <p class="form-help">Exemple avec un client et des montants fictifs.</p>
+        <style nonce="{{ csp_nonce }}">.invoice-preview-sheet { --invoice-color: {{ invoice_preview.brand_color }}; }</style>
+        <div class="invoice-preview-sheet {{ invoice_preview.layout }}"
+             data-invoice-preview data-default-name="{{ company.legal_name }}"
+             data-saved-logo="{{ invoice_preview.saved_logo_uri }}" data-issue-date="{{ invoice_preview.issue_iso }}">
+          {% include "core/document_sheet.html" with preview=True document=invoice_preview.document branding=invoice_preview.branding lines=invoice_preview.lines taxes=invoice_preview.taxes logo_uri=invoice_preview.logo_uri only %}
+        </div>
+      </aside>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if invoice_preview %}<script src="{% static 'branding-preview.js' %}" defer></script>{% endif %}
 {% endblock %}
