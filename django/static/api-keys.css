@@ -1,0 +1,70 @@
+.api-keys-table th,
+.api-keys-table td {
+  vertical-align: middle;
+}
+
+.api-keys-table .api-key-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.api-keys-table .api-key-action form {
+  margin: 0;
+}
+
+.api-key-name,
+.api-key-prefix {
+  overflow-wrap: anywhere;
+}
+
+.api-key-caption {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .api-keys-table,
+  .api-keys-table tbody {
+    display: block;
+  }
+
+  .api-keys-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+
+  .api-key-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: .65rem .9rem;
+    padding: .85rem 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .api-key-row td {
+    display: grid;
+    gap: .2rem;
+    justify-items: start;
+    align-content: start;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .api-key-name,
+  .api-key-row .api-key-action {
+    grid-column: 1 / -1;
+  }
+
+  .api-key-row .api-key-action {
+    justify-items: end;
+  }
+
+  .api-key-caption {
+    display: block;
+    color: var(--muted);
+    font-size: .8rem;
+  }
+}

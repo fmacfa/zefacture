@@ -1,4 +1,7 @@
-{% extends "core/base.html" %}{% block content %}
+{% extends "core/base.html" %}
+{% load static %}
+{% block styles %}<link rel="stylesheet" href="{% static 'api-keys.css' %}">{% endblock %}
+{% block content %}
 <div class="page-head">
   <h1>API &amp; intégrations</h1>
   <a class="button" href="/app/developpeurs/webhooks">Webhooks sortants</a>
@@ -12,7 +15,7 @@
     <label>Accès<select name="scope">
       {% for scope in scopes %}<option value="{{ scope.value }}">{{ scope.label }}</option>{% endfor %}
     </select></label>
-    <div><button>Créer la clé</button></div>
+    <div class="form-actions end-actions"><button>Créer la clé</button></div>
     <p class="muted">Chaque clé est limitée aux données de cette entreprise. Pour interroger ZeFacture depuis Codex, choisissez la lecture seule.</p>
   </form>
   <section class="card">
@@ -25,19 +28,32 @@
     </ul>
   </section>
 </div>
-<section class="card table-wrap">
-  <h2>Clés de l'entreprise</h2>
-  <table>
-    <thead><tr><th>Nom</th><th>Accès</th><th>Préfixe</th><th>Statut</th><th></th></tr></thead>
-    <tbody>
-    {% for key in keys %}
-      <tr><td>{{ key.name }}</td><td>{{ key.get_scope_display }}</td><td><code>{{ key.prefix }}…</code></td><td>{{ key.status }}</td>
-      <td>{% if key.status == "active" %}
-        <form method="post" action="/app/developpeurs/cles-api/{{ key.key_uid }}/revoquer" data-confirm="Révoquer cette clé ?">
-          {% csrf_token %}<button class="danger">Révoquer</button>
-        </form>
-      {% endif %}</td></tr>
-    {% empty %}<tr><td colspan="5">Aucune clé.</td></tr>{% endfor %}
+<section class="card" aria-labelledby="api-keys-title">
+  <h2 id="api-keys-title">Clés de l’entreprise</h2>
+  <table class="api-keys-table" role="table" aria-labelledby="api-keys-title">
+    <thead role="rowgroup">
+      <tr role="row"><th scope="col">Nom</th><th scope="col">Accès</th><th scope="col">Préfixe</th><th scope="col">Statut</th><th scope="col" class="api-key-action">Action</th></tr>
+    </thead>
+    <tbody role="rowgroup">
+      {% for key in keys %}
+        <tr role="row" class="api-key-row">
+          <td role="cell" class="api-key-name"><span class="api-key-caption" aria-hidden="true">Nom</span><strong>{{ key.name }}</strong></td>
+          <td role="cell"><span class="api-key-caption" aria-hidden="true">Accès</span><span>{{ key.get_scope_display }}</span></td>
+          <td role="cell" class="api-key-prefix"><span class="api-key-caption" aria-hidden="true">Préfixe</span><code>{{ key.prefix }}…</code></td>
+          <td role="cell"><span class="api-key-caption" aria-hidden="true">Statut</span>
+            {% if key.status == "active" %}<span class="badge accepted">Active</span>
+            {% elif key.status == "revoked" %}<span class="badge">Révoquée</span>
+            {% else %}<span class="badge">{{ key.status|capfirst }}</span>{% endif %}
+          </td>
+          <td role="cell" class="api-key-action">
+            {% if key.status == "active" %}
+              <form method="post" action="/app/developpeurs/cles-api/{{ key.key_uid }}/revoquer" data-confirm="Révoquer cette clé ?">
+                {% csrf_token %}<button class="danger" type="submit">Révoquer</button>
+              </form>
+            {% else %}<span>—</span>{% endif %}
+          </td>
+        </tr>
+      {% empty %}<tr><td colspan="5">Aucune clé.</td></tr>{% endfor %}
     </tbody>
   </table>
 </section>
