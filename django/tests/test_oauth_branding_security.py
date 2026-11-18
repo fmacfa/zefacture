@@ -575,9 +575,9 @@ class BrandingTests(ApplicationCase):
         self.client.post(
             "/app/compte/affichage", {"theme": "dark", "density": "compact"}
         )
-        self.assertContains(
-            self.client.get("/app"), 'data-theme="dark" data-density="compact"'
-        )
+        dashboard = self.client.get("/app")
+        self.assertContains(dashboard, 'data-theme="dark"')
+        self.assertContains(dashboard, 'data-density="compact"')
         from core.models import CompanyMember
 
         CompanyMember.objects.filter(user_uid=self.user.user_uid).update(role="viewer")
