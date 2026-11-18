@@ -5,13 +5,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Créer le premier compte · ZeFacture</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'zefacture-mark.svg' %}">
   <link rel="stylesheet" href="{% static 'first-connection.css' %}">
   <script src="{% static 'first-connection.js' %}" defer></script>
 </head>
 <body class="setup-page">
   <a class="setup-skip" href="#main">Aller au formulaire</a>
   <aside class="setup-story" aria-label="ZeFacture">
-    <a class="setup-brand" href="/"><span aria-hidden="true">z.</span>ZeFacture</a>
+    <a class="setup-brand" href="/" aria-label="ZeFacture, accueil">
+      <img src="{% static 'zefacture-mark.svg' %}" width="40" height="40" alt="">
+      <span>ze<strong>facture</strong><span class="setup-brand-dot">.</span></span>
+    </a>
     <div class="setup-story-content">
       <p>Votre facturation,<br><strong>sur votre serveur.</strong></p>
       <div class="setup-art" aria-hidden="true">
