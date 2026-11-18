@@ -429,6 +429,7 @@ def public_quote(request, token):
 
     presentation = document.seller.get("branding", {})
     logo = logo_bytes(document.company_uid, presentation)
+    accent = presentation.get("accent_color")
     return render(
         request,
         "core/public_quote.html",
@@ -437,7 +438,7 @@ def public_quote(request, token):
             "document": document,
             "lines": document.lines,
             "public_brand": presentation,
-            "palette": palette(presentation.get("accent_color", "#176f60")),
+            "palette": palette(accent) if accent else None,
             "public_logo": "data:image/png;base64," + base64.b64encode(logo).decode()
             if logo
             else "",

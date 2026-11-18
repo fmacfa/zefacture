@@ -1,0 +1,5 @@
+{% load static %}
+<img class="brand-mark" src="{% if logo %}/app/entreprise/logo{% else %}{% static 'zefacture-mark.svg' %}{% endif %}" width="36" height="36" alt="">
+<span class="brand-name">
+  {% if name %}{{ name }}{% else %}ze<strong>facture</strong><span class="brand-dot">.</span>{% endif %}
+</span>

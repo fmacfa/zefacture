@@ -8,7 +8,7 @@ L'image Docker contient également Python, PostgreSQL dans un service séparé, 
 
 Le fichier requirements.txt fixe les versions Python utilisées. La bibliothèque factur-x distribue les schémas et règles nécessaires à la validation EN16931 ; SaxonC exécute ces règles localement.
 
-Les codes pays ISO constituent des données de référence. Les polices sont celles installées dans le système ; aucune police commerciale n'est incluse dans les sources ZeFacture.
+Les codes pays ISO constituent des données de référence. L’interface inclut DM Sans sous [SIL Open Font License 1.1](static/fonts/DM-Sans-OFL.txt). La police est servie depuis l’instance.
 
 Les exports Excel utilisent openpyxl et et_xmlfile (licence MIT), sans service cloud.
 

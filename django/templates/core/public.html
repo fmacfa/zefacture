@@ -1,1 +1,13 @@
-{% extends "core/base.html" %}{% block content %}<section class="card narrow"><p class="eyebrow">ZEFACTURE · ÉDITION AUTO-HÉBERGÉE</p><h1>{{ title }}</h1><p>{{ text|linebreaksbr }}</p>{% if source %}<p>Cette instance utilise ZeFacture sous licence GNU AGPL version 3. Le code correspondant à cette version est téléchargeable ci-dessous.</p><a class="button" href="/source/archive">Télécharger le code source</a>{% else %}<a class="button" href="/connexion">Ouvrir mon espace</a>{% endif %}</section>{% endblock %}
+{% extends "core/base.html" %}
+{% block content %}
+  <section class="card narrow public-page">
+    <h1>{{ title }}</h1>
+    {% if text %}<p>{{ text|linebreaksbr }}</p>{% endif %}
+    {% if source %}
+      <p>Cette instance utilise ZeFacture sous licence GNU AGPL version 3. Vous pouvez télécharger le code de la version déployée.</p>
+      <a class="button" href="/source/archive">Télécharger le code source</a>
+    {% else %}
+      <a class="button" href="/connexion">Ouvrir mon espace</a>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,4 +1,5 @@
 const form = document.querySelector("[data-setup-form]");
+const status = form.querySelector("[data-setup-status]");
 const toggle = form.querySelector("[data-password-toggle]");
 const password = form.querySelector('input[name="password"]');
 
@@ -9,13 +10,20 @@ toggle.addEventListener("click", () => {
   toggle.setAttribute("aria-pressed", String(visible));
 });
 
+form.addEventListener("submit", event => {
+  if (form.dataset.setupAuthorized === "true") return;
+
+  event.preventDefault();
+  status.hidden = false;
+  status.focus();
+});
+
 async function authorizeInstallation() {
   const prefix = "#installation=";
   if (!window.location.hash.startsWith(prefix)) return;
 
   const token = window.location.hash.slice(prefix.length);
-  const status = form.querySelector("[data-setup-status]");
-  window.history.replaceState(null, "", window.location.pathname);
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
   status.hidden = false;
   status.textContent = "Vérification du lien privé…";
 
@@ -28,7 +36,8 @@ async function authorizeInstallation() {
       body: new URLSearchParams({ token }),
     });
     if (response.status === 204) {
-      window.location.reload();
+      form.dataset.setupAuthorized = "true";
+      status.hidden = true;
       return;
     }
     status.textContent = response.status === 429

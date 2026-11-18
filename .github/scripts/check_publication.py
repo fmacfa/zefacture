@@ -5,6 +5,7 @@ separate Gitleaks job scans content and all reachable Git history for secrets.
 """
 
 import argparse
+import hashlib
 import re
 import subprocess
 from pathlib import Path, PurePosixPath
@@ -20,6 +21,9 @@ ROOT_FILES = {
     ".gitattributes",
     ".editorconfig",
 }
+# The same public OFL-licensed font used on zefacture.com.
+DM_SANS_FONT = "django/static/fonts/dm-sans-latin-wght-normal.woff2"
+DM_SANS_SHA256 = "9fea608a947e67020c33cad9a6fe3d60c54119dfb8cff87768a8117a15ed7543"
 SUFFIXES = {
     ".py",
     ".html",
@@ -86,6 +90,8 @@ def path_issue(name, mode="100644"):
         return None if name in ROOT_FILES else "unreviewed root file"
     if path.parts[0] not in {"django", ".github"}:
         return "unreviewed source directory"
+    if name == DM_SANS_FONT:
+        return None if mode == "100644" else "font marked executable"
     if path.suffix.lower() not in SUFFIXES and path.name not in SPECIAL_NAMES:
         return "binary, dataset or unreviewed file type"
     if path.name in {"source.tar.gz", ".gitleaksignore", ".gitleaks.toml"}:
@@ -143,6 +149,10 @@ def check(root):
             issues.append((name, "not a regular source file"))
             continue
         raw = target.read_bytes()
+        if name == DM_SANS_FONT:
+            if hashlib.sha256(raw).hexdigest() != DM_SANS_SHA256:
+                issues.append((name, "unexpected font checksum"))
+            continue
         if len(raw) > 2_000_000 or b"\0" in raw:
             issues.append((name, "oversized or binary content"))
             continue

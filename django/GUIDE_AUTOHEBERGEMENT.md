@@ -65,7 +65,7 @@ docker compose ps
 docker compose exec web python manage.py setup_link
 ```
 
-Ouvrir dans le navigateur le lien privé affiché par `setup_link`. Renseigner l’entreprise, le nom, l’adresse e-mail et le mot de passe choisi. Le lien est valable sept jours et cesse de fonctionner à la création du premier compte. Pour remplacer un lien perdu ou expiré, relancer `setup_link` depuis le serveur. La commande est réservée aux instances vierges.
+Le formulaire peut être rempli dès l’ouverture de l’écran d’installation. Ouvrir le lien privé affiché par `setup_link` pour autoriser la création du premier compte, puis cliquer sur **Créer mon espace**. Le lien est valable sept jours et cesse de fonctionner à la création du premier compte. Pour remplacer un lien perdu ou expiré, relancer `setup_link` depuis le serveur. La commande est réservée aux instances vierges.
 
 Après création, activer la double authentification dans **Mon compte → Sécurité**, puis compléter les réglages de l’entreprise. À la connexion suivante, utiliser l’adresse e-mail du compte et son mot de passe. Le propriétaire invite ensuite ses collaborateurs.
 
