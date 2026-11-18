@@ -181,7 +181,9 @@ def navigation(request):
         ).first()
         if getattr(request, "company", None):
             brand = for_company(request.company)
-            context.update(branding=brand, palette=palette(brand.accent_color))
+            context["branding"] = brand
+            if brand.pk:
+                context["palette"] = palette(brand.accent_color)
     return context
 
 

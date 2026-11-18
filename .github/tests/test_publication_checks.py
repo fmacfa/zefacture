@@ -44,6 +44,7 @@ class PublicationChecks(unittest.TestCase):
             "django/.env",
             "django/.env.production",
             "django/core/customer.csv",
+            "django/static/fonts/unreviewed.woff2",
             "django/core/client.pdf",
             "django/tests/client.xlsx",
             "django/backups/snapshot.json",
@@ -65,6 +66,24 @@ class PublicationChecks(unittest.TestCase):
                 self.assertIsNotNone(publication.path_issue(path))
         self.assertIsNone(publication.path_issue("django/.env.example"))
         self.assertIsNone(publication.path_issue("django/core/services/pdp.py"))
+
+    def test_allowed_font_path_still_requires_reviewed_bytes(self):
+        self.assertIsNone(publication.path_issue(publication.DM_SANS_FONT))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "--quiet", "-b", "main", str(root)], check=True)
+            for name in ["VERSION", "django/VERSION", "CHANGELOG.md", "django/CHANGELOG.md"]:
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text("candidate\n")
+            font = root / publication.DM_SANS_FONT
+            font.parent.mkdir(parents=True)
+            font.write_bytes(b"wOF2\0unreviewed fixture")
+            subprocess.run(["git", "add", "--", str(font)], cwd=root, check=True)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+                publication.check(root)
+            self.assertIn("unexpected font checksum", output.getvalue())
 
     def test_symlinks_and_submodules_cannot_import_files_outside_the_reviewed_tree(
         self,

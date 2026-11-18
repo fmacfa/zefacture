@@ -11,6 +11,8 @@ from core.common import BusinessError, uid, email
 from core.models import CompanyBranding, Document, EmailEnvelope
 from . import files
 
+DEFAULT_ACCENT = "#2e6652"
+
 TEMPLATE_NAMES = {
     "quote": "Devis",
     "invoice": "Facture / avoir",
@@ -48,7 +50,9 @@ DEFAULT_TEMPLATE = {
 def for_company(company):
     return CompanyBranding.objects.filter(
         company_uid=company.company_uid
-    ).first() or CompanyBranding(company_uid=company.company_uid)
+    ).first() or CompanyBranding(
+        company_uid=company.company_uid, accent_color=DEFAULT_ACCENT
+    )
 
 
 def validate_template(value):
@@ -97,9 +101,9 @@ def normalized_logo(uploaded, company_uid):
 def save(company, data, uploaded=None):
     row, _ = CompanyBranding.objects.get_or_create(company_uid=company.company_uid)
     row = CompanyBranding.objects.select_for_update().get(pk=row.pk)
-    color = str(data.get("accent_color", "#176f60"))
+    color = str(data.get("accent_color", DEFAULT_ACCENT))
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-        raise BusinessError("Couleur invalide ; utilisez le format #176f60.")
+        raise BusinessError(f"Utilisez un code couleur hexadécimal comme {DEFAULT_ACCENT}.")
     row.accent_color = color.lower()
     row.display_name = str(data.get("display_name", "")).strip()
     if len(row.display_name) > 120 or any(c in row.display_name for c in "\r\n"):
@@ -170,7 +174,7 @@ def luminance(rgb):
 
 def palette(color):
     if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(color)):
-        color = "#176f60"
+        color = DEFAULT_ACCENT
     rgb = tuple(int(color[i : i + 2], 16) for i in (1, 3, 5))
     light, dark = rgb, rgb
     while (1.05 / (luminance(light) + 0.05)) < 4.5:

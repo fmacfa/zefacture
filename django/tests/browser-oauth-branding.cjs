@@ -44,6 +44,10 @@ function totp(secret) {
     await page.getByLabel('Signature des emails', { exact: true }).fill('Merci,\nAtelier Studio — données fictives');
     await page.getByRole('button', { name: 'Enregistrer la personnalisation', exact: true }).click();
     await page.getByText('Personnalisation enregistrée pour cette entreprise.', { exact: false }).waitFor();
+    const brand = page.getByRole('link', { name: 'Atelier Studio, accueil', exact: true });
+    assert.equal(await brand.locator('img').getAttribute('src'), '/app/entreprise/logo');
+    const saveBranding = page.getByRole('button', { name: 'Enregistrer la personnalisation', exact: true });
+    assert.equal(await saveBranding.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(116, 36, 92)');
     await page.screenshot({ path: path.join(output, 'branding-desktop.png'), fullPage: true });
     await page.goto(base + '/app/devis/nouveau');
     assert.equal(await page.getByLabel('Devise', { exact: true }).inputValue(), 'CHF');
