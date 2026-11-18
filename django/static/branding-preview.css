@@ -143,7 +143,7 @@
   background: #e8eee5;
 }
 
-.invoice-preview-sheet .notes:has(p:empty) p:empty {
+.invoice-preview-sheet .notes p:empty {
   display: none;
 }
 
@@ -164,4 +164,16 @@
   .preview-link {
     display: none;
   }
+}
+
+.invoice-preview-sheet .description-column {
+  width: 39%;
+}
+
+.invoice-preview-sheet .short-column {
+  width: 11%;
+}
+
+.invoice-preview-sheet .price-column {
+  width: 14%;
 }
