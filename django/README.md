@@ -40,7 +40,7 @@ Pointer le DNS du domaine vers le serveur, ouvrir les ports 80 et 443, puis déf
 
 Caddy gère les certificats. Le port direct de l'application reste lié à 127.0.0.1. Ne publiez pas un autre accès direct faisant confiance aux en-têtes proxy. Conservez `DEBUG=0`, une clé privée aléatoire et des hôtes explicites. Voir la [liste de déploiement Django](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/).
 
-Une installation neuve peut générer directement sa configuration avec `python3 tools/configure.py --production --domain votre-domaine.fr`. Pour une configuration ancienne, ajouter une clé proxy aléatoire d’au moins 32 caractères, identique pour Caddy et Django. HSTS sur les sous-domaines et le preload demandent une décision explicite sur l’ensemble du domaine ; leurs recommandations restent visibles dans `check --deploy` tant qu’ils sont désactivés. La production impose par défaut la double authentification des administrateurs et une vérification récente pour les réglages sensibles.
+Une installation neuve peut générer directement sa configuration avec `python3 tools/configure.py --production --domain votre-domaine.fr`. Pour une configuration ancienne, ajouter une clé proxy aléatoire d’au moins 32 caractères, identique pour Caddy et Django. HSTS sur les sous-domaines et le preload demandent une décision explicite sur l’ensemble du domaine. Leurs recommandations restent visibles dans `check --deploy` tant qu’ils sont désactivés. La double authentification est facultative par défaut. L’exploitant peut l’exiger des administrateurs avec `MFA_REQUIRED_FOR_ADMINS=1`. Les réglages sensibles demandent une vérification récente en production.
 
 ## Fonctions
 

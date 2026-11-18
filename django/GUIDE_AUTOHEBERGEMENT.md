@@ -11,13 +11,13 @@ Le [guide SUPERPDP](GUIDE_SUPERPDP.md) couvre la connexion, l’émission et la 
 1. Choisir le serveur, installer Docker et protéger les accès d’administration.
 2. Installer une instance vide **ou** restaurer la sauvegarde de l’instance existante, selon les sections suivantes.
 3. Renseigner le domaine, le contact et l’identité de l’exploitant ; mettre HTTPS en service.
-4. Activer la double authentification des administrateurs et personnaliser chaque entreprise.
+4. Choisir la politique de double authentification et personnaliser chaque entreprise.
 5. Créer les applications OAuth Google et Microsoft ; enregistrer leurs identifiants privés.
 6. Autoriser un compte Gmail et un compte Outlook de test depuis ZeFacture, puis vérifier la réception des emails autorisés.
 7. Tester une restauration hors de l’instance principale et effectuer la recette de la section 12.
 8. Ouvrir les accès clients par invitations. Le dépôt GitHub exécute la CI lors des push et pull requests ; consulter son résultat sur le commit utilisé.
 
-Les connexions Gmail/Outlook servent à **envoyer des emails au nom d’une entreprise**. La connexion au compte ZeFacture utilise son mot de passe et son second facteur. Une entreprise possède une connexion email active ; plusieurs entreprises peuvent choisir des fournisseurs différents.
+Les connexions Gmail/Outlook servent à **envoyer des emails au nom d’une entreprise**. La connexion au compte ZeFacture utilise son mot de passe, puis un code si la double authentification est activée. Une entreprise possède une connexion email active. Plusieurs entreprises peuvent choisir des fournisseurs différents.
 
 ## 2. Architecture et responsabilités
 
@@ -67,7 +67,7 @@ docker compose exec web python manage.py setup_link
 
 Le formulaire peut être rempli dès l’ouverture de l’écran d’installation. Ouvrir le lien privé affiché par `setup_link` dans le même navigateur, éventuellement dans un autre onglet. Une fois le lien vérifié, cliquer sur **Créer mon espace** dans le formulaire déjà rempli. Le lien est valable sept jours et cesse de fonctionner à la création du premier compte. Pour remplacer un lien perdu ou expiré, relancer `setup_link` depuis le serveur. La commande est réservée aux instances vierges.
 
-Après création, activer la double authentification dans **Mon compte → Sécurité**, puis compléter les réglages de l’entreprise. À la connexion suivante, utiliser l’adresse e-mail du compte et son mot de passe. Le propriétaire invite ensuite ses collaborateurs.
+Après création, le tableau de bord s’ouvre par défaut. Compléter les réglages de l’entreprise, puis inviter ses collaborateurs. La double authentification peut être activée dans **Mon compte → Sécurité**. À la connexion suivante, utiliser l’adresse e-mail et le mot de passe du compte.
 
 La commande `docker compose exec web python manage.py bootstrap --email vous@example.com --name "Votre nom" --company "Votre entreprise"` reste disponible pour créer le premier compte dans le terminal. Elle demande le mot de passe et ferme également le parcours d’installation.
 
@@ -121,7 +121,7 @@ DOMAIN=zefacture.com
 ALLOWED_HOSTS=zefacture.com,localhost,127.0.0.1
 TRUST_PROXY=1
 SECURE_SSL_REDIRECT=1
-MFA_REQUIRED_FOR_ADMINS=1
+MFA_REQUIRED_FOR_ADMINS=0
 SENSITIVE_REAUTH_REQUIRED=1
 ```
 
@@ -323,7 +323,7 @@ Les clés et modèles sont configurés par l’exploitant pour l’instance enti
 
 ## 10. Sécurité, second facteur et intégrations
 
-En production, les administrateurs doivent activer un second facteur TOTP dans **Mon compte → Sécurité**. Scanner le QR code ou saisir la clé dans une application d’authentification, confirmer un code puis conserver les dix codes de secours affichés **une seule fois**. Chaque code est à usage unique. Un code TOTP déjà consommé est refusé ; attendre le prochain code si nécessaire.
+La double authentification est facultative par défaut. Pour l’activer, ouvrir **Mon compte → Sécurité**, scanner le QR code ou saisir la clé dans une application d’authentification, puis confirmer un code. Conserver les dix codes de secours affichés **une seule fois**. Chaque code est à usage unique. Si un code TOTP a déjà servi, attendre le prochain. Pour l’exiger des administrateurs d’une instance, définir `MFA_REQUIRED_FOR_ADMINS=1` dans sa configuration et redémarrer les services web et worker.
 
 Les changements sensibles demandent une vérification récente du mot de passe, et du second facteur s’il est activé. Cette vérification dure quinze minutes. Les autres sessions sont invalidées lors d’un changement de mot de passe ou de second facteur. Les sessions expirent au plus après 24 heures et à la fermeture du navigateur ; certains navigateurs peuvent restaurer leurs cookies de session avec la fonction de reprise des onglets.
 
@@ -333,7 +333,7 @@ Sans téléphone ni code de secours, l’exploitant doit vérifier l’identité
 docker compose exec web python manage.py reset_mfa --email adresse_du_compte --confirm-identity-checked
 ```
 
-Cette commande invalide toutes les sessions et force l’administrateur à réactiver son second facteur. Une réinitialisation du mot de passe par email ne désactive pas la double authentification.
+Cette commande réinitialise le second facteur du compte et invalide ses sessions. Une nouvelle activation est requise si l’instance impose la double authentification au rôle concerné. Une réinitialisation du mot de passe par email ne désactive pas la double authentification.
 
 Les actions sensibles sont consultables dans le **Journal de sécurité** de l’entreprise ; les événements personnels de sécurité figurent dans le compte. Ce journal applicatif ne contient pas de secret ni le corps des emails. L’accès serveur conserve l’autorité d’administration de la base.
 
@@ -374,7 +374,7 @@ Il contrôle configuration, base, migrations, clé privée, cookies, proxy, poli
 
 - [ ] DNS et certificat HTTPS vérifiés depuis un autre réseau ; aucune exposition publique de PostgreSQL ou du port Gunicorn.
 - [ ] Pages publiques, identité et contact réels relus ; exigences de l’application Google satisfaites.
-- [ ] Administrateurs équipés en MFA, codes de secours conservés et droits d’équipe vérifiés.
+- [ ] Politique de double authentification et droits d’équipe vérifiés. Codes de secours conservés pour les comptes équipés.
 - [ ] Gmail autorisé, connexion vérifiée et email de test reçu ; application Google prête pour l’audience prévue.
 - [ ] Outlook autorisé, connexion vérifiée et email de test reçu ; expiration du secret suivie.
 - [ ] Réinitialisation de mot de passe testée via la messagerie du serveur.

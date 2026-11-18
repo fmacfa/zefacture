@@ -96,11 +96,13 @@ class Command(BaseCommand):
             "La redirection HTTPS doit être active.",
             production,
         )
+        require_admin_mfa = settings.MFA_REQUIRED_FOR_ADMINS
         check(
             "admin_mfa_policy",
-            settings.MFA_REQUIRED_FOR_ADMINS,
-            "La double authentification doit être obligatoire pour les administrateurs.",
-            production,
+            True,
+            "La double authentification est obligatoire pour les administrateurs."
+            if require_admin_mfa
+            else "La double authentification est facultative.",
         )
         check(
             "recent_auth_policy",
@@ -108,7 +110,7 @@ class Command(BaseCommand):
             "Les réglages sensibles doivent demander une vérification récente.",
             production,
         )
-        if migrations_ready:
+        if migrations_ready and require_admin_mfa:
             admins = (
                 CompanyMember.objects.filter(
                     status="active", role__in=["owner", "admin"]
