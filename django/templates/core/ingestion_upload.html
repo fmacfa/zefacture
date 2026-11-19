@@ -1,0 +1,46 @@
+  <form method="post" action="{{ request.path }}" class="card stack" enctype="multipart/form-data" data-batch-upload>
+    {% csrf_token %}
+    {% if not expenses %}<h2>Importer des documents</h2>{% endif %}
+    <fieldset class="form-section">
+      <legend>Document à importer</legend>
+      <div class="form-grid">
+        <label>Type
+          <select name="source_kind">
+            {% if not expenses %}<option value="supplier_invoice">Achats · Facture fournisseur</option><option value="sales_invoice">Ventes · Facture client déjà émise</option>{% endif %}
+            <option value="expense_note">Note de frais</option>
+            <option value="receipt">Ticket de caisse</option>
+          </select>
+        </label>
+        <div class="form-field">
+          <label for="receipt-file">Fichiers</label>
+          <input id="receipt-file" name="file" type="file" multiple required accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp" aria-describedby="receipt-file-help">
+          <small id="receipt-file-help">PDF ou images, jusqu’à 50 fichiers de 15 Mo chacun.</small>
+        </div>
+      </div>
+    </fieldset>
+    <label>Analyse après import<select name="pipeline" aria-describedby="import-pipeline-help">
+      {% for key, label in ai_choices %}<option value="{{ key }}" data-provider="{{ label }}"{% if forloop.first %} selected{% endif %}>OCR puis analyse avec {{ label }}</option>{% endfor %}
+      <option value="local"{% if not ai_choices %} selected{% endif %}>OCR et extraction locale</option>
+      <option value="none">Importer seulement</option></select></label>
+    {% if can_admin %}<a href="/app/entreprise/ia">Gérer les clés IA de l’entreprise</a>{% endif %}
+    <small id="import-pipeline-help">{% if ai_choices %}Dès l’import, {{ ai_choices.0.1 }} reçoit le texte OCR de chaque fichier pour préremplir les champs.{% else %}Chaque fichier est lu sur ce serveur pour préremplir les champs.{% endif %}</small>
+    <details class="form-disclosure">
+      <summary>Détails de la dépense (facultatif)</summary>
+      <p class="form-help">Ces valeurs s’appliquent aux achats et justificatifs sélectionnés. Vous pouvez les modifier sur chaque fiche.</p>
+      <div class="form-grid">
+        <label>Commerçant<input name="merchant_name"></label>
+        <label>Date de dépense<input type="date" name="expense_date"></label>
+        <label>Montant TTC<input type="number" step="0.01" min="0" name="expense_amount"></label>
+        <label>Devise<input name="expense_currency" placeholder="EUR" maxlength="3"></label>
+        <label>Catégorie<input name="expense_category" placeholder="Transport, repas, hébergement…"></label>
+        {% include "core/payment_fields.html" %}
+      </div>
+    </details>
+    <div class="import-submit">
+      <button data-loading-label="Envoi des fichiers…">Importer</button>
+      <span role="status" data-batch-progress></span>
+      <a data-batch-link hidden>Voir les documents de ce lot</a>
+    </div>
+    <p role="status" data-import-summary="upload" hidden></p>
+    <ul class="batch-files clean-list" data-batch-files></ul>
+  </form>

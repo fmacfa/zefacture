@@ -2,7 +2,9 @@
 (() => {
   "use strict";
   const detail = document.querySelector("[data-import-wait]");
-  const rows = document.querySelector("[data-import-rows]");
+  let rows = document.querySelector("[data-import-rows]");
+  const results = document.querySelector("[data-expense-results]");
+  let refreshResults = false;
   const connection = document.querySelector("[data-import-connection]");
   let timer, controller, failures = 0, suspended = false;
 
@@ -32,7 +34,7 @@
 
   function schedule(delay) {
     clearTimeout(timer);
-    if (!controller && !suspended && !document.hidden && pending().length) {
+    if (!controller && !suspended && !document.hidden && (pending().length || refreshResults)) {
       timer = setTimeout(poll, delay);
     }
   }
@@ -44,6 +46,7 @@
 
   function display(id, state) {
     document.querySelectorAll('[data-import-id="' + id + '"]').forEach(badge => {
+      if (results && (badge.hasAttribute("data-insert") || badge.dataset.code !== state.code)) refreshResults = true;
       badge.toggleAttribute("data-pending", state.busy);
       badge.removeAttribute("data-insert");
       badge.dataset.code = state.code;
@@ -51,7 +54,7 @@
       const label = badge.querySelector("[data-state-label]");
       if (label.textContent !== state.label) label.textContent = state.label;
     });
-    if (rows && state.row) {
+    if (!results && rows && state.row) {
       const existing = rows.querySelector('[data-import-row="' + id + '"]');
       if (existing) existing.outerHTML = state.row;
       else {
@@ -70,6 +73,7 @@
         const group = ids.slice(index, index + 50);
         const url = new URL(location.href);
         url.searchParams.set("suivi", group.join(","));
+        if (results) url.searchParams.set("etats", "1");
         const missing = rows ? group.filter(id => !rows.querySelector('[data-import-row="' + id + '"]')) : [];
         if (missing.length) url.searchParams.set("ajouter", missing.join(","));
         const response = await fetch(url, {headers: {Accept: "application/json"}, cache: "no-store", signal: controller.signal});
@@ -97,6 +101,18 @@
           }
           display(id, state || {code: "unavailable", busy: false, label: "Document indisponible"});
         }
+      }
+      if (refreshResults && results) {
+        const response = await fetch(location.href, {headers: {"X-Expense-Fragment": "results"}, cache: "no-store", signal: controller.signal});
+        if (response.redirected || response.status === 403 || response.status === 401) {
+          suspended = true;
+          notice("Reconnectez-vous pour consulter vos notes de frais.");
+          return;
+        }
+        if (!response.ok) throw new Error("Résultats indisponibles");
+        results.innerHTML = await response.text();
+        rows = results.querySelector("[data-import-rows]");
+        refreshResults = false;
       }
       failures = 0;
       notice("");

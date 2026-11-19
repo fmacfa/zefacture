@@ -1,0 +1,12 @@
+<label>Séparateur des milliers<select name="number_grouping" id="number-grouping">
+  <option value="space"{% if not format_preferences.number_grouping or format_preferences.number_grouping == 'space' %} selected{% endif %}>Espace</option>
+  <option value="none"{% if format_preferences.number_grouping == 'none' %} selected{% endif %}>Aucun</option>
+  <option value="dot"{% if format_preferences.number_grouping == 'dot' %} selected{% endif %}>Point</option>
+  <option value="comma"{% if format_preferences.number_grouping == 'comma' %} selected{% endif %}>Virgule</option>
+</select></label>
+<label>Séparateur décimal<select name="number_decimal" id="number-decimal">
+  <option value="comma"{% if not format_preferences.number_decimal or format_preferences.number_decimal == 'comma' %} selected{% endif %}>Virgule</option>
+  <option value="dot"{% if format_preferences.number_decimal == 'dot' %} selected{% endif %}>Point</option>
+</select></label>
+<p>Aperçu <strong><output id="number-preview" aria-live="polite">1 234 567,89</output></strong></p>
+{% if number_error %}<p class="notice error" role="alert">{{ number_error }}</p>{% endif %}

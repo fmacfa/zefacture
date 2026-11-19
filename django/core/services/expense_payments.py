@@ -1,8 +1,24 @@
 from django.db import transaction
 
-from core.common import BusinessError
+from core.common import BusinessError, json_text, unpack
 from core.models import Document, Ingestion
 from core.payment_details import PaidBy, PaymentMethod, payment_fields
+from .receipt_extraction import EXPENSE_KINDS
+
+
+def mark_expense_fields(record, changes):
+    """Remember explicit blanks as well as corrections across future analyses."""
+    if not isinstance(record, Ingestion) or record.source_kind not in EXPENSE_KINDS:
+        return
+    fields = changes.keys() & {"expense_category", "expense_payment_method", "expense_paid_by", "expense_description"}
+    if fields:
+        from .invoice_imports import reviewed_fields
+
+        data = unpack(record.extraction_json)
+        if not isinstance(data, dict):
+            data = {}
+        data["_reviewed"] = sorted(reviewed_fields(data) | fields)
+        changes["extraction_json"] = json_text(data)
 
 
 def for_document(document, *, lock=False):
@@ -36,6 +52,11 @@ def save(record, data, *, purchase=True):
             "Restaurez le justificatif pour modifier son règlement.", 409
         )
     changes = payment_fields(data, purchase=purchase)
+    if changes and isinstance(record, Ingestion) and record.source_kind in EXPENSE_KINDS:
+        from .jobs import require_idle
+
+        require_idle(record)
+    mark_expense_fields(record, changes)
     for field, value in changes.items():
         setattr(record, field, value)
     if changes:

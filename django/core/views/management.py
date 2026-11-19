@@ -36,6 +36,7 @@ from core.models import (
     BankAccount,
 )
 from core.forms import CustomerForm, CompanyForm, InventoryForm
+from core.numbers import GROUPS, DECIMALS, numeric_columns
 from core.security import (
     scoped,
     scoped_get,
@@ -56,13 +57,13 @@ def table(request, title, headers, rows, **context):
     return render(
         request,
         "core/table.html",
-        dict(title=title, headers=headers, rows=page, **context),
+        dict(title=title, headers=headers, rows=page, numeric_columns=numeric_columns(row["cells"] for row in page), **context),
     )
 
 
 @scoped()
 def dashboard(request):
-    from core.services import reports
+    from core.services import reports, expense_workspace, bank_categories
 
     selected = reports.period(request.GET)
     comparison = reports.summary(request, selected)
@@ -91,6 +92,30 @@ def dashboard(request):
                 or 0,
             }
         )
+    period_params = {} if selected.start == date.min and selected.end == date.max else {
+        "from": selected.start.isoformat(), "to": selected.end.isoformat(),
+    }
+    expense_summary = expense_workspace.workspace(
+        expense_workspace.receipts_for(request).filter(archived_at__isnull=True),
+        period_params, dashboard=True,
+    )
+    outflows = []
+    if request.role in ROLES["finance"]:
+        from collections import defaultdict
+        from urllib.parse import urlencode
+
+        transactions, accounts = reports.transactions_for(request.company)
+        independent = reports.between(transactions, "transaction_date", selected.start, selected.end).filter(
+            direction="outgoing", standalone_category__in=bank_categories.OUTGOING,
+        ).exclude(bank_feed__review__gt="")
+        grouped = defaultdict(Decimal)
+        for row in independent.values("account_uid", "standalone_category").annotate(total=Sum("amount")).order_by():
+            grouped[(accounts.get(row["account_uid"], "EUR"), row["standalone_category"])] += row["total"]
+        for (currency, category), amount in sorted(grouped.items()):
+            outflows.append({
+                "currency": currency, "label": bank_categories.OUTGOING[category], "amount": amount,
+                "url": "/app/finances/transactions?" + urlencode({**period_params, "categorie": category}),
+            })
     return render(
         request,
         "core/dashboard.html",
@@ -98,12 +123,14 @@ def dashboard(request):
             "title": "Vue d'ensemble",
             "period": selected,
             "report": comparison,
+            **expense_summary,
+            "independent_outflows": outflows,
             "totals": totals,
             "documents": docs.order_by("-id")[:8],
             "supplier_states": reports.document_status_cards(
                 docs.filter(direction="incoming", type__in=["invoice", "progress_invoice", "credit_note"]),
                 "reception",
-                {} if selected.start == date.min and selected.end == date.max else {"from": selected.start.isoformat(), "to": selected.end.isoformat()},
+                period_params,
             ),
             "quotes": docs.filter(type="quote", status="sent").count(),
             "drafts": docs.filter(status="draft").count(),
@@ -210,6 +237,7 @@ COMPANY_SECTIONS = {
             ("Mentions", ("invoice_footer",)),
         ),
     ),
+    "nombres": ("Format des nombres", ()),
 }
 
 
@@ -243,6 +271,33 @@ def company(request, section=None):
         )
 
     heading, groups = COMPANY_SECTIONS[current]
+    navigation = [
+        (label, reverse("company_settings_section", args=[key]), key == current)
+        for key, (label, _) in COMPANY_SECTIONS.items()
+    ]
+    if current == "nombres":
+        from core.models import CompanyNumberFormat
+
+        saved = getattr(request.company, "number_format", None)
+        error = ""
+        if posting and not verification:
+            group = request.POST.get("number_grouping", "")
+            point = request.POST.get("number_decimal", "")
+            if group not in GROUPS or point not in DECIMALS or group == point:
+                error = "Choisissez des séparateurs distincts pour les milliers et les décimales."
+            else:
+                with transaction.atomic():
+                    CompanyNumberFormat.objects.update_or_create(company=request.company, defaults={
+                        "number_grouping": group, "number_decimal": point,
+                    })
+                    audit(request, "company.number_format_updated")
+                messages.success(request, "Format des nombres enregistré pour toute l’entreprise.")
+                return redirect("company_settings_section", section=current)
+        return render(request, "core/company_numbers.html", {
+            "title": heading, "sections": navigation, "can_edit": can_edit, "verification": verification,
+            "has_company_format": bool(saved), "number_error": error,
+            "format_preferences": request.POST if posting else saved or request.display_preferences,
+        }, status=403 if posting and verification else 422 if error else 200)
     if current == "fiscalite" and (request.company.country_code or "").upper() == "FR":
         groups = [
             (label, tuple(name for name in names if name != "rcs_number"))
@@ -275,10 +330,6 @@ def company(request, section=None):
             status=422,
         )
 
-    navigation = [
-        (label, reverse("company_settings_section", args=[key]), key == current)
-        for key, (label, _) in COMPANY_SECTIONS.items()
-    ]
     return render(
         request,
         "core/company_settings.html",

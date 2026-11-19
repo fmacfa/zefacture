@@ -6,6 +6,7 @@ OUTGOING = {
     "social": "Cotisations sociales",
     "expense_reimbursement": "Remboursement de frais versé",
     "vat_payment": "Paiement de TVA",
+    "cfe": "Cotisation foncière des entreprises (CFE)",
     "tax_payment": "Autres impôts et taxes",
     "bank_fee": "Frais bancaires",
     "refund_sent": "Autre remboursement versé",

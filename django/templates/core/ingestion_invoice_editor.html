@@ -1,0 +1,54 @@
+<form id="document-form" method="post" action="/app/imports/{{ item.ingestion_uid }}/enregistrer" class="stack">
+  {% csrf_token %}
+  <input type="hidden" name="extraction_json">
+  <input type="hidden" name="lines_json" id="lines-json">
+  <section class="card">
+    <h2>Vérifier les informations de facturation</h2>
+    <fieldset class="form-section">
+      <legend>{% if is_sale %}Client facturé{% else %}Fournisseur{% endif %}</legend>
+      <div class="form-grid">
+      <label>{% if is_sale %}Nom du client{% else %}Nom du fournisseur{% endif %}<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.legal_name" required></label>
+      <label>Pays<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.country_code" maxlength="2" required></label>
+      <label>Adresse<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.address_line1"></label>
+      <label>Code postal<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.postal_code"></label>
+      <label>Ville<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.city"></label>
+      <label>Email<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.email" type="email"></label>
+      <label>SIREN<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.siren"></label>
+      <label>SIRET<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.siret"></label>
+      <label>Numéro de TVA<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.vat_number"></label>
+      </div>
+    </fieldset>
+    <fieldset class="form-section">
+      <legend>Facture</legend>
+      <div class="form-grid">
+      <label>Numéro de facture<input data-extract="invoice.number" required></label>
+      <label>Date d'émission<input data-extract="invoice.issue_date" type="date" required></label>
+      <label>Échéance<input data-extract="invoice.due_date" type="date"></label>
+      <label>Devise<input name="currency_code" data-extract="invoice.currency_code" maxlength="3" required></label>
+      <label>Total TTC sur l’original<input data-extract="totals.total_including_tax" type="number" step="0.01" min="0"></label>
+      <label>Total TVA sur l’original<input data-extract="totals.total_vat" type="number" step="0.01" min="0"></label>
+      <label>Référence<input data-extract="invoice.reference"></label>
+      </div>
+    </fieldset>
+  </section>
+  <section class="card">
+    <h2>Lignes de facturation</h2>
+    <div class="table-wrap"><table class="line-editor">
+      <thead><tr><th>Désignation / référence</th><th class="num">Qté</th><th>Unité</th><th class="num">PU HT</th><th class="num">Remise %</th><th class="num">TVA % / catégorie</th><th class="num">Total HT</th><th></th></tr></thead>
+      <tbody id="line-rows"></tbody>
+    </table></div>
+    <button class="secondary" type="button" id="add-line">+ Ajouter une ligne</button>
+    <div id="totals" class="totals-preview"></div>
+  </section>
+  <section class="card"><details>
+    <summary>Consulter ou corriger le texte transcrit</summary>
+    <label>Texte<textarea name="transcription_text" rows="12">{{ item.transcription_text|default:'' }}</textarea></label>
+  </details></section>
+  <div class="form-actions">
+    <button formnovalidate>Enregistrer les corrections</button>
+    {% if can_finance %}{% if duplicate_documents or duplicate_imports %}<label class="check"><input type="checkbox" name="distinct" value="1"> J’ai comparé les originaux et il s’agit de factures distinctes.</label>{% endif %}<button class="secondary" formaction="/app/imports/{{ item.ingestion_uid }}/creer-facture">{% if is_sale %}Enregistrer la facture de vente déjà émise{% else %}Valider et créer la facture reçue{% endif %}</button>{% endif %}
+  </div>
+</form>
+{{ parsed|json_script:"extraction-data" }}
+{{ lines|json_script:"initial-lines" }}
+{{ inventory|json_script:"inventory-data" }}

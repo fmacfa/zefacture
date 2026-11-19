@@ -160,7 +160,7 @@ class ImportProgressTests(ApplicationCase):
             self.client.post(self.url + "/analyser", {"provider": "google"})
             self.assertTrue(jobs.work_one())
         provider.assert_called_once_with(
-            "google", i.transcription_text, company_uid=self.company.company_uid
+            "google", i.transcription_text, company_uid=self.company.company_uid, expense=True
         )
         page = self.client.get(self.url)
         self.assertEqual(
@@ -208,7 +208,7 @@ class ImportProgressTests(ApplicationCase):
             self.assertEqual(
                 extraction_ai.choices(self.company.company_uid)[0][0], "google"
             )
-            for page in ["/app/imports", "/app/notes-de-frais"]:
+            for page in ["/app/imports", "/app/notes-de-frais?importer=1"]:
                 self.assertContains(
                     self.client.get(page), 'data-provider="Google Gemini" selected'
                 )
@@ -272,7 +272,7 @@ class ImportProgressTests(ApplicationCase):
             )
         with override_settings(EXTERNAL_SERVICES_DISABLED=True):
             self.assertContains(
-                self.client.get("/app/notes-de-frais"),
+                self.client.get("/app/notes-de-frais?importer=1"),
                 '<option value="local" selected>',
             )
 

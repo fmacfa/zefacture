@@ -21,12 +21,37 @@ if (reader) {
   controls.hidden = false;
   const image = stage.querySelector('img');
   const loading = reader.querySelector('[data-reader-loading]');
+  const error = reader.querySelector('[data-render-error]');
   function complete() {
     loading.hidden = true;
-    if (!image.naturalWidth) reader.querySelector('[data-render-error]').hidden = false;
+    error.hidden = Boolean(image.naturalWidth);
   }
-  image.addEventListener('load', complete, {once:true});
-  image.addEventListener('error', complete, {once:true});
+  image.addEventListener('load', complete);
+  image.addEventListener('error', complete);
   if (image.complete) complete();
   else loading.hidden = false;
+  const pages = Number(reader.dataset.inlinePages);
+  if (pages > 1) {
+    let page = 1;
+    const previous = reader.querySelector('[rel=prev]'), next = reader.querySelector('[rel=next]');
+    function visit(event, number) {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      if (number < 1 || number > pages) return;
+      page = number;
+      error.hidden = true;
+      loading.hidden = false;
+      reader.querySelector('[data-reader-page]').textContent = page;
+      image.alt = 'Page ' + page + ' sur ' + pages + ' du justificatif';
+      image.src = reader.dataset.imageUrl + '?image=1&page=' + page;
+      stage.scrollTo(0, 0);
+      previous.hidden = page === 1;
+      next.hidden = page === pages;
+      previous.href = reader.dataset.imageUrl + '?page=' + Math.max(1, page - 1);
+      next.href = reader.dataset.imageUrl + '?page=' + Math.min(pages, page + 1);
+      if (event.currentTarget.hidden) (previous.hidden ? next : previous).focus();
+    }
+    previous.addEventListener('click', event => visit(event, page - 1));
+    next.addEventListener('click', event => visit(event, page + 1));
+  }
 }

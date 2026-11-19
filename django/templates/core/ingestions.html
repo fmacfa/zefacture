@@ -5,71 +5,16 @@
   <a class="button secondary" href="{% if archives %}{% if expenses %}/app/notes-de-frais{% else %}/app/imports{% endif %}{% else %}?archives=1{% endif %}">{% if archives %}Revenir à la liste active{% else %}Voir les archives{% endif %}</a>
 </div>
 
-{% if not archives and not batch and can_write %}
-  <form method="post" class="card stack" enctype="multipart/form-data" data-batch-upload>
-    {% csrf_token %}
-    <h2>Importer des documents</h2>
-    <fieldset class="form-section">
-      <legend>Document à importer</legend>
-      <div class="form-grid">
-        <label>Type
-          <select name="source_kind">
-            {% if not expenses %}<option value="supplier_invoice">Achats · Facture fournisseur</option><option value="sales_invoice">Ventes · Facture client déjà émise</option>{% endif %}
-            <option value="expense_note">Note de frais</option>
-            <option value="receipt">Ticket de caisse</option>
-          </select>
-        </label>
-        <div class="form-field">
-          <label for="receipt-file">Fichiers</label>
-          <input id="receipt-file" name="file" type="file" multiple required accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp" aria-describedby="receipt-file-help">
-          <small id="receipt-file-help">PDF ou images, jusqu’à 50 fichiers de 15 Mo chacun.</small>
-        </div>
-      </div>
-    </fieldset>
-    <label>Analyse après import<select name="pipeline" aria-describedby="import-pipeline-help">
-      {% for key, label in ai_choices %}<option value="{{ key }}" data-provider="{{ label }}"{% if forloop.first %} selected{% endif %}>OCR puis analyse avec {{ label }}</option>{% endfor %}
-      <option value="local"{% if not ai_choices %} selected{% endif %}>OCR et extraction locale</option>
-      <option value="none">Importer seulement</option></select></label>
-    {% if can_admin %}<a href="/app/entreprise/ia">Gérer les clés IA de l’entreprise</a>{% endif %}
-    <small id="import-pipeline-help">{% if ai_choices %}Dès l’import, {{ ai_choices.0.1 }} reçoit le texte OCR de chaque fichier pour préremplir les champs.{% else %}Chaque fichier est lu sur ce serveur pour préremplir les champs.{% endif %}</small>
-    <details class="form-disclosure">
-      <summary>Détails de la dépense (facultatif)</summary>
-      <p class="form-help">Ces valeurs s’appliquent aux achats et justificatifs sélectionnés. Vous pouvez les modifier sur chaque fiche.</p>
-      <div class="form-grid">
-        <label>Commerçant<input name="merchant_name"></label>
-        <label>Date de dépense<input type="date" name="expense_date"></label>
-        <label>Montant TTC<input type="number" step="0.01" min="0" name="expense_amount"></label>
-        <label>Devise<input name="expense_currency" placeholder="EUR" maxlength="3"></label>
-        <label>Catégorie<input name="expense_category" placeholder="Transport, repas, hébergement…"></label>
-        {% include "core/payment_fields.html" %}
-      </div>
-    </details>
-    <div class="import-submit">
-      <button data-loading-label="Envoi des fichiers…">Importer</button>
-      <span role="status" data-batch-progress></span>
-      <a data-batch-link hidden>Voir les documents de ce lot</a>
-    </div>
-    <p role="status" data-import-summary="upload" hidden></p>
-    <ul class="batch-files clean-list" data-batch-files></ul>
-  </form>
-{% endif %}
-
+{% if not archives and not batch and can_write %}{% include "core/ingestion_upload.html" %}{% endif %}
 {% if not batch and not archives and items.0.batch_uid %}<p><a href="{{ request.path }}?lot={{ items.0.batch_uid }}">Ouvrir le dernier lot importé</a></p>{% endif %}
-{% if batch %}<p><strong>Documents de ce lot</strong> · <a href="{{ request.path }}">{% if expenses %}Voir toutes les notes de frais{% else %}Voir tous les imports{% endif %}</a></p>{% endif %}
-{% if batch_count %}
-  <form method="post" class="card stack" action="{{ request.path }}?lot={{ batch }}">{% csrf_token %}
-    <h2>Analyser le lot avec l’IA</h2>
-    <p>{{ ai_choices.0.1 }} recevra le texte OCR des pièces de ce lot qui restent à analyser. Les pièces déjà analysées par une IA conservent leur résultat.</p>
-    <input type="hidden" name="action" value="analyser-lot"><input type="hidden" name="provider" value="{{ ai_choices.0.0 }}">
-    <div class="form-actions"><button>Analyser {{ batch_count }} fichier{{ batch_count|pluralize }} avec {{ ai_choices.0.1 }}</button></div>
-  </form>
-{% endif %}
+{% if batch %}<p><strong>Documents de ce lot</strong> · <a href="{{ request.path }}">Voir tous les imports</a></p>{% endif %}
+{% include "core/ingestion_batch_analysis.html" %}
 <p data-import-connection role="status" hidden></p>
 <section class="card table-wrap" aria-label="Documents importés">
   <h2>Documents importés</h2>
   <p role="status" data-import-summary="table" hidden></p>
   <table>
-    <thead><tr><th>Fichier</th><th>Type</th><th>Date du document</th><th>Total TTC</th>{% if expenses %}<th>Règlement et motif</th>{% endif %}<th>État</th></tr></thead>
+    <thead><tr><th>Fichier</th><th>Type</th><th>Date du document</th><th class="num">Total TTC</th>{% if expenses %}<th>Règlement et motif</th>{% endif %}<th>État</th></tr></thead>
     <tbody data-import-rows>
       {% for i in items %}
         {% include "core/ingestion_row.html" %}

@@ -1,0 +1,31 @@
+.expense-back { display: inline-block; margin-bottom: .65rem; }
+.expense-heading .inline { margin-top: .65rem; }
+.expense-heading h1, .expense-description { overflow-wrap: anywhere; }
+.expense-heading time { color: var(--muted); }
+.expense-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 1.1rem; margin-bottom: 1.3rem; }
+.expense-details { display: grid; gap: 1rem; min-width: 0; }
+.expense-workspace .card { margin: 0; }
+.expense-original { min-width: 0; align-self: start; }
+.expense-original-head, .expense-refund .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .55rem 1rem; margin-bottom: .6rem; }
+.expense-workspace :is(h2, fieldset, p) { margin-block: 0; }
+.expense-original > .form-help { margin-top: .5rem; }
+.expense-original-head .inline { gap: 1rem; }
+.expense-original .reader-stage { max-height: 70vh; max-height: 70dvh; }
+.expense-metrics { display: grid; grid-template-columns: 1.15fr 1fr; gap: .6rem; margin: 0; }
+.expense-metrics > div { min-width: 0; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1rem; }
+.expense-metrics .expense-gross { border-top: 3px solid var(--zf-green); }
+.expense-metrics dt { color: var(--muted); font-weight: 600; }
+.expense-metrics dd { margin: .25rem 0 0; font-weight: 700; font-size: clamp(1.05rem, 2vw, 1.65rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.expense-metrics small { font-size: .8rem; }
+.expense-payment { border-top: 1px solid var(--line); }
+.expense-chip { display: inline-flex; align-items: center; gap: .45em; max-width: 100%; border: 1px solid var(--line); padding: .2rem .55rem; border-radius: 1rem; font-size: .83rem; font-weight: 650; }
+.expense-chip::before { content: ""; width: .55em; height: .55em; flex: none; border-radius: 50%; background: var(--muted); }
+.refund-due::before { background: var(--zf-orange); }
+.refund-paid::before { background: var(--zf-green); }
+.amount-cards .amount-due { border-top: 3px solid var(--zf-orange); }
+.expense-secondary { margin-top: 1rem; }
+.expense-secondary form { margin: 0; }
+.expense-details [hidden] { display: none; }
+@media (min-width: 1100px) { .expense-original { position: sticky; top: 1rem; } }
+@media (max-width: 1050px) { .expense-workspace { grid-template-columns: minmax(0, 1fr); } .expense-original .reader-stage { max-height: 53vh; max-height: 53dvh; } }
+@media (max-width: 450px) { .expense-details .form-grid { grid-template-columns: minmax(0, 1fr); } }

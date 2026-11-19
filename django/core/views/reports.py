@@ -2,6 +2,7 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import render
 from core.security import scoped
+from core.numbers import numeric_columns
 from core.services import reports as service
 
 
@@ -41,6 +42,7 @@ def reports(request):
             "datasets": service.DATASETS,
             "dataset": dataset,
             "headers": headers,
+            "numeric_columns": numeric_columns(rows),
             "rows": Paginator(rows, 50).get_page(request.GET.get("page")),
             "query": params.urlencode(),
         },

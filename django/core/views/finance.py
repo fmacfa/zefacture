@@ -187,6 +187,7 @@ def finance(request, section="overview", item_uid=None, action=None):
             {
                 "title": "Transactions",
                 "categories": bank_categories.CATEGORIES,
+                "new_expense": request.GET.get("depense", ""),
                 "outgoing_categories": bank_categories.OUTGOING,
                 "incoming_categories": bank_categories.INCOMING,
                 "transactions": page,

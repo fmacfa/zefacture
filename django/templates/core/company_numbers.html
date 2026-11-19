@@ -1,0 +1,18 @@
+{% extends "core/base.html" %}{% load static %}
+{% block styles %}<link rel="stylesheet" href="{% static 'settings.css' %}">{% endblock %}
+{% block content %}
+<div class="settings-header"><h1>Mon entreprise</h1><a class="button secondary" href="/app/compte/affichage">Mon affichage personnel</a></div>
+<div class="settings-layout">
+  {% include "core/settings_menu.html" with menu_label="Réglages de l’entreprise" %}
+  <section class="card settings-panel"><h2>Format des nombres</h2>
+    <p>Ce réglage s’applique à toute l’équipe de {{ company.legal_name }}, dans les formulaires, les tableaux, les rapports et les nouveaux documents.</p>
+    {% if not has_company_format %}<p class="form-help">Chaque membre utilise actuellement son format personnel.</p>{% endif %}
+    {% if can_edit %}<form method="post" class="stack" data-form-draft>{% csrf_token %}
+      <input type="hidden" name="company_uid" value="{{ company.company_uid }}">
+      {% include "core/settings_verification.html" %}
+      {% include "core/number_fields.html" %}
+      <div class="settings-actions"><button>Enregistrer pour l’entreprise</button></div>
+    </form>{% else %}<p>Exemple d’affichage <strong>{{ 1234567.89|display_number:"2g" }}</strong></p>{% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% include "core/document_status_cards.html" with cards=expense_cards state_label="Filtrer les notes par remboursement" %}
+<section class="reception-totals" aria-labelledby="expense-totals-title">
+  <div class="section-head"><h2 id="expense-totals-title">Totaux de la sélection</h2><span>{{ page.paginator.count|display_number }} note{{ page.paginator.count|pluralize }}</span></div>
+  {% include "core/expense_totals.html" %}
+</section>
+<section class="card" aria-label="Notes de frais de la sélection">
+  <div class="table-wrap"><table class="invoice-table">
+    <thead><tr><th>Commerçant</th><th>Date de dépense</th><th>Catégorie</th><th>Remboursement</th><th class="num">Total TTC</th><th>Action</th></tr></thead>
+    <tbody data-import-rows>{% for i in items %}{% include "core/expense_row.html" %}{% empty %}<tr data-import-empty><td colspan="6" class="empty">Aucune note de frais pour cette sélection.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% include "core/pagination.html" %}

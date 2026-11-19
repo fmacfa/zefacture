@@ -248,9 +248,9 @@ def save_document(
         if data.get("contact_phone"):
             party["contact_phone"] = str(data["contact_phone"]).strip()[:80]
         setattr(document, side, json_text(party))
-    from core.numbers import current_style
+    from core.numbers import company_style, current_style
 
-    style = current_style()
+    style = company_style(company, current_style())
     if style.customized:
         side = "seller_snapshot" if direction == "outgoing" else "buyer_snapshot"
         snapshot_data = json.loads(getattr(document, side))

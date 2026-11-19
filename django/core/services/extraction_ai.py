@@ -11,7 +11,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 
 from core.common import BusinessError, json_text
-from core.payment_details import PaymentMethod
+from core.payment_details import PaidBy, PaymentMethod
+from .expense_classification import CATEGORIES, clean_classification
 from .receipt_extraction import CURRENCIES, amount_string, as_date
 
 PROVIDERS = {
@@ -149,7 +150,7 @@ def require_provider(provider, company_uid=None):
     return label, key, model
 
 
-def request_data(provider, key, model, source, *, sale=False):
+def request_data(provider, key, model, source, *, sale=False, expense=False):
     schema = SCHEMA
     instruction = INSTRUCTIONS
     if sale:
@@ -161,6 +162,24 @@ def request_data(provider, key, model, source, *, sale=False):
         )
         instruction = (
             "Facture de vente déjà émise. Extrais le destinataire/client dans buyer. "
+            + instruction
+        )
+    elif expense:
+        schema = object_schema({
+            **SCHEMA["properties"],
+            "expense": object_schema({
+                "category": {"type": "string", "enum": ["", *CATEGORIES]},
+                "description": {"type": "string"},
+                "purpose": {"type": "string"},
+                "paid_by": {"type": "string", "enum": ["", *PaidBy.values]},
+            }),
+        })
+        instruction = (
+            "Note de frais. Classe l’achat selon les biens ou services réellement facturés. "
+            "Laisse la catégorie vide si elle est ambiguë. Décris brièvement l’achat en français dans description. "
+            "Renseigne purpose uniquement si le motif professionnel est écrit. Ne suppose jamais de client, de mission "
+            "ou de déplacement professionnel. Renseigne paid_by uniquement si la pièce précise explicitement qui "
+            "a avancé les fonds (entreprise, fonds personnels, tiers). Une carte, un nom ou une adresse ne suffisent pas. "
             + instruction
         )
     instructions = instruction + json_text(schema)
@@ -275,7 +294,7 @@ def clean_group(data, group):
     return cleaned
 
 
-def normalize_extraction(data, *, sale=False):
+def normalize_extraction(data, *, sale=False, expense=False):
     if not isinstance(data, dict):
         raise ValueError("Expected an object")
     party = "buyer" if sale else "supplier"
@@ -322,17 +341,19 @@ def normalize_extraction(data, *, sale=False):
     payment = data.get("payment")
     if isinstance(payment, dict) and payment.get("method") in PaymentMethod.values:
         result["payment"] = {"method": payment["method"]}
-    if not (supplier or any(invoice.values()) or result["totals"] or lines or result.get("payment")):
+    if expense and (classification := clean_classification(data.get("expense"))):
+        result["expense"] = classification
+    if not (supplier or any(invoice.values()) or result["totals"] or lines or result.get("payment") or result.get("expense")):
         raise ValueError("No usable values")
     return result
 
 
-def extract(provider, transcription, *, sale=False, company_uid=None):
+def extract(provider, transcription, *, sale=False, expense=False, company_uid=None):
     label, key, model = require_provider(provider, company_uid)
     if not transcription or not transcription.strip():
         raise BusinessError("Transcrivez d’abord le document.")
     url, headers, payload = request_data(
-        provider, key, model, transcription[:80000], sale=sale
+        provider, key, model, transcription[:80000], sale=sale, expense=expense
     )
     try:
         with requests.Session() as session:
@@ -365,7 +386,7 @@ def extract(provider, transcription, *, sale=False, company_uid=None):
             if fenced:
                 output = fenced.group(1)
         return normalize_extraction(
-            json.loads(output), sale=sale
+            json.loads(output), sale=sale, expense=expense
         ), f"{provider}:{model}"
     except requests.RequestException as exc:
         raise BusinessError(

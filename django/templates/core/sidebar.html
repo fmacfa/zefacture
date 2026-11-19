@@ -42,6 +42,7 @@
     <details class="sidebar-settings"{% if settings_open %} open{% endif %}>
       <summary>Réglages de l’entreprise</summary><div class="sidebar-group">
       {% include "core/sidebar_link.html" with route="/app/entreprise" icon="company" label="Mon entreprise" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/entreprise/reglages/nombres" icon="settings" label="Format des nombres" active_route=active_route only %}
       {% if can_admin %}
       {% include "core/sidebar_link.html" with route="/app/collaborateurs" icon="clients" label="Collaborateurs" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/entreprise/personnalisation" icon="branding" label="Personnalisation" active_route=active_route only %}

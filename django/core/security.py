@@ -96,6 +96,8 @@ ROLES = {
 
 
 def select_company(request):
+    if getattr(request, "_selected_company_uid", None) and request._selected_company_uid == request.session.get("company_uid"):
+        return request.company
     members = CompanyMember.objects.filter(
         user_uid=request.user.user_uid, status="active"
     )
@@ -105,12 +107,13 @@ def select_company(request):
     )
     if not member:
         return None
-    request.company = Company.objects.filter(
+    request.company = Company.objects.select_related("number_format").filter(
         company_uid=member.company_uid, status="active"
     ).first()
     request.role = member.role
     if request.company:
         request.session["company_uid"] = member.company_uid
+        request._selected_company_uid = member.company_uid
     return request.company
 
 
@@ -166,7 +169,9 @@ def scoped(permission="read", *, verification_return=None):
 
 
 def navigation(request):
+    from core.numbers import current_style
     context = {
+        "number_style": current_style(),
         "company": getattr(request, "company", None),
         "role": getattr(request, "role", ""),
         "can_write": getattr(request, "role", "") in ROLES["write"],
@@ -185,13 +190,14 @@ def navigation(request):
         "/app/finances/transactions",
         "/app/finances/comptes",
         "/app/entreprise/personnalisation",
+        "/app/entreprise/reglages/nombres",
         "/app/entreprise/ia",
         "/app/entreprise/journal",
     ):
         if request.path == nested or request.path.startswith(nested + "/"):
             route = nested
             break
-    context["active_route"] = route
+    context["active_route"] = getattr(request, "navigation_route", route)
     if request.user.is_authenticated:
         from .models import UserPreferences
         from .services.branding import for_company, palette

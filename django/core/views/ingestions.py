@@ -12,11 +12,12 @@ from core.models import Company, Document, Ingestion
 from core.security import hidden_expense_documents, scoped, ROLES
 from core.services import extraction_ai, ingestion, files, jobs, invoice_imports, expense_payments
 from core.services.account_security import audit
-from core.services.document_preview import preview_format
+from core.services import expense_workspace
+from core.services.expense_classification import CATEGORIES
+from core.services.document_preview import preview_format, read_page
 from .preview import preview_response
 from core.services.receipt_extraction import (
     EXPENSE_KINDS,
-    expense_suggestion,
     expense_values,
     suggested_payment_method,
 )
@@ -84,13 +85,20 @@ def progress_response(request, selection, visible, documents, expenses, archived
     ))
     jobs.set_progress(items, request.company.company_uid)
     states = {i.ingestion_uid: i.progress for i in items}
-    if not detail:
+    if not detail and request.GET.get("etats") != "1":
         missing_rows = set(request.GET.get("ajouter", "").split(","))
         refresh = [key for key, state in states.items() if not state["busy"] or key in missing_rows]
         for row in selection.filter(ingestion_uid__in=refresh):
             row.progress = states[row.ingestion_uid]
-            fill_list_row(row, visible, documents)
-            row_html = render_to_string("core/ingestion_row.html", {
+            if expenses:
+                row.facts = expense_workspace.details(row)
+                # The progress endpoint returns operational metadata, never raw OCR fragments.
+                data = unpack(row.extraction_json)
+                party = data.get("supplier") if isinstance(data, dict) else None
+                row.facts["merchant"] = row.merchant_name or (party.get("legal_name", "") if isinstance(party, dict) else "")
+            else:
+                fill_list_row(row, visible, documents)
+            row_html = render_to_string("core/expense_row.html" if expenses else "core/ingestion_row.html", {
                 "i": row, "expenses": expenses, "archives": archived,
             }, request=request)
             states[row.ingestion_uid] = {**row.progress, "row": row_html}
@@ -112,6 +120,25 @@ def review(request, item, action, query, documents):
         if item.source_kind not in EXPENSE_KINDS:
             raise BusinessError("Cet import n’est pas un justificatif de frais.")
         fields = expense_values(request.POST, require_complete=True)
+        if expense_workspace.reimbursement_state(item) == "paid" and (
+            fields["expense_amount"] != item.expense_amount or fields["expense_currency"] != item.expense_currency
+        ):
+            raise BusinessError("Corrigez le suivi du remboursement avant de modifier le montant déjà versé.", 409)
+        expense_payments.mark_expense_fields(item, fields)
+        if "expense_vat" in request.POST:
+            raw_vat = request.POST["expense_vat"].strip()
+            vat = decimal(raw_vat) if raw_vat else None
+            if vat is not None and not 0 <= vat <= fields["expense_amount"]:
+                raise BusinessError("La TVA doit être comprise entre zéro et le montant TTC.")
+            data = unpack(fields.get("extraction_json", item.extraction_json))
+            if not isinstance(data, dict):
+                data = {}
+            reviewed = invoice_imports.reviewed_fields(data)
+            if not isinstance(data.get("totals"), dict):
+                data["totals"] = {}
+            data["totals"]["total_vat"] = format(vat, "f") if vat is not None else ""
+            data["_reviewed"] = sorted(reviewed | {"totals.total_vat"})
+            fields["extraction_json"] = json_text(data)
         for name, value in fields.items():
             setattr(item, name, value)
         item.updated_at = stamp()
@@ -170,7 +197,8 @@ def review(request, item, action, query, documents):
 @require_http_methods(["GET", "HEAD", "POST"])
 @scoped("write")
 def ingestions(request, ingestion_uid=None, action=None, expenses=False):
-    if not expenses and request.role not in ROLES["write"]:
+    readonly = request.role not in ROLES["write"]
+    if readonly and not expenses and not ingestion_uid:
         raise BusinessError("Votre rôle ne permet pas d'accéder aux imports.", 403)
     query = Ingestion.objects.filter(company_uid=request.company.company_uid)
     if request.role not in ROLES["finance"]:
@@ -184,8 +212,10 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         company_uid=request.company.company_uid
     ).exclude(document_uid__in=hidden_expense_documents(request))
     visible_imports = query
-    if expenses:
-        query = query.filter(source_kind__in=EXPENSE_KINDS)
+    if expenses or readonly:
+        query = expense_workspace.receipts_for(request)
+        if readonly:
+            visible_imports = query
     following = action is None and request.method == "GET" and "suivi" in request.GET
     lookup = query.only("pk") if following else query
     item = lookup.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
@@ -209,6 +239,13 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         else:
             messages.info(request, "Toutes les pièces de ce lot sont déjà analysées ou en cours de traitement.")
         return redirect(f"{request.path}?lot={batch}")
+    if action == "remboursement":
+        if request.method != "POST":
+            return HttpResponse(status=405, headers={"Allow": "POST"})
+        expense_workspace.record_reimbursement(request, item)
+        audit(request, "expense.reimbursement", item.ingestion_uid)
+        messages.success(request, "Suivi du remboursement enregistré.")
+        return redirect(f"/app/imports/{item.ingestion_uid}#remboursement")
     if action == "reglement":
         if request.method != "POST":
             return HttpResponse(status=405, headers={"Allow": "POST"})
@@ -334,6 +371,15 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 "core/import_results.html",
                 {"title": "Résultat du lot", "results": results, "batch": batch, "expenses": expenses},
             )
+        elif action == "relancer":
+            if item.source_kind not in EXPENSE_KINDS:
+                raise BusinessError("Choisissez une note de frais.")
+            choices = extraction_ai.choices(request.company.company_uid)
+            provider = choices[0][0] if choices else "local"
+            if item.transcription_text and provider != "local":
+                jobs.enqueue(item, "analyze", provider)
+            else:
+                jobs.enqueue(item, "pipeline", provider)
         elif action in {"transcrire", "analyser"}:
             jobs.enqueue(
                 item,
@@ -359,8 +405,24 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             "is_expense": item.source_kind in EXPENSE_KINDS,
             "source_label": SOURCE_LABELS.get(item.source_kind, "Justificatif"),
         }
+        is_expense = base_context["is_expense"]
+        template = "core/expense.html" if is_expense else "core/ingestion.html"
+        if is_expense:
+            request.navigation_route = "/app/notes-de-frais"
+            facts = expense_workspace.details(item)
+            base_context.update(
+                title=facts["merchant"] or "Note de frais", facts=facts, categories=CATEGORIES,
+                expense={key: facts[key] for key in ("merchant", "amount", "date", "currency")},
+                reimbursement_states=expense_workspace.STATES, today=timezone.localdate(),
+                reader_url=f"/app/imports/{item.ingestion_uid}/apercu",
+            )
+            if base_context["can_preview"]:
+                try:
+                    base_context["page_count"], _ = read_page(item, 1)
+                except BusinessError as exc:
+                    base_context["preview_error"] = str(exc)
         if item.progress["busy"]:
-            return render(request, "core/ingestion.html", base_context)
+            return render(request, template, base_context)
         parsed = invoice_imports.review_data(item)
         extracted_lines = (
             parsed.get("lines")
@@ -372,28 +434,13 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             isinstance(line, dict) for line in extracted_lines
         ):
             extracted_lines = [{"description": "", "quantity": 1, "vat_rate": 20}]
-        is_expense = item.source_kind in EXPENSE_KINDS
-        expense = {}
-        suggested = {}
-        if is_expense:
-            suggested = expense_suggestion(item)
-            expense = {
-                "merchant": item.merchant_name or suggested["merchant"],
-                "date": item.expense_date or suggested["date"],
-                "currency": item.expense_currency or suggested["currency"],
-                "amount": (
-                    format(item.expense_amount.normalize(), "f")
-                    if item.expense_amount is not None
-                    else suggested["amount"]
-                ),
-            }
         duplicate_documents, duplicate_imports = invoice_imports.inspect_duplicates(
             item, query, documents, parsed
         )
         method = suggested_payment_method(item.transcription_text, parsed)
         return render(
             request,
-            "core/ingestion.html",
+            template,
             {
                 **base_context,
                 "parsed": parsed,
@@ -404,29 +451,38 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 "edit_payment": request.role in ROLES["write"] and (not item.document_uid or is_expense or request.role in ROLES["finance"]),
                 "payment_action": f"/app/imports/{item.ingestion_uid}/reglement",
                 "payment_suggestion": method.label if method else "",
-                "suggested_method": method,
                 "is_sale": item.source_kind == "sales_invoice",
                 "duplicate_documents": duplicate_documents,
                 "duplicate_imports": duplicate_imports,
-                "expense": expense,
-                "suggested": suggested,
+                "suggested_method": facts["method"] if is_expense else method,
+                "suggested_payer": facts["payer"] if is_expense else "",
+                "suggested_purpose": facts["purpose"] if is_expense else "",
                 "ai_choices": extraction_ai.choices(request.company.company_uid),
             },
         )
-    rows = list(selection.order_by("-id")[:200])
-    jobs.set_progress(rows, request.company.company_uid)
-    for row in rows:
-        fill_list_row(row, query, documents)
+    if expenses:
+        list_context = expense_workspace.workspace(selection, request.GET)
+        if request.headers.get("X-Expense-Fragment") == "results":
+            response = render(request, "core/expense_results.html", list_context)
+            response["Cache-Control"] = "private, no-store"
+            return response
+    else:
+        rows = list(selection.order_by("-id")[:200])
+        jobs.set_progress(rows, request.company.company_uid)
+        for row in rows:
+            fill_list_row(row, query, documents)
+        list_context = {"items": rows}
     choices = extraction_ai.choices(request.company.company_uid)
     batch_count = 0
     if batch and not archived and choices:
         batch_count = min(50, jobs.awaiting_batch_ai(selection, request.company.company_uid).count())
     return render(
         request,
-        "core/ingestions.html",
+        "core/expenses.html" if expenses else "core/ingestions.html",
         {
             "title": "Notes de frais" if expenses else "Imports",
-            "items": rows,
+            **list_context,
+            "latest_batch": selection.order_by("-id").values_list("batch_uid", flat=True).first() if expenses else "",
             "expenses": expenses,
             "archives": archived,
             **expense_payments.context(None),

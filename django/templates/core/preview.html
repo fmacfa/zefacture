@@ -8,12 +8,12 @@
 </div>
 {% if invoice %}
   <dl class="reader-amounts" aria-label="Montants du document">
-    <div><dt>Total HT</dt><dd>{{ invoice.total_excluding_tax|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
-    <div><dt>TVA</dt><dd>{{ invoice.total_vat|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
-    <div><dt>Total TTC</dt><dd>{{ invoice.total_including_tax|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
+    <div><dt>Total HT</dt><dd class="num">{{ invoice.total_excluding_tax|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
+    <div><dt>TVA</dt><dd class="num">{{ invoice.total_vat|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
+    <div><dt>Total TTC</dt><dd class="num">{{ invoice.total_including_tax|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
   </dl>
 {% elif expense and expense.expense_amount is not None %}
-  <dl class="reader-amounts" aria-label="Montant du justificatif"><div><dt>Total TTC enregistré</dt><dd>{{ expense.expense_amount|display_number:"2g" }} {{ expense.expense_currency }}</dd></div></dl>
+  <dl class="reader-amounts" aria-label="Montant du justificatif"><div><dt>Total TTC enregistré</dt><dd class="num">{{ expense.expense_amount|display_number:"2g" }} {{ expense.expense_currency }}</dd></div></dl>
 {% endif %}
 {% if expense.expense_payment_method or expense.expense_description or expense.expense_paid_by %}
   <dl class="reader-amounts" aria-label="Règlement du justificatif">
@@ -25,26 +25,7 @@
 {% if preview_error %}
   <p class="notice error" role="alert">{{ preview_error }}</p>
 {% else %}
-  <section class="card reader" aria-label="Aperçu du document" data-reader>
-    <div class="reader-tools" id="commandes">
-      <nav aria-label="Pages du document" class="reader-pages">
-        {% if page > 1 %}<a class="button secondary" href="?page={{ page|add:'-1' }}#commandes" rel="prev" aria-label="Page précédente">←</a>{% endif %}
-        <strong>Page {{ page }} sur {{ page_count|display_number }}</strong>
-        {% if page < page_count %}<a class="button secondary" href="?page={{ page|add:'1' }}#commandes" rel="next" aria-label="Page suivante">→</a>{% endif %}
-      </nav>
-      <div class="reader-zoom" aria-label="Zoom" role="group" hidden>
-        <button type="button" class="secondary" data-step="-1" aria-label="Réduire le zoom">−</button>
-        <output aria-live="polite">100 %</output>
-        <button type="button" class="secondary" data-step="1" aria-label="Agrandir le zoom">+</button>
-        <button type="button" class="text-button" data-fit>Ajuster à la largeur</button>
-      </div>
-    </div>
-    <p class="request-inline-busy" role="status" data-reader-loading hidden>Chargement de la page du document…</p>
-    <p class="notice error" role="alert" data-render-error hidden>Impossible d’afficher cette page. Vous pouvez réessayer ou télécharger le fichier.</p>
-    <div class="reader-stage" tabindex="0" role="region" aria-label="Page du document, zone de défilement" data-zoom="100">
-      <img src="?page={{ page }}&amp;image=1" alt="Page {{ page }} sur {{ page_count|display_number }} de {{ title }}">
-    </div>
-  </section>
+  {% include "core/reader_panel.html" %}
 {% endif %}
 {% endblock %}
 {% block scripts %}<script defer src="{% static 'document-reader.js' %}"></script>{% endblock %}

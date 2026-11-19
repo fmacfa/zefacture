@@ -437,6 +437,24 @@ class Ingestion(models.Model):
         db_table = "document_ingestions"
 
 
+class ExpenseReimbursement(models.Model):
+    receipt = models.OneToOneField(Ingestion, on_delete=models.CASCADE, related_name="reimbursement")
+    status = models.CharField(max_length=12, choices=[
+        ("due", "À rembourser"), ("paid", "Remboursée"), ("exempt", "Sans remboursement"),
+    ])
+    paid_on = models.DateField(null=True, blank=True)
+    updated_by = models.CharField(max_length=32)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "django_expense_reimbursements"
+        constraints = [models.CheckConstraint(
+            condition=models.Q(status="paid", paid_on__isnull=False)
+            | models.Q(status__in=["due", "exempt"], paid_on__isnull=True),
+            name="expense_reimbursement_date",
+        )]
+
+
 class InvoiceEvent(models.Model):
     event_uid = models.CharField(max_length=32, unique=True, default=uid)
     document_uid = models.CharField(max_length=32, db_index=True, null=True, blank=True)
@@ -882,6 +900,15 @@ class CompanyBranding(models.Model):
 
     class Meta:
         db_table = "django_company_branding"
+
+
+class CompanyNumberFormat(models.Model):
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, primary_key=True, related_name="number_format")
+    number_grouping = models.CharField(max_length=8)
+    number_decimal = models.CharField(max_length=8)
+
+    class Meta:
+        db_table = "django_company_number_formats"
 
 
 class UserPreferences(models.Model):
