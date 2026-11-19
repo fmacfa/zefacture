@@ -128,6 +128,16 @@ def request(
         raise BusinessError("Échec de connexion ou réponse PDP invalide.", 502) from exc
 
 
+def reception_connected(company):
+    return not settings.EXTERNAL_SERVICES_DISABLED and PdpSession.objects.filter(
+        company_uid=company.company_uid,
+        provider="superpdp",
+        status="active",
+        company_verification_status="verified",
+        pdp_company_env__in=("production", "sandbox"),
+    ).exists()
+
+
 def session_for(company):
     return PdpSession.objects.get_or_create(
         company_uid=company.company_uid, provider="superpdp"

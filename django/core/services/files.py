@@ -282,13 +282,15 @@ def generate_document(document):
     document = Document.objects.select_for_update().get(pk=document.pk)
     from core.models import PdpInvoice
 
-    imported = PdpInvoice.objects.filter(
-        document_uid=document.document_uid, imported=True
-    ).first()
-    if imported:
-        original = DocumentFile.objects.get(
-            document_uid=document.document_uid, file_uid=imported.original_file_uid
-        )
+    links = PdpInvoice.objects.filter(
+        document_uid=document.document_uid, company_uid=document.company_uid,
+        direction="in" if document.direction == "incoming" else "out",
+    )
+    link = (links if document.direction == "incoming" else links.filter(imported=True)).first()
+    if link:
+        original = document.files.filter(file_uid=link.original_file_uid).first()
+        if not original:
+            raise BusinessError("L’original SUPERPDP est absent. Restaurez-le depuis une sauvegarde.", 409)
         read_verified(original)
         return original
     kind = "pdf" if document.type == "quote" else "facturx"

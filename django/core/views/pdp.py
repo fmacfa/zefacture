@@ -77,6 +77,29 @@ def save_pdp_settings(session, sync, data):
         sync.save(update_fields=["auth_mode", "version"])
 
 
+def verify_connection(company, session):
+    service.verify(company, session)
+    if session.company_verification_status == "verified":
+        now = timezone.now()
+        PdpSyncState.objects.filter(
+            company_uid=company.company_uid, last_success_at__isnull=True, requested=False
+        ).filter(Q(lease_until__isnull=True) | Q(lease_until__lte=now)).update(
+            requested=True, next_sync_at=now
+        )
+
+
+@scoped("write")
+@require_POST
+def sync_reception(request):
+    if not service.reception_connected(request.company):
+        raise BusinessError(
+            "Une connexion SUPERPDP vérifiée est nécessaire pour récupérer les factures.", 409
+        )
+    pdp_sync.request_sync(request.company)
+    audit(request, "pdp.sync_requested")
+    return redirect("/app/reception")
+
+
 @sensitive_post_parameters("client_secret", "access_token")
 @require_http_methods(["GET", "HEAD", "POST"])
 @scoped("admin")
@@ -181,7 +204,7 @@ def pdp(request, action=None):
         sync.auth_mode = "oauth"
         sync.version += 1
         sync.save(update_fields=["auth_mode", "version"])
-        service.verify(request.company, session)
+        verify_connection(request.company, session)
         audit(request, "pdp.connected", session.session_uid)
         messages.success(request, "Compte SUPERPDP connecté.")
         return redirect("/app/entreprise/pdp")
@@ -239,7 +262,7 @@ def pdp(request, action=None):
                         save_pdp_settings(session, sync, request.POST)
                         audit(request, "pdp.configuration_saved", session.session_uid)
                     if operation in {"verify", "save_and_verify"} and session.status != "sandbox":
-                        service.verify(company, session)
+                        verify_connection(company, session)
                         audit(request, "pdp.connection_checked", session.session_uid)
             except service.PdpHttpError as exc:
                 if exc.http_status in (401, 403):

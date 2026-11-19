@@ -65,6 +65,7 @@
   </form>
 </div>
 <section class="card stack"><h2>Factures et statuts</h2><p>{{ invoice_count }} facture{{ invoice_count|pluralize }} liée{{ invoice_count|pluralize }} · Dernière synchronisation réussie : {{ sync.last_success_at|date:"d/m/Y H:i"|default:"jamais" }}</p>
+<p>La première vérification de l’entreprise lance la récupération de son historique. Retrouvez les documents et leurs fichiers dans <a href="/app/reception">Factures fournisseurs</a>.</p>
 {% if sync.last_error %}<p class="notice error" role="alert">{{ sync.last_error }}</p>{% endif %}
 {% if sync.lease %}<p class="notice">Une synchronisation est en cours. Les factures déjà enregistrées sont conservées.</p>{% elif sync.requested %}<p class="notice">Une synchronisation attend le worker.</p>{% endif %}
 <div class="grid two"><form method="post" class="stack">{% csrf_token %}<input type="hidden" name="action" value="sync"><p>Récupérer les factures émises et reçues, leurs originaux PDF/XML et les événements de traitement. Les originaux existants ne sont pas régénérés.</p><label class="check"><input type="checkbox" name="replay" value="1">Reparcourir tout l’historique, sans supprimer les données</label><button>Synchroniser maintenant</button></form>
