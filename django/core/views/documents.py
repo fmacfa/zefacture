@@ -1,18 +1,20 @@
 import json
 import secrets
+from tempfile import TemporaryFile
 from datetime import date, timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.http import FileResponse, HttpResponse, JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.shortcuts import render, redirect
 from django.db import transaction
-from django.db.models import OuterRef, Q
+from django.db.models import DateTimeField, OuterRef, Q, Value
+from django.db.models.functions import Cast, NullIf, TruncDate
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
 from django.utils.http import content_disposition_header
 from django.utils.text import slugify
-from core.common import BusinessError, today, stamp, digest
+from core.common import BusinessError, today, stamp, digest, iso_date
 from core.models import (
     Company,
     Customer,
@@ -24,7 +26,7 @@ from core.models import (
     PdpSyncState,
 )
 from core.security import scoped, scoped_get, ROLES, hidden_expense_documents
-from core.services import documents as service, files, pdp
+from core.services import documents as service, files, pdp, supplier_archive
 from core.services.mail import queue
 
 SECTIONS = {
@@ -122,7 +124,7 @@ def document_download(document, file, default_name, default_mime):
 
 @scoped("write")
 def documents(request, section, document_uid=None, action=None):
-    kind, title, new = SECTIONS[section]
+    kind, title, _ = SECTIONS[section]
     from core.services.branding import for_company
 
     brand = for_company(request.company)
@@ -348,6 +350,37 @@ def documents(request, section, document_uid=None, action=None):
                 "pdp_operations": pdp_operations,
             },
         )
+    return document_list(request, section)
+
+
+@scoped("read")
+@require_GET
+def export_reception(request):
+    return document_list(request, "reception", export=True)
+
+
+def zip_response(query, format_choice, start, end):
+    if not start or not end:
+        raise BusinessError(
+            "Choisissez une date de début et une date de fin pour télécharger le ZIP."
+        )
+    output = TemporaryFile()
+    try:
+        supplier_archive.write_archive(output, query, format_choice)
+        formats = "pdf-xml" if format_choice == "both" else format_choice
+        return FileResponse(
+            output,
+            as_attachment=True,
+            content_type="application/zip",
+            filename=f"factures-fournisseurs_{start}_{end}_{formats}.zip",
+        )
+    except BaseException:
+        output.close()
+        raise
+
+
+def document_list(request, section, *, export=False):
+    _, title, new = SECTIONS[section]
     visible = section_query(request.company, section, request)
     query = visible
     if request.GET.get("q"):
@@ -360,12 +393,41 @@ def documents(request, section, document_uid=None, action=None):
         )
     if request.GET.get("status"):
         query = query.filter(status=request.GET["status"])
-    from core.common import iso_date
-
-    if request.GET.get("from"):
-        query = query.filter(issue_date__gte=iso_date(request.GET["from"]))
-    if request.GET.get("to"):
-        query = query.filter(issue_date__lte=iso_date(request.GET["to"]))
+    error = None
+    try:
+        date_field = "issue_date"
+        if section == "reception":
+            basis = request.GET.get("date_field", "issue")
+            if basis == "received":
+                # Legacy receipt timestamps are stored as UTC text. Filter by
+                # calendar day in the same time zone as the interface.
+                query = query.annotate(
+                    receipt_day=TruncDate(
+                        Cast(NullIf("received_at", Value("")), DateTimeField()),
+                        tzinfo=timezone.get_current_timezone(),
+                    )
+                )
+                date_field = "receipt_day"
+            elif basis != "issue":
+                raise BusinessError(
+                    "Choisissez la date de facture ou la date de réception dans ZeFacture."
+                )
+        start = iso_date(request.GET.get("from"), optional=True)
+        end = iso_date(request.GET.get("to"), optional=True)
+        if start and end and start > end and section == "reception":
+            raise BusinessError(
+                "La date de fin doit être égale ou postérieure à la date de début."
+            )
+        if start:
+            query = query.filter(**{f"{date_field}__gte": start})
+        if end:
+            query = query.filter(**{f"{date_field}__lte": end})
+        if export:
+            return zip_response(query, request.GET.get("format", "both"), start, end)
+    except BusinessError as exc:
+        if section != "reception":
+            raise
+        error = exc
     from django.core.paginator import Paginator
 
     page = Paginator(query.order_by("-created_at", "-id"), 30).get_page(
@@ -378,9 +440,15 @@ def documents(request, section, document_uid=None, action=None):
             "title": title,
             "documents": page,
             "section": section,
+            "reception_error": str(error) if error else "",
             "new_url": f"/app/{section}/{new}",
-            **(reception_context(request.company, visible, page) if section == "reception" else {}),
+            **(
+                reception_context(request.company, visible, page)
+                if section == "reception"
+                else {}
+            ),
         },
+        status=error.status if error else 200,
     )
 
 

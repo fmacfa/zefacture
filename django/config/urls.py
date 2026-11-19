@@ -162,6 +162,7 @@ urlpatterns = [
     ),
     path("app/devis/nouveau/client", documents.quick_customer),
     path("app/reception/synchroniser", pdp.sync_reception),
+    path("app/reception/export.zip", documents.export_reception),
     path(
         "app/devis/nouveau/lignes",
         documents.documents,

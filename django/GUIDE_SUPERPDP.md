@@ -96,6 +96,12 @@ Les originaux sont limités à 25 Mio et les réponses JSON à 2 Mo. Les types d
 
 Un fichier local absent ou dont l’empreinte a changé bloque son téléchargement ; il n’est pas remplacé silencieusement. Restaurer l’original vérifié depuis une sauvegarde. Les références et pièces justificatives externes présentes dans les factures ne provoquent aucun téléchargement arbitraire vers leurs URL.
 
+### Télécharger un ZIP par période
+
+Dans **Factures fournisseurs → Filtrer et exporter**, choisir les deux bornes de la période, le format souhaité et **Télécharger le ZIP**. **Date de facture** utilise la date inscrite sur le document. **Réception dans ZeFacture** utilise le jour où le document est entré dans l’application, y compris pour un historique importé en une seule fois. Les deux jours sont inclus. Les droits d’accès, la recherche et le statut sont les mêmes que pour la liste.
+
+Le dossier **PDF** contient le PDF original ou le PDF de lecture conservé. Le dossier **XML** contient l’original XML ou le XML de facturation embarqué dans un PDF Factur-X. Le téléchargement fonctionne avec les fichiers déjà enregistrés, même après la déconnexion de SUPERPDP. Lorsqu’un format manque, l’archive fournit les fichiers disponibles et un relevé `fichiers-indisponibles.txt`. Si aucun fichier ne correspond, un message s’affiche dans le formulaire.
+
 ## 6. Comprendre les statuts
 
 Le fournisseur publie un historique d’événements, pas un état unique remplaçant toutes les informations de la facture. ZeFacture conserve chaque identifiant d’événement, code, date, texte et détails. Les codes inconnus sont aussi conservés. La fiche affiche les codes rencontrés et le dernier événement selon l’identifiant distant ; un événement plus ancien reçu ensuite ne fait pas reculer cet affichage.

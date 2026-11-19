@@ -7,31 +7,22 @@
   {% if can_write %}<a class="button{% if section == 'reception' %} secondary{% endif %}" href="{{ new_url }}">{% if section == "reception" %}Saisir une facture fournisseur{% else %}+ Créer un document{% endif %}</a>{% endif %}
 </div>
 {% if section == "reception" %}{% include "core/reception_sync.html" %}{% endif %}
+{% if section == "reception" %}
+  {% include "core/reception_filters.html" %}
+{% else %}
 <form class="filters" method="get">
-  <input name="q" placeholder="{% if section == 'reception' %}Numéro, fournisseur, objet…{% else %}Numéro, client, objet…{% endif %}" value="{{ request.GET.q }}" aria-label="Rechercher">
-  <select name="status" aria-label="Statut">
-    <option value="">Tous les statuts</option>
-    <option value="draft"{% if request.GET.status == "draft" %} selected{% endif %}>Brouillons</option>
-    <option value="sent"{% if request.GET.status == "sent" %} selected{% endif %}>Envoyés</option>
-    <option value="received"{% if request.GET.status == "received" %} selected{% endif %}>Reçus</option>
-    {% if section == "reception" %}
-      <option value="refused"{% if request.GET.status == "refused" %} selected{% endif %}>Refusés</option>
-      <option value="disputed"{% if request.GET.status == "disputed" %} selected{% endif %}>En litige</option>
-    {% endif %}
-    <option value="accepted"{% if request.GET.status == "accepted" %} selected{% endif %}>Acceptés</option>
-    <option value="paid"{% if request.GET.status == "paid" %} selected{% endif %}>Payés</option>
-    <option value="cancelled"{% if request.GET.status == "cancelled" %} selected{% endif %}>Annulés</option>
-    <option value="simulated"{% if request.GET.status == "simulated" %} selected{% endif %}>Simulations</option>
-  </select>
+  <input name="q" placeholder="Numéro, client, objet…" value="{{ request.GET.q }}" aria-label="Rechercher">
+  {% include "core/document_status_select.html" %}
   <label>Du<input type="date" name="from" value="{{ request.GET.from }}"></label>
   <label>Au<input type="date" name="to" value="{{ request.GET.to }}"></label>
   <button class="secondary">Filtrer</button>
 </form>
+{% endif %}
 <div id="document-results">
   <section class="card">{% include "core/document_table.html" %}</section>
-  {% include "core/pagination.html" with page=documents %}
+  {% if not reception_error %}{% include "core/pagination.html" with page=documents %}{% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
-  {% if pdp_pending %}<script defer src="{% static 'reception.js' %}"></script>{% endif %}
+  {% if pdp_pending and not reception_error %}<script defer src="{% static 'reception.js' %}"></script>{% endif %}
 {% endblock %}

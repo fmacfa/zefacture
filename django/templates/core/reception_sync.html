@@ -8,7 +8,7 @@
   {% elif pdp_connected %}
     <p class="muted">{% if pdp_sync.last_success_at %}Dernière récupération réussie le {{ pdp_sync.last_success_at|date:"d/m/Y à H:i" }}.{% else %}La première récupération inclut les factures déjà disponibles chez SUPERPDP.{% endif %} Récupération automatique {% if pdp_sync.enabled %}activée{% else %}désactivée{% endif %}.</p>
     {% if pdp_pending %}
-      <p class="notice" role="status">Récupération en cours. La liste s’actualise automatiquement. <a href="{{ request.get_full_path }}">Actualiser la liste</a></p>
+      <p class="notice" role="status">Récupération en cours. {% if not reception_error %}La liste s’actualise automatiquement. {% endif %}<a href="/app/reception{% querystring %}">Actualiser la liste</a></p>
     {% elif pdp_sync.last_error %}
       <p class="notice error" role="alert">La dernière récupération a échoué. {{ pdp_sync.last_error }}</p>
     {% endif %}
