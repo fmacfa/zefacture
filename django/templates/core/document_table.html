@@ -1,21 +1,32 @@
 <div class="table-wrap">
-  <table{% if section == "reception" %} class="reception-table"{% endif %}>
-    <thead><tr><th>Document</th><th>{% if section == "reception" %}Fournisseur{% else %}Tiers{% endif %}</th><th>Date</th><th>Statut</th><th class="num">Total TTC</th><th class="num">Reste dû</th></tr></thead>
+  <table class="invoice-table">
+    <thead>
+      <tr>
+        <th>{% if section == "reception" %}Fournisseur{% elif section %}Client{% else %}Client ou fournisseur{% endif %}</th>
+        <th>Date</th><th>Statut</th><th class="num">Total TTC</th><th class="num">Reste dû</th><th>Actions</th>
+      </tr>
+    </thead>
     <tbody>
       {% for d in documents %}
         <tr class="document-row">
           <td>
-            <a class="strong" href="{{ d.url }}">{{ d.number|default:"Brouillon" }}</a>
-            {% if d.subject %}<small>{{ d.subject }}</small>{% endif %}
+            <span class="document-party">{% if d.direction == "incoming" %}{{ d.seller.name|default:"Fournisseur" }}{% else %}{{ d.buyer.name|default:"Sans client" }}{% endif %}</span>
+            {% if d.number %}<small>{{ d.number }}</small>{% endif %}
+          </td>
+          <td data-label="Date">{{ d.issue_date }}</td>
+          <td data-label="Statut"><span class="badge {{ d.status }}">{{ d.get_status_label|default:d.status }}</span></td>
+          <td data-label="Total TTC" class="num">{{ d.total_including_tax|floatformat:2 }} {{ d.currency_code }}</td>
+          <td data-label="Reste dû" class="num">{{ d.amount_due|floatformat:2 }} {{ d.currency_code }}</td>
+          <td>
+            <div class="document-links">
+              <a class="strong" href="{{ d.url }}">{% if d.type == "quote" %}Voir le devis{% elif d.type == "credit_note" %}Voir l’avoir{% else %}Voir la facture{% endif %}</a>
+              {% if d.status == "draft" and can_write %}<a href="{{ d.url }}/modifier">Modifier</a>{% endif %}
+              {% if d.preview_file %}<a class="preview-link" href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.preview_file.file_uid }}/apercu">Aperçu</a>{% endif %}
+            </div>
             {% if d.pdp_files %}
               <small class="form-help"><a href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.pdp_files.original_file_uid }}">Original{% if d.pdp_files.original_mime == "application/pdf" %} PDF{% elif d.pdp_files.original_mime == "application/xml" or d.pdp_files.original_mime == "text/xml" %} XML{% endif %}</a>{% if d.pdp_files.readable_file_uid %} · <a href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.pdp_files.readable_file_uid }}">PDF de lecture</a>{% endif %}</small>
             {% endif %}
           </td>
-          <td data-label="Fournisseur">{% if d.direction == "incoming" %}{{ d.seller.name }}{% else %}{{ d.buyer.name|default:"Sans client" }}{% endif %}</td>
-          <td data-label="Date">{{ d.issue_date }}</td>
-          <td data-label="Statut"><span class="badge {{ d.status }}">{{ d.get_status_label|default:d.status }}</span></td>
-          <td data-label="Total TTC" class="num">{{ d.total_including_tax|floatformat:2 }} {{ d.currency_code }}</td>
-          <td data-label="Reste dû" class="num">{{ d.amount_due|floatformat:2 }}</td>
         </tr>
       {% empty %}
         <tr><td colspan="6" class="empty">{% if section != "reception" %}Vos documents apparaîtront ici.{% elif request.GET.q or request.GET.status or request.GET.from or request.GET.to %}Aucune facture ne correspond aux filtres. <a href="/app/reception">Effacer les filtres</a>{% else %}Aucune facture fournisseur enregistrée pour le moment.{% endif %}</td></tr>

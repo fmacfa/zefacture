@@ -630,6 +630,26 @@ class CustomerContact(models.Model):
         db_table = "django_customer_contacts"
 
 
+class DocumentContact(models.Model):
+    document = models.OneToOneField(Document, on_delete=models.CASCADE, related_name="crm_link")
+    contact = models.ForeignKey(CustomerContact, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = "django_document_contacts"
+
+
+class DocumentNote(models.Model):
+    note_uid = models.CharField(max_length=32, unique=True, default=uid)
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="internal_notes")
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "django_document_notes"
+
+
 class Opportunity(models.Model):
     STAGES = [
         ("prospect", "À qualifier"),

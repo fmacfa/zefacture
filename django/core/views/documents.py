@@ -1,5 +1,6 @@
 import json
 import secrets
+from collections import defaultdict
 from tempfile import TemporaryFile
 from datetime import date, timedelta
 from django.conf import settings
@@ -8,7 +9,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.shortcuts import render, redirect
 from django.db import transaction
-from django.db.models import DateTimeField, OuterRef, Q, Value
+from django.db.models import Case, Count, DateTimeField, F, Q, Sum, Value, When
 from django.db.models.functions import Cast, NullIf, TruncDate
 from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
@@ -27,7 +28,11 @@ from core.models import (
 )
 from core.security import scoped, scoped_get, ROLES, hidden_expense_documents
 from core.services import documents as service, files, pdp, supplier_archive
+from core.services.document_preview import preferred_file, preview_format
 from core.services.mail import queue
+from core.services.reports import document_status_cards
+from .preview import preview_response
+from .document_followup import followup_context
 
 SECTIONS = {
     "devis": ("quote", "Devis", "nouveau"),
@@ -69,17 +74,20 @@ def section_query(company, section, request=None):
 
 def reception_context(company, visible, page):
     links = PdpInvoice.objects.filter(company_uid=company.company_uid, direction="in")
-    original = DocumentFile.objects.filter(
-        document_uid=OuterRef("document_uid"), file_uid=OuterRef("original_file_uid")
-    )
-    page_links = (
-        links.filter(document_uid__in=[doc.document_uid for doc in page])
-        .annotate(original_mime=original.values("mime_type")[:1])
-        .values("document_uid", "original_mime", "original_file_uid", "readable_file_uid")
-    )
-    by_document = {link["document_uid"]: link for link in page_links}
+    uids = [doc.document_uid for doc in page]
+    by_document = {link.document_uid: link for link in links.filter(document_uid__in=uids)}
+    records = defaultdict(list)
+    for file in DocumentFile.objects.filter(document_uid__in=uids).order_by("-id"):
+        records[file.document_uid].append(file)
     for document in page:
-        document.pdp_files = by_document.get(document.document_uid)
+        attached = records[document.document_uid]
+        link = by_document.get(document.document_uid)
+        if link:
+            link.original_mime = next(
+                (file.mime_type for file in attached if file.file_uid == link.original_file_uid), ""
+            )
+        document.pdp_files = link
+        document.preview_file = preferred_file(attached, link)
     sync = PdpSyncState.objects.filter(company_uid=company.company_uid).first()
     connected = pdp.reception_connected(company)
     return {
@@ -91,6 +99,19 @@ def reception_context(company, visible, page):
         )),
         "external_services_disabled": settings.EXTERNAL_SERVICES_DISABLED,
     }
+
+
+def reception_totals(query):
+    def net_of_credits(field):
+        return Sum(Case(When(type="credit_note", then=-F(field)), default=F(field)))
+
+    return query.values("currency_code").annotate(
+        count=Count("pk"),
+        net=net_of_credits("total_excluding_tax"),
+        vat=net_of_credits("total_vat"),
+        gross=net_of_credits("total_including_tax"),
+        due=Sum("amount_due"),
+    ).order_by("currency_code")
 
 
 def read_data(request):
@@ -325,6 +346,9 @@ def documents(request, section, document_uid=None, action=None):
             operation.status_label = OUTBOX_LABELS.get(
                 operation.status, operation.status
             )
+        attached = list(document.files)
+        for file in attached:
+            file.preview_kind = preview_format(file)
         return render(
             request,
             "core/document.html",
@@ -335,7 +359,8 @@ def documents(request, section, document_uid=None, action=None):
                 "events": InvoiceEvent.objects.filter(
                     document_uid=document.document_uid
                 ).order_by("-id"),
-                "files": document.files,
+                "files": attached,
+                "preview_file": preferred_file(attached, pdp_link),
                 "linked": Document.objects.filter(
                     company_uid=document.company_uid,
                     source_quote_uid=document.document_uid,
@@ -348,6 +373,7 @@ def documents(request, section, document_uid=None, action=None):
                 if pdp_link
                 else "",
                 "pdp_operations": pdp_operations,
+                **followup_context(request, document),
             },
         )
     return document_list(request, section)
@@ -391,9 +417,8 @@ def document_list(request, section, *, export=False):
             | Q(seller_snapshot__icontains=q)
             | Q(subject__icontains=q)
         )
-    if request.GET.get("status"):
-        query = query.filter(status=request.GET["status"])
     error = None
+    cards = []
     try:
         date_field = "issue_date"
         if section == "reception":
@@ -422,6 +447,10 @@ def document_list(request, section, *, export=False):
             query = query.filter(**{f"{date_field}__gte": start})
         if end:
             query = query.filter(**{f"{date_field}__lte": end})
+        if not export:
+            cards = document_status_cards(query, section, request.GET)
+        if request.GET.get("status"):
+            query = query.filter(status=request.GET["status"])
         if export:
             return zip_response(query, request.GET.get("format", "both"), start, end)
     except BusinessError as exc:
@@ -441,6 +470,8 @@ def document_list(request, section, *, export=False):
             "documents": page,
             "section": section,
             "reception_error": str(error) if error else "",
+            "status_cards": cards,
+            "reception_totals": reception_totals(query) if section == "reception" and not error else (),
             "new_url": f"/app/{section}/{new}",
             **(
                 reception_context(request.company, visible, page)
@@ -549,7 +580,7 @@ def public_quote(request, token):
 
 
 @scoped("write")
-def attachment(request, document_uid, file_uid=None):
+def attachment(request, document_uid, file_uid=None, preview=False):
     document = scoped_get(Document, request, document_uid=document_uid)
     if request.method == "POST" and not file_uid:
         metadata = files.upload(
@@ -564,5 +595,11 @@ def attachment(request, document_uid, file_uid=None):
         file = document.files.filter(file_uid=file_uid).first()
         if not file:
             raise BusinessError("Fichier introuvable.", 404)
+        if preview:
+            return preview_response(
+                request, file, title=document.number or "Document", back_url=document.url,
+                download_url=f"/app/documents/{document_uid}/fichiers/{file_uid}",
+                document=document,
+            )
         return document_download(document, file, file.file_uid, "application/octet-stream")
     return HttpResponse(status=405)

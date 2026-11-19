@@ -124,7 +124,9 @@ def customer(request, customer_uid, action=None, item_uid=None):
         company_uid=obj.company_uid, customer_uid=customer_uid
     ).first() or CustomerProfile(relationship="customer")
     docs = (
-        Document.objects.filter(company_uid=obj.company_uid, customer_uid=customer_uid)
+        Document.objects.filter(company_uid=obj.company_uid).filter(
+            Q(customer_uid=customer_uid) | Q(crm_link__contact__company_uid=obj.company_uid, crm_link__contact__customer_uid=customer_uid)
+        )
         .exclude(document_uid__in=hidden_expense_documents(request))
         .order_by("-id")
     )
@@ -135,7 +137,7 @@ def customer(request, customer_uid, action=None, item_uid=None):
     emails = (
         Email.objects.filter(company_uid=obj.company_uid)
         .filter(
-            Q(email_uid__in=email_ids) | Q(document_uid__in=docs.values("document_uid"))
+            Q(email_uid__in=email_ids) | Q(document_uid__in=docs.filter(customer_uid=customer_uid).values("document_uid"))
         )
         .order_by("-id")
     )

@@ -1,0 +1,18 @@
+<section class="reception-totals" aria-labelledby="reception-totals-title">
+  <div class="section-head">
+    <h2 id="reception-totals-title">Totaux de la sélection</h2>
+    <span>{{ documents.paginator.count }} document{{ documents.paginator.count|pluralize }}</span>
+  </div>
+  {% for group in reception_totals %}
+    {% if reception_totals|length > 1 %}<h3>{{ group.currency_code }} · {{ group.count }} document{{ group.count|pluralize }}</h3>{% endif %}
+    <dl class="amount-cards">
+      <div><dt>Total HT</dt><dd>{{ group.net|floatformat:"2g" }} <small>{{ group.currency_code }}</small></dd></div>
+      <div><dt>TVA</dt><dd>{{ group.vat|floatformat:"2g" }} <small>{{ group.currency_code }}</small></dd></div>
+      <div class="amount-gross"><dt>Total TTC</dt><dd>{{ group.gross|floatformat:"2g" }} <small>{{ group.currency_code }}</small></dd></div>
+      <div><dt>Reste dû</dt><dd>{{ group.due|floatformat:"2g" }} <small>{{ group.currency_code }}</small></dd></div>
+    </dl>
+  {% empty %}
+    <p class="muted">Aucun montant pour cette sélection.</p>
+  {% endfor %}
+  {% if reception_totals %}<p class="form-help">Toutes les pages sont incluses. Les avoirs sont déduits des totaux HT, TVA et TTC.</p>{% endif %}
+</section>

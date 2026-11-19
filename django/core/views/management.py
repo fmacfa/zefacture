@@ -99,6 +99,11 @@ def dashboard(request):
             "report": comparison,
             "totals": totals,
             "documents": docs.order_by("-id")[:8],
+            "supplier_states": reports.document_status_cards(
+                docs.filter(direction="incoming", type__in=["invoice", "progress_invoice", "credit_note"]),
+                "reception",
+                {} if selected.start == date.min and selected.end == date.max else {"from": selected.start.isoformat(), "to": selected.end.isoformat()},
+            ),
             "quotes": docs.filter(type="quote", status="sent").count(),
             "drafts": docs.filter(status="draft").count(),
             "late": active.filter(

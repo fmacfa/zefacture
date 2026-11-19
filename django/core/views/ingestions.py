@@ -6,10 +6,12 @@ from django.contrib import messages
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from core.common import BusinessError, stamp, unpack
-from core.models import Ingestion
-from core.security import scoped, ROLES
+from core.models import Document, Ingestion
+from core.security import hidden_expense_documents, scoped, ROLES
 from core.services import extraction_ai, ingestion, files, jobs
 from core.services.account_security import audit
+from core.services.document_preview import preview_format
+from .preview import preview_response
 from core.services.receipt_extraction import (
     EXPENSE_KINDS,
     expense_suggestion,
@@ -107,6 +109,19 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     item = query.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
     if ingestion_uid and not item:
         raise BusinessError("Import introuvable.", 404)
+    if action == "apercu":
+        if request.method != "GET":
+            return HttpResponse(status=405, headers={"Allow": "GET"})
+        base = f"/app/imports/{ingestion_uid}"
+        document = None
+        if item.document_uid:
+            document = Document.objects.filter(
+                company_uid=request.company.company_uid, document_uid=item.document_uid,
+            ).exclude(document_uid__in=hidden_expense_documents(request)).first()
+        return preview_response(
+            request, item, title=item.original_filename or "Justificatif",
+            back_url=base, download_url=base + "/telecharger", document=document, expense=item,
+        )
     if action == "telecharger" and request.method == "GET":
         response = HttpResponse(
             files.read_verified(item),
@@ -208,6 +223,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             {
                 "title": item.original_filename,
                 "item": item,
+                "can_preview": preview_format(item),
                 "parsed": parsed,
                 "lines": extracted_lines,
                 "inventory": [],
@@ -224,6 +240,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     for row in rows:
         row.source_label = SOURCE_LABELS.get(row.source_kind, "Justificatif")
         row.state_label = STATUS_LABELS.get(row.status, "À vérifier")
+        row.can_preview = preview_format(row)
     return render(
         request,
         "core/ingestions.html",

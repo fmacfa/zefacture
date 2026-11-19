@@ -100,15 +100,29 @@ L’action **Marquer payé** correspond à un règlement intégral. Pour un paie
 
 Un site de vente peut créer le brouillon, émettre la facture et télécharger son PDF avec une clé **API métier**. Le site associe ensuite le PDF à la commande pour le remettre au client. [Émettre et télécharger après une vente](GUIDE_API_WEBHOOKS.md#émettre-et-télécharger-après-une-vente).
 
+### Suivre une facture avec un contact CRM
+
+Dans la liste, le client ou fournisseur et le numéro identifient la facture. **Voir la facture** ouvre les montants, les fichiers et le suivi. **Modifier** permet de corriger un brouillon. Pour une facture déjà émise ou reçue, **Modifier le suivi** donne accès aux informations internes et l’original reste conservé.
+
+Dans **Contact CRM**, sélectionner un **Contact existant** puis **Lier le contact**, ou ouvrir **Créer un contact CRM**. Choisir sa fiche client ou fournisseur, renseigner le nom et cliquer sur **Créer et lier le contact**. La facture apparaît également dans les documents de cette fiche CRM. Le contact peut être remplacé et **Retirer le lien** le détache de cette facture.
+
+Dans **Notes internes**, saisir une note et cliquer sur **Ajouter la note**. Elle apparaît avec son auteur et sa date et reste dans ZeFacture. L’auteur ou un administrateur peut la modifier. Les membres en lecture seule peuvent consulter le suivi des factures auxquelles ils ont accès.
+
 ## 6. Achats, imports et notes de frais
 
 **Factures fournisseurs** centralise les documents reçus : saisie du numéro fournisseur, dates, lignes et original joint, ou réception synchronisée depuis SUPERPDP. Les actions disponibles permettent acceptation, refus, litige et règlement selon le statut. Le téléchargement restitue l’original fourni ; il ne fabrique pas une facture à la place du fournisseur.
 
-Ouvrir **Achats et finances → Factures fournisseurs**. La première vérification de l’entreprise chez SUPERPDP lance la récupération de l’historique. Le panneau **Factures reçues via SUPERPDP** affiche le nombre de documents enregistrés et la date de la dernière récupération réussie. **Récupérer les factures** lance une nouvelle recherche. Un administrateur peut activer la récupération périodique dans **Gérer la synchronisation**.
+Ouvrir **Achats et finances → Factures fournisseurs**. La première vérification de l’entreprise chez SUPERPDP lance la récupération de l’historique. Le panneau **Factures reçues via SUPERPDP** affiche le nombre de documents enregistrés et la date de la dernière récupération réussie. **Synchroniser SUPERPDP** lance une nouvelle recherche. Un administrateur peut activer la récupération périodique dans **Gérer la synchronisation**.
 
-Sous le numéro d’une facture, choisir **Original XML** ou **Original PDF** pour enregistrer le fichier du fournisseur sur son ordinateur. Pour un original XML, **PDF de lecture** permet aussi de télécharger la version lisible lorsqu’elle est disponible. Les fichiers sont déjà conservés dans ZeFacture dès la synchronisation. Ouvrir le numéro pour consulter les lignes et le **Suivi SUPERPDP**. [Guide SUPERPDP](GUIDE_SUPERPDP.md).
+Dans les actions d’une facture, choisir **Original XML** ou **Original PDF** pour enregistrer le fichier du fournisseur sur son ordinateur. Pour un original XML, **PDF de lecture** permet aussi de télécharger la version lisible lorsqu’elle est disponible. Les fichiers sont déjà conservés dans ZeFacture dès la synchronisation. Cliquer sur **Voir la facture** pour consulter les lignes et le **Suivi SUPERPDP**. [Guide SUPERPDP](GUIDE_SUPERPDP.md).
 
-Pour télécharger plusieurs factures en une fois, ouvrir **Factures fournisseurs → Filtrer et exporter**. Choisir **Date de facture** ou **Réception dans ZeFacture**, puis renseigner **Du** et **Au**. Les deux jours sont inclus. Sélectionner **PDF uniquement**, **XML uniquement** ou **PDF et XML** et cliquer sur **Télécharger le ZIP**. La recherche et le statut s’appliquent aussi au ZIP, qui inclut toutes les pages. Le fichier `fichiers-indisponibles.txt` signale les formats demandés qui manquent dans une archive partielle.
+Pour télécharger plusieurs factures en une fois, ouvrir **Factures fournisseurs → Rechercher des factures**. Choisir **Date de facture** ou **Réception dans ZeFacture**, puis renseigner **Du** et **Au**. Les deux jours sont inclus. Sélectionner **PDF uniquement**, **XML uniquement** ou **PDF et XML** et cliquer sur **Télécharger le ZIP**. La recherche et le statut s’appliquent aussi au ZIP, qui inclut toutes les pages. Le fichier `fichiers-indisponibles.txt` signale les formats demandés qui manquent dans une archive partielle.
+
+Depuis le tableau de bord ou les listes, les encarts de statut ouvrent les factures correspondantes. Dans **Factures fournisseurs**, choisir par exemple **Reçues**, **Payées** ou **En litige**. **Tous** réunit les statuts de la période.
+
+Dans **Rechercher des factures**, cliquer sur **Filtrer** pour actualiser la liste et les cartes **Totaux de la sélection**. Elles couvrent toutes les pages et affichent le HT, la TVA, le TTC et le reste dû actuel, par devise. Les avoirs sont déduits du HT, de la TVA et du TTC. **Effacer les filtres** revient à la liste complète. **Synchroniser SUPERPDP** conserve les filtres appliqués.
+
+**Aperçu** ouvre les PDF et les images depuis les factures fournisseurs, les imports et les notes de frais. Les flèches changent de page. Utiliser **+**, **−** ou **Ajuster à la largeur** pour lire un détail sur ordinateur ou téléphone. Si SUPERPDP fournit un original XML accompagné d’un PDF de lecture, l’aperçu utilise ce PDF. Le lien de téléchargement reste disponible. Les montants affichés viennent de la facture liée ou du TTC déjà enregistré sur le justificatif.
 
 Pour un reçu de restaurant, ouvrir **Notes de frais → Ticket de caisse** et joindre une photo ou un PDF (15 Mo maximum). Cliquer sur **Transcrire**, puis actualiser la page lorsque le worker a terminé. L’OCR fonctionne sur le serveur et propose le commerçant, la date, le total TTC, la devise et, si elle est libellée clairement, la TVA totale. Les valeurs incertaines peuvent rester vides. Comparer la proposition à l’original, corriger les champs nécessaires, choisir la catégorie et cliquer sur **Enregistrer le justificatif**. Ce parcours accepte les tickets sans numéro de facture.
 
@@ -129,6 +143,8 @@ Les propriétaires, administrateurs et comptables disposent de **Finances** :
 - **Trésorerie** : prévisions et échéances.
 - **TVA** : état par période.
 - **Export comptable** : journal de facturation exportable.
+
+Pour suivre plusieurs comptes, ouvrir **Finances → Comptes bancaires → Ajouter un compte** pour chacun. Saisir le solde juste avant le premier mouvement à importer. Télécharger le relevé CSV depuis la banque, puis ouvrir **Transactions → Importer un relevé CSV** et sélectionner le compte correspondant. Prévoir les colonnes `date`, `libellé` et `montant`, ou `débit` et `crédit`, avec un maximum de 1 000 lignes par fichier. Une fois les mouvements enregistrés, sélectionner la facture sur la ligne et cliquer sur **Rapprocher**. La version actuelle utilise l’import de relevés pour alimenter les comptes.
 
 Après un import, lire le nombre de lignes importées, ignorées et rejetées. Vérifier le compte choisi et les devises avant rapprochement. Les devises ne sont pas converties automatiquement ni additionnées dans un solde unique.
 
