@@ -261,6 +261,18 @@ SMTP_SSL=0
 
 Pour TLS direct, utiliser le port fourni, `SMTP_SSL=1` et `SMTP_TLS=0`. Faire configurer SPF, DKIM et DMARC selon les indications de votre fournisseur et du domaine d’envoi.
 
+### Connexion bancaire Bridge
+
+ZeFacture utilise l’API d’agrégation Bridge en lecture seule. Chaque entreprise peut relier plusieurs comptes de paiement avec son propre consentement. Prévoir un `APP_URL` public en HTTPS, le worker en fonctionnement et `EXTERNAL_SERVICES_DISABLED=0` sur l’instance destinée aux connexions réelles.
+
+1. Créer une application d’agrégation dans le tableau de bord Bridge. Utiliser les identifiants sandbox et une banque de démonstration sur une instance de test. Pour les banques réelles, faire activer l’agrégation de production par Bridge et récupérer le **Client ID** et le **Client Secret** de cette application. La couverture et les conditions commerciales relèvent du prestataire. [Identifiants et environnements Bridge](https://docs.bridgeapi.io/docs/api-credentials).
+2. Autoriser le domaine de retour de votre instance dans les réglages de l’application Bridge. ZeFacture affiche l’adresse exacte sous **Finances → Comptes bancaires → Configurer Bridge**. Pour une instance à `https://factures.example.org`, le retour est `https://factures.example.org/app/finances/comptes/connexion/retour`. Renseigner les deux identifiants dans ce formulaire et enregistrer.
+3. Avec le compte de l’administrateur chargé des banques, choisir **Relier ma banque → Continuer vers Bridge**, sélectionner les établissements et autoriser les comptes voulus. Cet administrateur gère ensuite l’ajout, le renouvellement et la révocation des accès dans le portail. [Gestion des connexions et du consentement](https://docs.bridgeapi.io/docs/user-management-sessions).
+4. Vérifier l’heure de dernière synchronisation, les comptes et leurs devises, puis comparer un mouvement comptabilisé avec le relevé de la banque. **Synchroniser maintenant** confie la demande au worker. Les identifiants bancaires se saisissent chez la banque. ZeFacture conserve le secret d’application chiffré avec la clé de stockage de l’instance et utilise un jeton temporaire pour chaque session serveur.
+5. **Mettre en pause** suspend la relève locale. Pour révoquer le consentement, utiliser également le portail Bridge ou la banque. Les opérations importées restent consultables. En cas d’expiration du consentement, rouvrir **Relier ou gérer mes banques**. En cas d’erreur chez le prestataire, le worker conserve les opérations déjà enregistrées et retente après quinze minutes.
+
+Après une mise à jour depuis une version antérieure, les factures historiques peuvent recevoir le même rattachement CRM que les nouvelles. Depuis le répertoire de déploiement, exécuter `docker compose exec -T web python manage.py link_invoice_contacts`. En installation native, utiliser `python manage.py link_invoice_contacts` avec l’environnement de l’instance. La commande peut être relancée et conserve les affectations manuelles. Sauvegarder la base, les documents et la clé privée de stockage selon la procédure ci-dessous.
+
 ## 8. Personnalisation pour les clients
 
 Un administrateur accède à **Mon entreprise → Personnalisation**. Les quatre rubriques de l’entreprise sélectionnée s’enregistrent séparément.

@@ -114,7 +114,7 @@ def select_company(request):
     return request.company
 
 
-def scoped(permission="read"):
+def scoped(permission="read", *, verification_return=None):
     def decorate(view):
         @functools.wraps(view)
         def wrapped(request, *args, **kwargs):
@@ -145,7 +145,7 @@ def scoped(permission="read"):
                 from core.services.account_security import admin_security_redirect
 
                 destination = admin_security_redirect(
-                    request, recent_required=kwargs.get("action") != "retour"
+                    request, recent_required=kwargs.get("action") != "retour", return_path=verification_return,
                 )
                 if destination:
                     return redirect(destination)

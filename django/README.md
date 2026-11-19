@@ -54,7 +54,7 @@ Une installation neuve peut générer directement sa configuration avec `python3
 | Inventaire | Catalogue produits/services, images, entrées/sorties de stock, seuils |
 | Dépenses | Notes de frais et tickets, visibilité par utilisateur et par rôle |
 | Imports | PDF/images, transcription/OCR local, correction manuelle, extraction IA optionnelle, conversion contrôlée |
-| Finances | Comptes, transactions, import/export CSV, dédoublonnage, paiements partiels, rapprochement, prévisions, export comptable, état de TVA |
+| Finances | Comptes bancaires multiples via Bridge, synchronisation des transactions, rapprochement automatique, paiements partiels, CSV, prévisions et état de TVA |
 | Intégrations | Boîte d'envoi, SMTP/Resend, clés API, OAuth SUPERPDP, émission et récepteur d'événements |
 
 Les compléments CRM, comparatifs, exports PDF/Excel/CSV, webhooks sortants et connexions SMTP/Gmail/Outlook depuis l'interface sont décrits dans [INTEGRATIONS.md](INTEGRATIONS.md). Les connexions email et webhooks sont propres à chaque entreprise ; les anciennes données sont conservées par une migration additive.

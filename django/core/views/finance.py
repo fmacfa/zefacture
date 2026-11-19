@@ -5,8 +5,18 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.db.models import Sum
+from django.core.paginator import Paginator
+from django.conf import settings
 from core.common import BusinessError, today, stamp, decimal, iso_date, money
-from core.models import BankAccount, BankTransaction, Document, Forecast
+from core.models import (
+    BankAccount,
+    BankFeed,
+    BankFeedEntry,
+    BankTransaction,
+    Document,
+    Forecast,
+)
+from core.services.bank_sync import candidates
 from core.forms import AccountForm, ForecastForm
 from core.security import scoped, scoped_get
 from core.services import finance as service
@@ -56,7 +66,15 @@ def finance(request, section="overview", item_uid=None, action=None):
             {
                 "title": "Comptes bancaires",
                 "form": form,
-                "accounts": BankAccount.objects.filter(company_uid=company.company_uid),
+                "accounts": BankAccount.objects.filter(
+                    company_uid=company.company_uid
+                ).select_related("bank_feed"),
+                "feed": BankFeed.objects.filter(
+                    company_uid=company.company_uid
+                ).first(),
+                "callback_url": settings.APP_URL.rstrip("/")
+                + "/app/finances/comptes/connexion/retour",
+                "external_disabled": settings.EXTERNAL_SERVICES_DISABLED,
             },
         )
     if section == "transactions":
@@ -86,10 +104,12 @@ def finance(request, section="overview", item_uid=None, action=None):
         )
         if request.GET.get("q"):
             rows = rows.filter(label__icontains=request.GET["q"][:200])
+        if request.GET.get("compte"):
+            rows = rows.filter(account_uid=request.GET["compte"])
         if action == "export":
             return download_csv(
                 "transactions",
-                ["date", "libellé", "montant", "sens", "compte", "document"],
+                ["date", "libellé", "montant", "sens", "compte", "document", "statut"],
                 [
                     [
                         t.transaction_date,
@@ -98,16 +118,47 @@ def finance(request, section="overview", item_uid=None, action=None):
                         t.direction,
                         t.account_uid,
                         t.document_uid,
+                        t.status,
                     ]
                     for t in rows
                 ],
             )
+        reviews = (
+            BankFeedEntry.objects.filter(
+                feed_account__feed__company_uid=company.company_uid
+            )
+            .exclude(review="")
+            .select_related(
+                "feed_account__account", "feed_account__feed", "transaction"
+            )
+        )
+        if request.GET.get("compte"):
+            reviews = reviews.filter(
+                feed_account__account__account_uid=request.GET["compte"]
+            )
+        review_page = Paginator(reviews.order_by("pk"), 15).get_page(
+            request.GET.get("verification")
+        )
+        for entry in review_page:
+            if entry.review == "overlap":
+                entry.choices = candidates(entry).order_by("pk")
+        page = Paginator(rows.select_related("bank_feed"), 50).get_page(
+            request.GET.get("page")
+        )
+        accounts = list(
+            BankAccount.objects.filter(company_uid=company.company_uid).order_by("name")
+        )
+        by_uid = {a.account_uid: a for a in accounts}
+        for row in page:
+            row.account = by_uid.get(row.account_uid)
         return render(
             request,
             "core/transactions.html",
             {
                 "title": "Transactions",
-                "transactions": rows[:300],
+                "transactions": page,
+                "review_page": review_page,
+                "all_accounts": accounts,
                 "today": today(),
                 "accounts": BankAccount.objects.filter(
                     company_uid=company.company_uid, status="active"
@@ -249,7 +300,7 @@ def finance(request, section="overview", item_uid=None, action=None):
             .filter(amount_due__gt=0, due_date__lte=horizon)
         ]
         balances = defaultdict(Decimal)
-        for account in BankAccount.objects.filter(
+        for account in BankAccount.objects.exclude(bank_feed__shared=False).filter(
             company_uid=company.company_uid, status="active"
         ):
             balances[account.currency_code] += account.current_balance

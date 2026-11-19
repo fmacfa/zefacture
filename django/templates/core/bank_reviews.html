@@ -1,0 +1,16 @@
+{% if review_page.paginator.count %}
+<section class="card stack" aria-labelledby="bank-reviews"><h2 id="bank-reviews">Opérations à vérifier ({{ review_page.paginator.count }})</h2>
+{% for entry in review_page %}
+  <div class="bank-review"><strong>{{ entry.label }}</strong><p>{{ entry.feed_account.account.name }} · {{ entry.day|date:"d/m/Y" }} · {{ entry.amount|floatformat:"2g" }} {{ entry.feed_account.account.currency_code }}</p>
+  <form class="stack" method="post" action="/app/finances/transactions/verification/{{ entry.pk }}">{% csrf_token %}
+    {% if entry.review == "overlap" %}
+      <label>Écriture locale correspondante<select name="choice" required><option value="">Choisir…</option>{% for t in entry.choices %}<option value="{{ t.transaction_uid }}">{{ t.label }} · {{ t.transaction_date }}{% if t.external_id %} · {{ t.external_id }}{% endif %}</option>{% endfor %}<option value="new">Créer une opération distincte</option></select></label>
+      <div><button class="secondary">Confirmer l’écriture</button></div>
+    {% else %}
+      <p>La banque a modifié une opération déjà rapprochée de {{ entry.transaction.amount|floatformat:2 }} {{ entry.feed_account.account.currency_code }}. La confirmation rétablit cette somme sur la facture et applique la correction bancaire{% if entry.status == "cancelled" %} (annulation){% elif entry.status == "pending" %} (opération à venir){% endif %}.</p>
+      <div><button class="secondary" name="choice" value="correct">Annuler le rapprochement et appliquer la correction</button></div>
+    {% endif %}
+  </form></div>
+{% endfor %}
+{% if review_page.has_other_pages %}<nav class="pagination">{% if review_page.has_previous %}<a href="{% querystring verification=review_page.previous_page_number %}#bank-reviews">Précédentes</a>{% endif %}{% if review_page.has_next %}<a href="{% querystring verification=review_page.next_page_number %}#bank-reviews">Suivantes</a>{% endif %}</nav>{% endif %}
+</section>{% endif %}

@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 from collections import defaultdict
+import json
 import re
 from django.db import transaction
 from core.common import (
@@ -116,7 +117,11 @@ def issue_invoice(document):
         .filter(pk=document.pk, company_uid=document.company_uid)
         .first()
     )
-    if not invoice or invoice.direction != "outgoing" or invoice.type not in INVOICE_TYPES:
+    if (
+        not invoice
+        or invoice.direction != "outgoing"
+        or invoice.type not in INVOICE_TYPES
+    ):
         raise BusinessError("Facture sortante introuvable.", 404)
     if invoice.status in ISSUED_INVOICE_STATUSES:
         issued_invoice_pdf(invoice)
@@ -207,6 +212,18 @@ def save_document(company, user, kind, data, document=None, direction="outgoing"
         document.number = document.number or number(company, kind)
         document.seller_snapshot = snapshot(company, seller=True)
         document.buyer_snapshot = snapshot(customer) if customer else "{}"
+    if customer and any(
+        data.get(key) for key in ("contact_name", "contact_email", "contact_phone")
+    ):
+        side = "seller_snapshot" if direction == "incoming" else "buyer_snapshot"
+        party = json.loads(getattr(document, side))
+        if data.get("contact_name"):
+            party["contact_name"] = str(data["contact_name"]).strip()[:200]
+        if data.get("contact_email"):
+            party["contact_email"] = email(data["contact_email"])
+        if data.get("contact_phone"):
+            party["contact_phone"] = str(data["contact_phone"]).strip()[:80]
+        setattr(document, side, json_text(party))
     document.issue_date = iso_date(data.get("issue_date") or today())
     from .branding import for_company
 
@@ -288,6 +305,9 @@ def save_document(company, user, kind, data, document=None, direction="outgoing"
             for item in computed["lines"]
         ]
     )
+    from .invoice_contacts import assign_automatically
+
+    assign_automatically(document)
     event(
         document,
         "created" if new else "updated",
