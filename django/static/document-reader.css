@@ -1,0 +1,54 @@
+.reader-heading,
+.reader-heading > div,
+.reader {
+  min-width: 0;
+}
+.reader-heading h1 {
+  overflow-wrap: anywhere;
+  margin-top: .45rem;
+}
+.reader-amounts,
+.reader-tools,
+.reader-pages,
+.reader-zoom {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .6rem;
+}
+.reader-amounts {
+  gap: .65rem 2rem;
+  margin: 0 0 1rem;
+}
+.reader-amounts dt { color: var(--muted); }
+.reader-amounts dd { margin: .15rem 0 0; font-weight: 700; }
+.reader { padding: 0; overflow: hidden; }
+.reader-tools { justify-content: space-between; padding: .75rem 1rem; }
+.reader-tools :is(button, .button) { min-height: 42px; }
+.reader-zoom output { min-width: 3.4rem; text-align: center; font-variant-numeric: tabular-nums; }
+.reader [hidden] { display: none; }
+.reader-stage {
+  overflow: auto;
+  max-height: 76vh;
+  max-height: 76dvh;
+  background: var(--line);
+  padding: .7rem;
+  border-top: 1px solid var(--line);
+}
+.reader-stage img {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  margin: auto;
+  background: white;
+}
+.reader-stage[data-zoom="75"] img { width: 75%; }
+.reader-stage[data-zoom="125"] img { width: 125%; }
+.reader-stage[data-zoom="150"] img { width: 150%; }
+.reader-stage[data-zoom="200"] img { width: 200%; }
+@media (max-width: 600px) {
+  .reader-tools { align-items: start; flex-direction: column; padding: .65rem; }
+  .reader-stage { padding: .25rem; }
+  .reader-zoom { gap: .25rem; }
+}

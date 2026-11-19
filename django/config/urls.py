@@ -3,6 +3,7 @@ from core.views import (
     authentication as auth,
     management as management,
     documents,
+    document_followup,
     finance,
     ingestions,
     pdp,
@@ -121,7 +122,7 @@ urlpatterns = [
     path("app/imports", ingestions.ingestions),
     path("app/notes-de-frais", ingestions.ingestions, {"expenses": True}),
     re_path(
-        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif|archiver|restaurer))?$",
+        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>apercu|telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif|archiver|restaurer))?$",
         ingestions.ingestions,
     ),
     path("app/finances", finance.finance),
@@ -182,6 +183,14 @@ urlpatterns = [
     re_path(
         r"^app/(?P<section>devis|factures|avoirs|reception)/(?P<document_uid>[a-f0-9]{32})(?:/(?P<action>telecharger|generer-factur-x|envoyer|payer|relancer|accepter|refuser|litige|annuler|facturer|facture-avancement))?$",
         documents.documents,
+    ),
+    re_path(
+        r"^app/documents/(?P<document_uid>[a-f0-9]{32})/suivi/(?P<action>lier-contact|creer-contact|retirer-contact|note)$",
+        document_followup.followup,
+    ),
+    re_path(
+        r"^app/documents/(?P<document_uid>[a-f0-9]{32})/fichiers/(?P<file_uid>[a-f0-9]{32})/apercu$",
+        documents.attachment, {"preview": True},
     ),
     re_path(
         r"^app/documents/(?P<document_uid>[a-f0-9]{32})/fichiers(?:/(?P<file_uid>[a-f0-9]{32}))?$",

@@ -6,6 +6,42 @@
   margin: 0;
 }
 
+.reception-sync-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .8rem;
+}
+.reception-sync-head :is(h2, form) { margin: 0; }
+.reception-fields .reset-filters { align-self: center; }
+.reception-totals { margin-block: 0 1.35rem; }
+.reception-totals .section-head { margin-bottom: .7rem; }
+.reception-totals .section-head h2 { margin: 0; }
+.reception-totals .section-head span { color: var(--muted); }
+.amount-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .8rem;
+  margin: 0 0 .6rem;
+}
+.amount-cards > div {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  min-width: 0;
+}
+.amount-cards .amount-gross { border-top: 3px solid var(--zf-green); padding-top: calc(1rem - 2px); }
+.amount-cards dt { color: var(--muted); font-weight: 600; }
+.amount-cards dd { margin: .35rem 0 0; font-size: clamp(1.15rem, 2vw, 1.7rem); font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.amount-cards small { font-size: .78rem; font-weight: 600; }
+.reception-totals .form-help { margin: 0; }
+.preview-link { font-weight: 650; }
+@media (max-width: 950px) {
+  .amount-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .reception-fields,
 .reception-export {
   display: flex;
@@ -56,48 +92,8 @@
     width: 100%;
     min-width: 0;
   }
-
-  .reception-table,
-  .reception-table tbody {
-    display: block;
-  }
-
-  .reception-table thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    clip-path: inset(50%);
-    overflow: hidden;
-  }
-
-  .reception-table .document-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: .65rem 1rem;
-    padding-block: .85rem;
-  }
-
-  .reception-table .document-row + .document-row {
-    border-top: 1px solid var(--line);
-  }
-
-  .reception-table .document-row td {
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    text-align: start;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .reception-table .document-row td:first-child {
-    grid-column: 1 / -1;
-  }
-
-  .reception-table td[data-label]::before {
-    display: block;
-    content: attr(data-label);
-    color: var(--muted);
-    font-size: .8rem;
-  }
+  .reception-sync-head form,
+  .reception-sync-head button { width: 100%; }
+  .amount-cards { gap: .55rem; }
+  .amount-cards > div { padding-inline: .75rem; }
 }

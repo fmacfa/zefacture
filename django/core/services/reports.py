@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone as datetime_timezone
 from decimal import Decimal
 from io import BytesIO
-from django.db.models import Q
+from django.db.models import Count, Q
+from urllib.parse import urlencode
 from django.template.loader import render_to_string
 from django.utils import timezone
 from core.common import BusinessError, iso_date, money, today
@@ -25,6 +26,28 @@ from core.models import (
 )
 from core.security import hidden_expense_documents, ROLES
 from .finance import csv_text, vat_rows
+
+
+def document_status_cards(query, section, params):
+    states = {
+        "reception": [("received", "Reçues"), ("accepted", "Acceptées"), ("paid", "Payées"), ("disputed", "En litige"), ("refused", "Refusées")],
+        "factures": [("draft", "Brouillons"), ("sent", "Envoyées"), ("paid", "Payées")],
+        "avoirs": [("draft", "Brouillons"), ("sent", "Envoyés")],
+        "devis": [("draft", "Brouillons"), ("sent", "Envoyés"), ("accepted", "Acceptés"), ("refused", "Refusés")],
+    }
+    counts = dict(query.order_by().values_list("status").annotate(n=Count("pk")))
+    filters = {name: params[name] for name in ("q", "from", "to", "date_field", "format") if params.get(name)}
+    entries = [("", "Tous", sum(counts.values()))]
+    entries.extend((key, label, counts.get(key, 0)) for key, label in states[section])
+    cards = []
+    for key, label, count in entries:
+        search = urlencode(filters | ({"status": key} if key else {}))
+        cards.append({
+            "status": key, "label": label, "count": count,
+            "url": f"/app/{section}" + ("?" + search if search else ""),
+            "active": params.get("status", "") == key,
+        })
+    return cards
 
 DATASETS = {
     "summary": "Synthèse et comparatifs",

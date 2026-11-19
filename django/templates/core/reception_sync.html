@@ -1,7 +1,14 @@
 <section id="reception-sync" class="card stack" aria-labelledby="reception-title" data-company="{{ company.company_uid }}"{% if pdp_pending %} data-pending{% endif %}>
-  <h2 id="reception-title">Factures reçues via SUPERPDP</h2>
+  <div class="reception-sync-head">
+    <h2 id="reception-title">Factures reçues via SUPERPDP</h2>
+    {% if can_write and pdp_connected %}
+      {% if pdp_pending %}<button type="button" disabled>Synchronisation en cours…</button>{% else %}
+        <form method="post" action="/app/reception/synchroniser{% querystring %}">{% csrf_token %}<button>Synchroniser SUPERPDP</button></form>
+      {% endif %}
+    {% endif %}
+  </div>
   {% if pdp_count or pdp_connected %}
-    <p><strong>{{ pdp_count }} document{{ pdp_count|pluralize }} enregistré{{ pdp_count|pluralize }}</strong> dans cette entreprise.{% if pdp_count %} Cliquez sur le numéro pour ouvrir la fiche ou sur un fichier pour le télécharger.{% endif %}</p>
+    <p><strong>{{ pdp_count }} document{{ pdp_count|pluralize }} enregistré{{ pdp_count|pluralize }}</strong> dans cette entreprise.</p>
   {% endif %}
   {% if external_services_disabled %}
     <p>Les échanges avec SUPERPDP sont désactivés sur cette instance.</p>
@@ -16,9 +23,6 @@
     <p>Connectez et vérifiez le compte SUPERPDP de cette entreprise pour récupérer ses factures.</p>
   {% endif %}
   <div class="inline wrap">
-    {% if can_write and pdp_connected and not pdp_pending %}
-      <form method="post" action="/app/reception/synchroniser">{% csrf_token %}<button>Récupérer les factures</button></form>
-    {% endif %}
     {% if can_admin %}<a href="/app/entreprise/pdp">{% if pdp_connected %}Gérer la synchronisation{% else %}Configurer SUPERPDP{% endif %}</a>{% endif %}
   </div>
 </section>

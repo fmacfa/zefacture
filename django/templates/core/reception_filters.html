@@ -1,9 +1,9 @@
-<form class="card reception-filters" method="get" action="/app/reception">
-  <h2>Filtrer et exporter</h2>
+<form class="card reception-filters" method="get" action="/app/reception" role="search" aria-labelledby="reception-search-title">
+  <h2 id="reception-search-title">Rechercher des factures</h2>
   {% if reception_error %}<p class="notice error" role="alert">{{ reception_error }}</p>{% endif %}
   <div class="reception-fields">
     <label>Rechercher
-      <input name="q" placeholder="Numéro, fournisseur, objet…" value="{{ request.GET.q }}">
+      <input type="search" name="q" placeholder="Numéro, fournisseur, objet…" value="{{ request.GET.q }}">
     </label>
     <label>Statut
       {% include "core/document_status_select.html" %}
@@ -17,6 +17,7 @@
     <label>Du<input type="date" name="from" value="{{ request.GET.from }}" required aria-describedby="zip-period-help"></label>
     <label>Au<input type="date" name="to" value="{{ request.GET.to }}" required aria-describedby="zip-period-help"></label>
     <button type="submit" class="secondary" formnovalidate>Filtrer</button>
+    {% if request.GET.q or request.GET.status or request.GET.from or request.GET.to or request.GET.date_field == "received" %}<a class="reset-filters" href="/app/reception">Effacer les filtres</a>{% endif %}
   </div>
   <div class="reception-export">
     <label>Format du ZIP

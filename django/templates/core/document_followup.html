@@ -1,0 +1,59 @@
+<div class="grid two">
+  <section id="contact-crm" class="card stack">
+    <h2>Contact CRM</h2>
+    {% if crm_contact %}
+      <p><a class="strong" href="/app/clients/{{ crm_contact.customer_uid }}">{{ crm_contact.name }}</a>{% if crm_contact.position %} · {{ crm_contact.position }}{% endif %}<br>{{ crm_contact.email }}</p>
+    {% else %}<p class="muted">Aucun contact lié.</p>{% endif %}
+    {% if can_write %}
+      {% if crm_contacts %}
+        <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/lier-contact">
+          {% csrf_token %}
+          <label>Contact existant<select name="contact_uid" required>
+            <option value="">Choisir un contact</option>
+            {% for c in crm_contacts %}<option value="{{ c.contact_uid }}"{% if c.pk == crm_contact.pk %} selected{% endif %}>{{ c.name }} · {{ c.customer_name }}{% if c.email %} · {{ c.email }}{% endif %}</option>{% endfor %}
+          </select></label>
+          <button class="secondary">{% if crm_contact %}Mettre à jour le contact lié{% else %}Lier le contact{% endif %}</button>
+        </form>
+      {% endif %}
+      <details class="form-disclosure">
+        <summary>Créer un contact CRM</summary>
+        <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/creer-contact">
+          {% csrf_token %}
+          <label>Fiche CRM<select name="customer_uid" required>
+            <option value="new">Utiliser ou créer la fiche du tiers facturé</option>
+            {% for c in crm_customers %}<option value="{{ c.customer_uid }}"{% if c.customer_uid == document.customer_uid %} selected{% endif %}>{{ c.legal_name }}</option>{% endfor %}
+          </select></label>
+          <label>Nom du contact<input name="name" maxlength="200" autocomplete="off" required></label>
+          <label>Adresse email (facultatif)<input name="email" type="email"></label>
+          <button>Créer et lier le contact</button>
+        </form>
+      </details>
+      {% if crm_contact %}<form method="post" action="/app/documents/{{ document.document_uid }}/suivi/retirer-contact">{% csrf_token %}<button class="text-button">Retirer le lien</button></form>{% endif %}
+    {% endif %}
+  </section>
+  <section id="notes-internes" class="card stack">
+    <h2>Notes internes</h2>
+    {% if can_write %}
+      <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/note">
+        {% csrf_token %}<input type="hidden" name="note_uid" value="{{ note_uid }}">
+        <label>Nouvelle note<textarea name="body" rows="3" maxlength="5000" required></textarea></label>
+        <small class="form-help">Visible par les membres qui ont accès à cette fiche.</small>
+        <button class="secondary">Ajouter la note</button>
+      </form>
+    {% endif %}
+    <ul class="clean-list">
+      {% for n in internal_notes %}
+        <li><div><strong>{{ n.author.name|default:"Membre de l’équipe" }}</strong> · <small>{{ n.created_at|date:"d/m/Y H:i" }}</small>
+          <p class="break">{{ n.body|linebreaksbr }}</p>
+          {% if can_write %}{% if n.author_id == user.pk or can_admin %}
+          <details><summary>Modifier la note</summary><form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/note">
+            {% csrf_token %}<input type="hidden" name="note_uid" value="{{ n.note_uid }}"><input type="hidden" name="edit" value="1">
+            <label>Texte de la note<textarea name="body" rows="3" maxlength="5000" required>{{ n.body }}</textarea></label>
+            <button class="secondary">Enregistrer la note</button>
+          </form></details>
+          {% endif %}{% endif %}
+        </div></li>
+      {% empty %}<li class="muted">Aucune note interne.</li>{% endfor %}
+    </ul>
+  </section>
+</div>

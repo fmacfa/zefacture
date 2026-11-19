@@ -3,8 +3,10 @@
   <option value="draft"{% if request.GET.status == "draft" %} selected{% endif %}>Brouillons</option>
   <option value="sent"{% if request.GET.status == "sent" %} selected{% endif %}>Envoyés</option>
   <option value="received"{% if request.GET.status == "received" %} selected{% endif %}>Reçus</option>
-  {% if section == "reception" %}
+  {% if section == "reception" or section == "devis" %}
     <option value="refused"{% if request.GET.status == "refused" %} selected{% endif %}>Refusés</option>
+  {% endif %}
+  {% if section == "reception" %}
     <option value="disputed"{% if request.GET.status == "disputed" %} selected{% endif %}>En litige</option>
   {% endif %}
   <option value="accepted"{% if request.GET.status == "accepted" %} selected{% endif %}>Acceptés</option>

@@ -3,6 +3,9 @@
 import json
 import hashlib
 import os
+from base64 import b64encode
+from io import BytesIO
+from PIL import Image
 from django.conf import settings
 from core.models import Company, Document, PdpInvoice, PdpOutbox, PdpSession, User
 from core.services.files import encrypt
@@ -54,6 +57,11 @@ try:
         payload={},
         last_error="Résultat fictif à vérifier avant reprise",
     )
+    scan = BytesIO()
+    Image.new("RGB", (32, 48), "white").save(
+        scan, "TIFF", save_all=True,
+        append_images=[Image.new("RGB", (48, 32), "white")], compression="tiff_lzw",
+    )
     print(
         json.dumps(
             {
@@ -61,6 +69,7 @@ try:
                 "incoming_uid": links[0].document_uid,
                 "outgoing_uid": links[1].document_uid,
                 "incoming_original_sha256": hashlib.sha256(xml).hexdigest(),
+                "two_page_scan": b64encode(scan.getvalue()).decode("ascii"),
                 "remote_id": links[0].remote_id,
             }
         )

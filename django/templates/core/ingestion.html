@@ -7,6 +7,7 @@
     <p class="muted break">{{ item.original_filename }}</p>
   </div>
   <div class="inline wrap">
+    {% if can_preview %}<a class="button" href="/app/imports/{{ item.ingestion_uid }}/apercu">Aperçu</a>{% endif %}
     <a class="button secondary" href="/app/imports/{{ item.ingestion_uid }}/telecharger">Télécharger l’original</a>
     <a class="button secondary" href="{% if is_expense %}/app/notes-de-frais{% else %}/app/imports{% endif %}{% if item.archived_at %}?archives=1{% endif %}">Retour à la liste</a>
   </div>

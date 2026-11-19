@@ -97,7 +97,8 @@ def sync_reception(request):
         )
     pdp_sync.request_sync(request.company)
     audit(request, "pdp.sync_requested")
-    return redirect("/app/reception")
+    filters = request.GET.urlencode()
+    return redirect("/app/reception" + ("?" + filters if filters else ""))
 
 
 @sensitive_post_parameters("client_secret", "access_token")

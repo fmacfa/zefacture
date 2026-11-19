@@ -72,9 +72,9 @@ Un document déjà émis n’est pas régénéré pour changer son contenu ou so
 
 ## 5. Recevoir les factures et leurs originaux
 
-Ouvrir **Achats et finances → Factures fournisseurs**. Le panneau **Factures reçues via SUPERPDP** indique combien de documents de l’entreprise sont enregistrés et la date de la dernière récupération réussie. Un membre disposant du droit d’écriture peut cliquer sur **Récupérer les factures**. La liste s’actualise à la fin du traitement et permet aussi une actualisation manuelle. Une nouvelle récupération retrouve les documents déjà enregistrés.
+Ouvrir **Achats et finances → Factures fournisseurs**. Le panneau **Factures reçues via SUPERPDP** indique combien de documents de l’entreprise sont enregistrés et la date de la dernière récupération réussie. Un membre disposant du droit d’écriture peut cliquer sur **Synchroniser SUPERPDP**. La liste s’actualise à la fin du traitement et permet aussi une actualisation manuelle. Une nouvelle récupération retrouve les documents déjà enregistrés.
 
-Sous le numéro de chaque facture synchronisée, **Original PDF** ou **Original XML** télécharge le fichier conservé. Pour un XML, **PDF de lecture** télécharge aussi la représentation lisible lorsque le fournisseur l’a fournie. Les noms de téléchargement reprennent le numéro de facture. Cliquer sur ce numéro pour consulter la fiche et le suivi des statuts.
+Dans les actions de chaque facture synchronisée, **Original PDF** ou **Original XML** télécharge le fichier conservé. Pour un XML, **PDF de lecture** télécharge aussi la représentation lisible lorsque le fournisseur l’a fournie. Les noms de téléchargement reprennent le numéro de facture. Choisir **Voir la facture** pour consulter la fiche et le suivi des statuts.
 
 Dans **Connexion SUPERPDP → Factures et statuts** :
 
@@ -90,6 +90,8 @@ Une facture existante peut être rapprochée par son identifiant PDP. Un documen
 
 ### PDF et XML
 
+**Aperçu** ouvre le PDF directement dans ZeFacture. Si l’original est un XML, le lecteur utilise le PDF de lecture récupéré auprès de SUPERPDP lorsqu’il est disponible. Les flèches changent de page et les contrôles de zoom agrandissent le document. Le HT, la TVA et le TTC de la facture figurent au-dessus du lecteur.
+
 **Télécharger l’original SUPERPDP** restitue exactement les octets récupérés. Pour un original XML CII/UBL, le lien principal restitue un XML ; **Télécharger la version PDF** apparaît lorsqu’une conversion de lecture distincte a été récupérée. Une conversion ne remplace jamais l’original.
 
 Les originaux sont limités à 25 Mio et les réponses JSON à 2 Mo. Les types de facture couverts incluent les factures commerciales, factures rectificatives/d’acompte/autofacturées, factures de construction prises en charge et les avoirs 381/261/396. Un type inconnu, un montant hors précision ou une incohérence est signalé et laisse le curseur avant l’élément, sans création partielle ni suppression de données. L’original demeure récupérable chez le fournisseur pour traitement contrôlé.
@@ -98,7 +100,9 @@ Un fichier local absent ou dont l’empreinte a changé bloque son téléchargem
 
 ### Télécharger un ZIP par période
 
-Dans **Factures fournisseurs → Filtrer et exporter**, choisir les deux bornes de la période, le format souhaité et **Télécharger le ZIP**. **Date de facture** utilise la date inscrite sur le document. **Réception dans ZeFacture** utilise le jour où le document est entré dans l’application, y compris pour un historique importé en une seule fois. Les deux jours sont inclus. Les droits d’accès, la recherche et le statut sont les mêmes que pour la liste.
+Pour vérifier les montants avant l’export, appliquer la période, le statut ou la recherche avec **Filtrer**. **Totaux de la sélection** présente le HT, la TVA, le TTC et le reste dû actuel de tous les résultats, groupés par devise. Les avoirs sont déduits des trois premiers montants. Les statuts retenus sont ceux du filtre, y compris les brouillons ou annulations si **Tous les statuts** est choisi.
+
+Dans **Factures fournisseurs → Rechercher des factures**, choisir les deux bornes de la période, le format souhaité et **Télécharger le ZIP**. **Date de facture** utilise la date inscrite sur le document. **Réception dans ZeFacture** utilise le jour où le document est entré dans l’application, y compris pour un historique importé en une seule fois. Les deux jours sont inclus. Les droits d’accès, la recherche et le statut sont les mêmes que pour la liste.
 
 Le dossier **PDF** contient le PDF original ou le PDF de lecture conservé. Le dossier **XML** contient l’original XML ou le XML de facturation embarqué dans un PDF Factur-X. Le téléchargement fonctionne avec les fichiers déjà enregistrés, même après la déconnexion de SUPERPDP. Lorsqu’un format manque, l’archive fournit les fichiers disponibles et un relevé `fichiers-indisponibles.txt`. Si aucun fichier ne correspond, un message s’affiche dans le formulaire.
 

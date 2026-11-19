@@ -92,7 +92,7 @@ class SuperpdpTests(ApplicationCase):
         self.provider.verification = "needs_review"
         self.client.post("/app/entreprise/pdp", {"action": "verify"})
         self.assertFalse(PdpSyncState.objects.get().requested)
-        self.assertNotContains(self.client.get("/app/reception"), "Récupérer les factures")
+        self.assertNotContains(self.client.get("/app/reception"), "Synchroniser SUPERPDP")
 
         self.provider.verification = "verified"
         self.sync()
@@ -528,7 +528,7 @@ class SuperpdpTests(ApplicationCase):
         membership.save()
         inbox = self.client.get("/app/reception")
         self.assertContains(inbox, "Original PDF")
-        self.assertNotContains(inbox, "Récupérer les factures")
+        self.assertNotContains(inbox, "Synchroniser SUPERPDP")
         self.assertEqual(self.client.post("/app/reception/synchroniser").status_code, 403)
         self.assertEqual(
             self.client.post("/app/entreprise/pdp", {"action": "sync"}).status_code, 403

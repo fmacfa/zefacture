@@ -48,7 +48,7 @@
     <tbody>
       {% for i in items %}
         <tr>
-          <td><a href="/app/imports/{{ i.ingestion_uid }}">{{ i.original_filename }}</a></td>
+          <td><a href="/app/imports/{{ i.ingestion_uid }}">{{ i.original_filename }}</a>{% if can_write and i.can_preview %}<small><a href="/app/imports/{{ i.ingestion_uid }}/apercu">Aperçu</a></small>{% endif %}</td>
           <td>{{ i.source_label }}</td>
           <td>{{ i.expense_date|default:i.created_at }}</td>
           <td>{% if i.expense_amount is not None %}{{ i.expense_amount|floatformat:2 }} {{ i.expense_currency }}{% else %}—{% endif %}</td>

@@ -46,7 +46,17 @@ const output = path.resolve('test-results/browser-superpdp');
       if (label === 'Original XML') assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), fixture.incoming_original_sha256);
       else assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
     }
-    await page.getByRole('link', {name: 'FOURNISSEUR-SUPERPDP-001', exact: true}).click();
+    await page.getByRole('heading', {name: 'Totaux de la sélection'}).waitFor();
+    await row.getByRole('link', {name: 'Aperçu', exact: true}).click();
+    const raster = page.getByRole('img', {name: /Page 1 sur/});
+    await raster.evaluate(img => img.decode());
+    await page.getByRole('button', {name: 'Agrandir le zoom'}).click();
+    assert.equal(await page.locator('.reader-zoom output').textContent(), '125 %');
+    await page.getByRole('button', {name: 'Ajuster à la largeur'}).click();
+    assert.equal(await page.locator('.reader-zoom output').textContent(), '100 %');
+    const readerUrl = page.url();
+    await page.goto(base + '/app/reception');
+    await row.getByRole('link', {name: 'Voir la facture', exact: true}).click();
     await page.getByRole('heading', {name: 'Suivi SUPERPDP', exact: true}).waitFor();
     await page.getByText('Encaissement déclaré', {exact: true}).waitFor();
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', {name: 'Télécharger l’original SUPERPDP', exact: true}).click()]);
@@ -55,10 +65,32 @@ const output = path.resolve('test-results/browser-superpdp');
     const raw = await fs.readFile(originalPath);
     assert.equal(crypto.createHash('sha256').update(raw).digest('hex'), fixture.incoming_original_sha256);
     assert.equal(await page.getByRole('link', {name: 'Télécharger la version PDF', exact: true}).count(), 1);
+    await page.getByText('Créer un contact CRM', {exact: true}).click();
+    await page.getByLabel('Nom du contact').fill('Camille Suivi');
+    await page.getByRole('button', {name: 'Créer et lier le contact'}).click();
+    await page.getByRole('link', {name: 'Camille Suivi'}).waitFor();
+    await page.getByLabel('Nouvelle note').fill('Suivi interne de démonstration');
+    await page.getByRole('button', {name: 'Ajouter la note'}).click();
+    await page.getByText('Suivi interne de démonstration', {exact: true}).first().waitFor();
+    await page.goto(base + '/app/imports');
+    await page.getByLabel('Fichier', {exact: true}).setInputFiles({
+      name: 'scan-exemple.tiff', mimeType: 'image/tiff', buffer: Buffer.from(fixture.two_page_scan, 'base64'),
+    });
+    await page.getByRole('button', {name: 'Importer', exact: true}).click();
+    await page.getByRole('link', {name: 'Aperçu', exact: true}).click();
+    await page.getByRole('link', {name: 'Page suivante'}).click();
+    const scan = page.getByRole('img', {name: /Page 2 sur 2/});
+    await scan.evaluate(img => img.decode());
+    assert.deepEqual(await scan.evaluate(img => [img.naturalWidth, img.naturalHeight]), [48, 32]);
+    await page.getByRole('link', {name: 'Page précédente'}).click();
+    await page.getByRole('img', {name: /Page 1 sur 2/}).evaluate(img => img.decode());
+    await page.goto(base + '/app?preset=all');
+    await page.getByRole('navigation', {name: 'Factures fournisseurs par statut'}).getByRole('link', {name: /^Payées/}).click();
+    assert.equal(new URL(page.url()).searchParams.get('status'), 'paid');
     const checks = [];
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({width, height: width < 700 ? 844 : 1000});
-      for (const [name, route] of [['connection', '/app/entreprise/pdp'], ['inbox', '/app/reception'], ['incoming', '/app/reception/' + fixture.incoming_uid], ['outgoing', '/app/factures/' + fixture.outgoing_uid]]) {
+      for (const [name, route] of [['dashboard', '/app?preset=all'], ['connection', '/app/entreprise/pdp'], ['inbox', '/app/reception'], ['reader', new URL(readerUrl).pathname], ['incoming', '/app/reception/' + fixture.incoming_uid], ['outgoing', '/app/factures/' + fixture.outgoing_uid]]) {
         await page.goto(base + route);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Overflow ${route} at ${width}`);
         checks.push({width, route, ok: true});
@@ -66,18 +98,21 @@ const output = path.resolve('test-results/browser-superpdp');
       }
     }
     const readyInbox = await (await page.goto(base + '/app/reception')).text();
-    await page.getByRole('button', {name: 'Récupérer les factures', exact: true}).click();
+    await page.getByRole('searchbox', {name: 'Rechercher'}).fill('FOURNISSEUR-SUPERPDP-001');
+    await page.getByRole('button', {name: 'Filtrer', exact: true}).click();
+    await page.getByRole('button', {name: 'Synchroniser SUPERPDP', exact: true}).click();
     await page.getByRole('link', {name: 'Actualiser la liste', exact: true}).waitFor();
+    assert.equal(new URL(page.url()).searchParams.get('q'), 'FOURNISSEUR-SUPERPDP-001');
     // The CI worker is stopped here. Replay its completed, server-rendered inbox for the poll.
-    await page.route(base + '/app/reception', route => route.fulfill({contentType: 'text/html', body: readyInbox}), {times: 1});
-    await page.getByRole('textbox', {name: 'Rechercher'}).fill('filtre en cours de saisie');
-    await page.getByRole('button', {name: 'Récupérer les factures', exact: true}).waitFor();
-    assert.equal(await page.getByRole('textbox', {name: 'Rechercher'}).inputValue(), 'filtre en cours de saisie');
+    await page.route(page.url(), route => route.fulfill({contentType: 'text/html', body: readyInbox}), {times: 1});
+    await page.getByRole('searchbox', {name: 'Rechercher'}).fill('filtre en cours de saisie');
+    await page.getByRole('button', {name: 'Synchroniser SUPERPDP', exact: true}).waitFor();
+    assert.equal(await page.getByRole('searchbox', {name: 'Rechercher'}).inputValue(), 'filtre en cours de saisie');
     await page.goto(base + '/app/entreprise/pdp');
     await page.getByRole('button', {name: 'Synchroniser maintenant', exact: true}).click();
     await page.getByText('Une synchronisation attend le worker.', {exact: true}).waitFor();
     assert.equal(errors.length, 0, errors.join('\n'));
-    await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ok: true, synthetic_data_only: true, flows: ['incoming_invoice', 'provider_statuses', 'original_xml_sha256', 'readable_pdf_download', 'outgoing_invoice', 'uncertain_submission_display', 'manual_sync_request', 'inbox_refresh_preserves_filters'], responsive: checks, javascript_and_csp_errors: errors}, null, 2));
+    await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ok: true, synthetic_data_only: true, flows: ['incoming_invoice', 'provider_statuses', 'original_xml_sha256', 'readable_pdf_download', 'outgoing_invoice', 'uncertain_submission_display', 'manual_sync_request', 'inbox_refresh_preserves_filters', 'pdf_zoom', 'multipage_scan', 'invoice_contact', 'internal_note', 'dashboard_status_filter'], responsive: checks, javascript_and_csp_errors: errors}, null, 2));
   } finally { await browser.close(); }
   console.log('SUPERPDP : originaux, statuts, reprise et responsive OK.');
 })().catch(error => { console.error(error); process.exit(1); });
