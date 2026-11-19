@@ -186,6 +186,18 @@ urlpatterns = [
         documents.attachment,
     ),
     re_path(
+        r"^api/v1/invoices/(?P<document_uid>[a-f0-9]{32})/issue$",
+        api.api,
+        {"resource": "invoices", "action": "issue"},
+        name="api_invoice_issue",
+    ),
+    re_path(
+        r"^api/v1/invoices/(?P<document_uid>[a-f0-9]{32})/pdf$",
+        api.api,
+        {"resource": "invoices", "action": "pdf"},
+        name="api_invoice_pdf",
+    ),
+    re_path(
         r"^api/v1/(?P<resource>customers|quotes|invoices)(?:/(?P<document_uid>[a-f0-9]{32})/(?P<action>accept|invoice|progress-invoices|facturx))?$",
         api.api,
     ),

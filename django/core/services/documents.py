@@ -27,6 +27,8 @@ from .calculations import calculate
 
 CUSTOMER_FIELDS = "type legal_name trade_name siren siret vat_number email phone address_line1 address_line2 postal_code city country_code electronic_address electronic_address_scheme".split()
 COMPANY_FIELDS = "legal_name trade_name siren siret vat_number address_line1 address_line2 postal_code city country_code billing_email support_email phone website legal_form share_capital rcs_city rcs_number ape_code bank_iban bank_bic payment_terms invoice_footer vat_regime has_vat_on_debits quote_number_prefix invoice_number_prefix credit_note_number_prefix".split()
+INVOICE_TYPES = ("invoice", "progress_invoice")
+ISSUED_INVOICE_STATUSES = {"sent", "paid", "accepted"}
 
 
 def save_customer(company, data, customer=None):
@@ -94,6 +96,41 @@ def event(document, code, label, payload=None):
         payload=json_text(payload or {}),
         occurred_at=stamp(),
     )
+
+
+def record_issuance(document, file, label):
+    document.status, document.sent_at = "sent", stamp()
+    document.updated_at = document.sent_at
+    document.save()
+    event(document, "sent", label, {"file_uid": file.file_uid})
+
+
+@transaction.atomic
+def issue_invoice(document):
+    from .files import generate_document, issued_invoice_pdf
+
+    # Match the lock order used by invoice editing and SUPERPDP.
+    Company.objects.select_for_update().get(company_uid=document.company_uid)
+    invoice = (
+        Document.objects.select_for_update()
+        .filter(pk=document.pk, company_uid=document.company_uid)
+        .first()
+    )
+    if not invoice or invoice.direction != "outgoing" or invoice.type not in INVOICE_TYPES:
+        raise BusinessError("Facture sortante introuvable.", 404)
+    if invoice.status in ISSUED_INVOICE_STATUSES:
+        issued_invoice_pdf(invoice)
+        return invoice
+    if (
+        invoice.status != "draft"
+        or not invoice.customer_uid
+        or not invoice.number
+        or invoice.pdp_invoice_id
+    ):
+        raise BusinessError("Seul un brouillon complet peut être émis par l’API.", 409)
+    file = generate_document(invoice)
+    record_issuance(invoice, file, "Facture émise par l’API")
+    return invoice
 
 
 def number(company, kind):

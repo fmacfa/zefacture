@@ -242,6 +242,36 @@ def no_resources(url, *args, **kwargs):
     )
 
 
+def issued_invoice_pdf(document):
+    from core.models import PdpInvoice
+    from .documents import ISSUED_INVOICE_STATUSES
+
+    if document.status not in ISSUED_INVOICE_STATUSES:
+        raise BusinessError("Émettez la facture avant de télécharger son PDF.", 409)
+
+    imported = PdpInvoice.objects.filter(
+        company_uid=document.company_uid,
+        document_uid=document.document_uid,
+        imported=True,
+    ).first()
+    if imported:
+        pdfs = document.files.filter(mime_type="application/pdf")
+        file = pdfs.filter(file_uid=imported.original_file_uid).first()
+        if not file and imported.readable_file_uid:
+            file = pdfs.filter(file_uid=imported.readable_file_uid).first()
+    else:
+        file = document.files.filter(kind="facturx").first()
+        if not file:
+            file = document.files.filter(kind="pdf").first()
+    if not file:
+        raise BusinessError("Aucun PDF conservé pour cette facture émise.", 409)
+
+    content = read_verified(file)
+    if not content.startswith(b"%PDF-"):
+        raise BusinessError("Le fichier conservé n’est pas un PDF.", 409)
+    return content
+
+
 @transaction.atomic
 def generate_document(document):
     from facturx import generate_xml, generate_from_binary

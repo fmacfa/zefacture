@@ -25,7 +25,7 @@ ZeFacture réunit devis, factures Factur-X, clients professionnels et particulie
 | Achats | Factures fournisseurs, notes de frais, justificatifs, OCR local et lecture assistée facultative |
 | Finances | Transactions, import CSV, paiements partiels, rapprochement, prévisions et états de TVA |
 | Messagerie | SMTP, Gmail/Google Workspace et Outlook/Microsoft 365, avec signature et modèles par entreprise |
-| Automatisation | Clés API, webhooks signés avec suivi et connecteur MCP en lecture seule |
+| Automatisation | Clés API, émission de factures et téléchargement du PDF, webhooks signés et connecteur MCP en lecture seule |
 | SUPERPDP | Dépôts Factur-X, réception, originaux PDF/XML et synchronisation des événements |
 | Personnalisation | Logo, couleurs, documents et emails par entreprise ; thème et densité par utilisateur |
 | Sécurité | Permissions, isolation des entreprises, TOTP, codes de secours, vérification récente et journal |

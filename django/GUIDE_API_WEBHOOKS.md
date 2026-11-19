@@ -1,6 +1,6 @@
 # ZeFacture — API et webhooks
 
-Contrat de l’édition Django, vérifié dans les routes et services le 6 novembre 2026. Les exemples sont fictifs. `https://zefacture.com` est l’adresse de production prévue ; elle n’est pas encore publiée. Remplacer cette origine par celle de l’instance utilisée pour les essais.
+Contrat de l’édition Django, vérifié dans les routes et services le 19 novembre 2026. Les exemples sont fictifs. Remplacez `https://factures.example.com` par l’adresse HTTPS de votre instance ZeFacture.
 
 ## 1. Choisir le sens de l’échange
 
@@ -8,6 +8,7 @@ Contrat de l’édition Django, vérifié dans les routes et services le 6 novem
 | --- | --- |
 | Lire/créer des clients, devis ou factures depuis un autre outil | API HTTP `/api/v1` avec clé Bearer |
 | Accepter un devis, le facturer, créer un avancement ou générer Factur-X | Actions POST documentées ci-dessous |
+| Émettre une facture et remettre son PDF depuis un site marchand | Émission par POST, téléchargement authentifié du PDF par GET |
 | Être averti d’une modification dans ZeFacture | Webhooks sortants configurables par entreprise |
 | Récupérer stocks, CRM ou finances pour analyse | Exports CSV/Excel/PDF depuis **Rapports** |
 | Synchroniser les factures et statuts SUPERPDP | Synchronisation officielle configurée par entreprise ; récepteur `/webhooks/superpdp` facultatif pour un relais autorisé |
@@ -69,8 +70,10 @@ Les routes sont sans slash final. `{uid}` désigne l’identifiant du document r
 | POST | `/api/v1/quotes/{uid}/invoice` | Crée ou retrouve la facture de solde du devis accepté, réponse 201 |
 | POST | `/api/v1/quotes/{uid}/progress-invoices` | Crée une facture d’avancement du devis accepté, réponse 201 |
 | POST | `/api/v1/invoices/{uid}/facturx` | Génère ou vérifie le fichier Factur-X, réponse 200 |
+| POST | `/api/v1/invoices/{uid}/issue` | Émet la facture et fige le PDF. Renvoie 200 avec le chemin de téléchargement |
+| GET, HEAD | `/api/v1/invoices/{uid}/pdf` | Renvoie le PDF conservé de la facture émise, ou ses en-têtes avec HEAD |
 
-Les listes ne sont pas paginées ni filtrées par période par l’API actuelle. Les paramètres de filtres de l’interface ne s’y appliquent pas. Les GET individuels, PUT, PATCH et DELETE ne constituent pas des opérations disponibles. Les métadonnées des fichiers ne contiennent pas leur PDF binaire ni une URL publique de téléchargement.
+Les listes renvoient tous les éléments. Le PDF s’obtient via la route dédiée avec la clé **API métier** de l’entreprise. Les listes et les actions documentées dans le tableau constituent le contrat de cette API.
 
 Réussite :
 
@@ -146,7 +149,7 @@ Les dates sont `AAAA-MM-JJ`, l’échéance ne précède pas l’émission. Les 
 
 Il faut de 1 à 1 000 lignes ; quantité positive, prix non négatif, TVA et remise entre 0 et 100. Envoyer les décimaux en chaînes avec un point. ZeFacture recalcule les totaux ; les réponses API convertissent les valeurs décimales en nombres JSON. Éviter de reconstruire des montants comptables à partir de nombres flottants binaires côté client.
 
-Pour générer Factur-X à la création d’une facture, ajouter `"generate_facturx": true`. Les coordonnées nécessaires à la validation doivent être complètes. Un échec de cette génération annule la création dans la transaction. Un fichier généré ne signifie pas que la facture est envoyée ou que son statut devient `sent` : l’API actuelle n’expose pas l’envoi d’email, l’émission PDP ou le règlement.
+Pour générer un Factur-X à la création d’un brouillon, ajouter `"generate_facturx": true`. Les coordonnées nécessaires à la validation doivent être complètes. Un échec de cette génération annule la création dans la transaction. Pour un parcours de vente, créez le brouillon puis appelez `/issue`, qui génère le Factur-X et fige la facture en une seule opération.
 
 Pour accepter un devis ou créer le solde, envoyer `{}` à l’action correspondante. Pour un avancement :
 
@@ -154,11 +157,41 @@ Pour accepter un devis ou créer le solde, envoyer `{}` à l’action correspond
 {"percent": "30"}
 ```
 
-Le devis doit être accepté et le pourcentage rester dans le solde disponible. Les avancements antérieurs sont déduits ; un solde déjà créé est retrouvé par l’action `/invoice`. La génération Factur-X renvoie les métadonnées du document ; télécharger les fichiers depuis l’interface authentifiée.
+Le devis doit être accepté et le pourcentage rester dans le solde disponible. Les avancements antérieurs sont déduits et un solde déjà créé est retrouvé par l’action `/invoice`.
+
+### Émettre et télécharger après une vente
+
+1. Une fois le paiement confirmé par votre site, créer ou retrouver la fiche client et le brouillon de facture. Associer le `document_uid` renvoyé à l’identifiant de la commande.
+2. Envoyer `POST /api/v1/invoices/{uid}/issue` avec un corps vide ou `{}`. ZeFacture valide le Factur-X, conserve le PDF et fige les données de la facture. En cas d’échec de la validation, le document reste un brouillon.
+3. Récupérer `data.pdf_url` dans la réponse et télécharger ce chemin sur la même instance avec la clé **API métier**. Le site marchand peut ensuite remettre le document au client selon ses propres règles d’accès.
+
+La réponse d’émission contient les métadonnées habituelles, avec `issued_at` et `pdf_url`. Le statut `sent` désigne l’émission locale. Le site appelant gère la remise au client. L’envoi par email, le dépôt SUPERPDP et l’enregistrement du règlement sont des opérations distinctes dans ZeFacture.
+
+```sh
+ZEFACTURE_ORIGIN=https://factures.example.com
+INVOICE_UID=IDENTIFIANT_RENVOYE_A_LA_CREATION
+# Charger ZEFACTURE_API_KEY depuis les secrets du serveur.
+
+curl --fail-with-body --silent --show-error \
+  --request POST \
+  --header "Authorization: Bearer ${ZEFACTURE_API_KEY}" \
+  --header "Content-Type: application/json" \
+  --data '{}' \
+  "${ZEFACTURE_ORIGIN}/api/v1/invoices/${INVOICE_UID}/issue"
+
+curl --fail --silent --show-error \
+  --header "Authorization: Bearer ${ZEFACTURE_API_KEY}" \
+  --output facture.pdf \
+  "${ZEFACTURE_ORIGIN}/api/v1/invoices/${INVOICE_UID}/pdf"
+```
+
+L’émission peut être rejouée avec le même `document_uid`. Un deuxième appel retrouve la facture et son PDF, même si la facture a ensuite été marquée payée. Le serveur renvoie le fichier conservé en `application/pdf` et en pièce jointe. Le téléchargement est en lecture seule. Un brouillon, une simulation ou une facture dont le PDF conservé est absent ou endommagé renvoie 409. Une facture reçue ou d’une autre entreprise renvoie 404. Le PDF d’une facture synchronisée depuis SUPERPDP est celui déjà conservé avec cette facture, y compris la version lisible lorsque l’original est en XML.
+
+Pour suivre le passage au statut émis, abonnez votre intégration à `document.status_changed` et filtrez sur `type=invoice` ou `progress_invoice`, `direction=outgoing` et `status=sent`. Chargez ensuite le PDF depuis le serveur de l’intégration.
 
 ### Reprises et volume
 
-Il n’existe pas de mécanisme général `Idempotency-Key` pour les POST de création : rejouer la création d’un client ou d’une facture peut créer un doublon. Conserver le `customer_uid`/`document_uid` dans l’outil appelant et rapprocher une référence externe après une réponse incertaine. `reference` n’est pas une contrainte d’unicité.
+Le rapprochement des créations se fait côté intégration. Conservez une référence de commande unique ainsi que les `customer_uid` et `document_uid` renvoyés. Après un résultat incertain à la création, retrouvez la référence avant de créer un nouveau brouillon. La déduplication de `/issue` s’applique par identifiant de facture.
 
 Il n’existe pas de quota applicatif par clé dans cette version. Éviter les rafales et les extractions complètes fréquentes ; prévoir les limites adaptées dans le reverse proxy avant un usage public soutenu. La pagination, les permissions fines, l’idempotence générale et une spécification OpenAPI ne sont pas encore livrées.
 

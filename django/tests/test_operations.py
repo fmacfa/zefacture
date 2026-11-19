@@ -353,6 +353,26 @@ class ConcurrencyTests(TransactionTestCase):
         self.assertEqual(len(set(ids)), 2)
         self.assertNotIn("rejected", ids)
 
+    def test_concurrent_api_issuance_keeps_one_facturx_and_one_event(self):
+        self.company.siren, self.company.vat_number = "123456789", "FR32123456789"
+        self.company.save(update_fields=["siren", "vat_number"])
+        invoice = save_document(self.company, self.user, "invoice", self.data)
+        token = secrets.token_urlsafe(24)
+        ApiKey.objects.create(
+            company_uid=self.company.company_uid, key_hash=digest(token)
+        )
+        url = f"/api/v1/invoices/{invoice.document_uid}/issue"
+        with tempfile.TemporaryDirectory() as folder, override_settings(DATA_DIR=Path(folder)):
+            responses = self.parallel(
+                lambda: Client().post(url, HTTP_AUTHORIZATION="Bearer " + token)
+            )
+        self.assertEqual([response.status_code for response in responses], [200, 200])
+        self.assertEqual(responses[0].json(), responses[1].json())
+        self.assertEqual(invoice.files.filter(kind="facturx").count(), 1)
+        self.assertEqual(InvoiceEvent.objects.filter(
+            document_uid=invoice.document_uid, event_code="local:sent"
+        ).count(), 1)
+
     def test_concurrent_progress_prevents_overbilling(self):
         quote = save_document(self.company, self.user, "quote", self.data)
         quote.status = "accepted"

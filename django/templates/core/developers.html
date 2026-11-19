@@ -4,7 +4,10 @@
 {% block content %}
 <div class="page-head">
   <h1>API &amp; intégrations</h1>
-  <a class="button" href="/app/developpeurs/webhooks">Webhooks sortants</a>
+  <div class="inline wrap">
+    <a class="button secondary" href="https://zefacture.com/documentation/api-webhooks" target="_blank" rel="noopener noreferrer">Guide API et webhooks</a>
+    <a class="button" href="/app/developpeurs/webhooks">Webhooks sortants</a>
+  </div>
 </div>
 {% if secret %}<div class="notice success"><strong>Copiez cette clé maintenant. Elle ne sera plus affichée.</strong><code class="secret">{{ secret }}</code></div>{% endif %}
 <div class="grid two">
@@ -23,7 +26,7 @@
     <p>Authentification : <code>Authorization: Bearer VOTRE_CLE</code></p>
     <ul>
       <li>Lecture seule : <code>GET /api/v1/assistant/summary</code>, <code>/invoices</code> et <code>/receipts</code> sous le même préfixe.</li>
-      <li>API métier : <code>/api/v1/customers</code>, <code>/api/v1/quotes</code> et <code>/api/v1/invoices</code>.</li>
+      <li>API métier permet de créer un brouillon, d’émettre la facture et de télécharger son PDF. Consultez le guide pour les requêtes.</li>
       <li>Codex : utilisez le connecteur MCP inclus dans les sources avec la clé de lecture seule.</li>
     </ul>
   </section>
