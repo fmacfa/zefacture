@@ -283,9 +283,14 @@ class Document(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["company_uid", "number"],
-                condition=models.Q(number__isnull=False) & ~models.Q(number=""),
-                name="unique_company_document_number",
-            )
+                condition=~models.Q(direction="incoming") & models.Q(number__isnull=False) & ~models.Q(number=""),
+                name="unique_issued_document_number",
+            ),
+            models.UniqueConstraint(
+                fields=["company_uid", "customer_uid", "number"],
+                condition=models.Q(direction="incoming", number__isnull=False) & ~models.Q(number=""),
+                name="unique_supplier_document_number",
+            ),
         ]
 
 
@@ -381,6 +386,9 @@ class StockMovement(models.Model):
 
 
 class Ingestion(models.Model):
+    batch_uid = models.CharField(max_length=32, blank=True, default="", db_index=True)
+    source_invoice_ref = models.CharField(max_length=140, blank=True, default="", db_index=True)
+    source_invoice_match = models.CharField(max_length=64, blank=True, default="", db_index=True)
     ingestion_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, default="")
     uploaded_by_user_uid = models.CharField(max_length=32, db_index=True, default="")
@@ -850,6 +858,8 @@ class UserPreferences(models.Model):
     user_uid = models.CharField(max_length=32, unique=True)
     theme = models.CharField(max_length=10, default="system")
     density = models.CharField(max_length=15, default="comfortable")
+    number_grouping = models.CharField(max_length=8, blank=True, default="")
+    number_decimal = models.CharField(max_length=8, blank=True, default="")
 
     class Meta:
         db_table = "django_user_preferences"

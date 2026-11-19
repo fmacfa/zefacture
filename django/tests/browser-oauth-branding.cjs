@@ -131,8 +131,8 @@ function totp(secret) {
     await workspaceMenu.waitFor({ state: 'hidden' });
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await workspaceMenu.waitFor({ state: 'visible' });
-    assert.equal(await workspaceMenu.getByRole('link', { name: 'Clients', exact: true }).getAttribute('aria-current'), 'page');
-    assert.equal(await workspaceMenu.getByRole('link', { name: 'Clients', exact: true }).locator('svg').count(), 1);
+    assert.equal(await workspaceMenu.getByRole('link', { name: 'Clients et contacts', exact: true }).getAttribute('aria-current'), 'page');
+    assert.equal(await workspaceMenu.getByRole('link', { name: 'Clients et contacts', exact: true }).locator('svg').count(), 1);
     await page.keyboard.press('Escape');
     await workspaceMenu.waitFor({ state: 'hidden' });
     assert.equal(errors.length, 0, errors.join('\n'));

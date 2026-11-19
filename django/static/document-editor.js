@@ -42,8 +42,8 @@
     hidden.value=JSON.stringify(lines);
     try {
       const result=ZeMoney.calculate(lines.map(row=>({quantity:row.quantity,price:row.unit_price_excluding_tax,discount:row.discount_percent,rate:row.vat_rate})));
-      result.lines.forEach((line,index)=> {tbody.querySelector('[data-total="'+index+'"]').textContent=line.net.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});});
-      document.getElementById('totals').textContent='HT '+result.net.toFixed(2)+' · TVA '+result.vat.toFixed(2)+' · TTC '+result.gross.toFixed(2)+' '+form.elements.currency_code.value;
+      result.lines.forEach((line,index)=> {tbody.querySelector('[data-total="'+index+'"]').textContent=window.ZeNumbers.amount(line.net);});
+      document.getElementById('totals').textContent='HT '+window.ZeNumbers.amount(result.net)+' · TVA '+window.ZeNumbers.amount(result.vat)+' · TTC '+window.ZeNumbers.amount(result.gross)+' '+form.elements.currency_code.value;
     } catch(error) {document.getElementById('totals').textContent='Vérifiez les valeurs numériques.';}
   }
   async function autosave() {

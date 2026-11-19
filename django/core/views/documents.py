@@ -15,6 +15,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.utils import timezone
 from django.utils.http import content_disposition_header
 from django.utils.text import slugify
+from core.numbers import document_amount
 from core.common import BusinessError, today, stamp, digest, iso_date
 from core.models import (
     Company,
@@ -226,7 +227,7 @@ def documents(request, section, document_uid=None, action=None):
                 "invoice_reminder",
                 document.buyer.get("email"),
                 "Relance facture " + document.number,
-                f"Bonjour,\nLa facture {document.number}, échue le {document.due_date}, présente un reste dû de {document.amount_due:.2f} {document.currency_code}.",
+                f"Bonjour,\nLa facture {document.number}, échue le {document.due_date}, présente un reste dû de {document_amount(document,document.amount_due)} {document.currency_code}.",
             )
             service.event(document, "reminder", "Relance préparée")
         else:
@@ -506,7 +507,7 @@ def send(document, channel="email", processing_rule=""):
 
         queue_invoice(document, file, processing_rule)
     elif channel == "email":
-        body = f"Bonjour,\nVotre {'devis' if document.type == 'quote' else 'facture'} {document.number} d'un montant de {document.total_including_tax:.2f} {document.currency_code} est disponible."
+        body = f"Bonjour,\nVotre {'devis' if document.type == 'quote' else 'facture'} {document.number} d'un montant de {document_amount(document,document.total_including_tax)} {document.currency_code} est disponible."
         if document.type == "quote":
             raw = secrets.token_hex(32)
             document.public_token_hash = digest(raw)
@@ -563,20 +564,22 @@ def public_quote(request, token):
     presentation = document.seller.get("branding", {})
     logo = logo_bytes(document.company_uid, presentation)
     accent = presentation.get("accent_color")
-    return render(
-        request,
-        "core/public_quote.html",
-        {
-            "title": document.number,
-            "document": document,
-            "lines": document.lines,
-            "public_brand": presentation,
-            "palette": palette(accent) if accent else None,
-            "public_logo": "data:image/png;base64," + base64.b64encode(logo).decode()
-            if logo
-            else "",
-        },
-    )
+    from core.numbers import document_style, number_context
+    with number_context(document_style(document)):
+        return render(
+            request,
+            "core/public_quote.html",
+            {
+                "title": document.number,
+                "document": document,
+                "lines": document.lines,
+                "public_brand": presentation,
+                "palette": palette(accent) if accent else None,
+                "public_logo": "data:image/png;base64," + base64.b64encode(logo).decode()
+                if logo
+                else "",
+            },
+        )
 
 
 @scoped("write")

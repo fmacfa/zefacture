@@ -514,9 +514,9 @@ def inventory(request, item_uid=None, action=None):
                     i.name,
                     i.reference,
                     i.item_type,
-                    f"{i.unit_price_excluding_tax:.2f}",
-                    f"{i.vat_rate:g}",
-                    str(i.stock) if i.stock_tracking else "—",
+                    i.unit_price_excluding_tax.quantize(Decimal("0.01")),
+                    i.vat_rate.normalize(),
+                    i.stock if i.stock_tracking else "—",
                 ],
             }
             for i in query.order_by("name")

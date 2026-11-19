@@ -30,24 +30,44 @@ from .finance import csv_text, vat_rows
 
 def document_status_cards(query, section, params):
     states = {
-        "reception": [("received", "Reçues"), ("accepted", "Acceptées"), ("paid", "Payées"), ("disputed", "En litige"), ("refused", "Refusées")],
+        "reception": [
+            ("received", "Reçues"),
+            ("accepted", "Acceptées"),
+            ("paid", "Payées"),
+            ("disputed", "En litige"),
+            ("refused", "Refusées"),
+        ],
         "factures": [("draft", "Brouillons"), ("sent", "Envoyées"), ("paid", "Payées")],
         "avoirs": [("draft", "Brouillons"), ("sent", "Envoyés")],
-        "devis": [("draft", "Brouillons"), ("sent", "Envoyés"), ("accepted", "Acceptés"), ("refused", "Refusés")],
+        "devis": [
+            ("draft", "Brouillons"),
+            ("sent", "Envoyés"),
+            ("accepted", "Acceptés"),
+            ("refused", "Refusés"),
+        ],
     }
     counts = dict(query.order_by().values_list("status").annotate(n=Count("pk")))
-    filters = {name: params[name] for name in ("q", "from", "to", "date_field", "format") if params.get(name)}
+    filters = {
+        name: params[name]
+        for name in ("q", "from", "to", "date_field", "format")
+        if params.get(name)
+    }
     entries = [("", "Tous", sum(counts.values()))]
     entries.extend((key, label, counts.get(key, 0)) for key, label in states[section])
     cards = []
     for key, label, count in entries:
         search = urlencode(filters | ({"status": key} if key else {}))
-        cards.append({
-            "status": key, "label": label, "count": count,
-            "url": f"/app/{section}" + ("?" + search if search else ""),
-            "active": params.get("status", "") == key,
-        })
+        cards.append(
+            {
+                "status": key,
+                "label": label,
+                "count": count,
+                "url": f"/app/{section}" + ("?" + search if search else ""),
+                "active": params.get("status", "") == key,
+            }
+        )
     return cards
+
 
 DATASETS = {
     "summary": "Synthèse et comparatifs",
@@ -807,6 +827,9 @@ def dataset(request, name, selected, report=None):
 
 
 def export_bytes(format, headers, rows, title, company, selected, report):
+    from core.numbers import current_style
+
+    style = current_style()
     if format == "csv":
         return csv_text(headers, rows).encode(), "text/csv; charset=utf-8"
     if format == "xlsx":
@@ -827,11 +850,16 @@ def export_bytes(format, headers, rows, title, company, selected, report):
             for index, row in enumerate([sheet_headers] + sheet_rows):
                 cells = []
                 for column, value in enumerate(row, 1):
+                    if name == "Affichage" and type(value) in (Decimal, int, float):
+                        value = style.format(value)
                     if isinstance(value, str):
                         value = ILLEGAL_CHARACTERS_RE.sub("", value)
                         if len(value) > 32767:
                             for part, offset in enumerate(
-                                range(0, len(value), 32000), 1
+                                range(0, len(value), 32000)
+                                if name != "Affichage"
+                                else (),
+                                1,
                             ):
                                 long_texts.append(
                                     [
@@ -856,7 +884,15 @@ def export_bytes(format, headers, rows, title, company, selected, report):
                     if isinstance(value, str):
                         cell.data_type = "s"  # Never execute user-supplied formulas.
                     if isinstance(value, Decimal):
-                        cell.number_format = "#,##0.00######"
+                        cell.number_format = (
+                            "0.00######"
+                            if style.customized and style.grouping == "none"
+                            else "#,##0.00######"
+                        )
+                    elif type(value) is int and style.customized:
+                        cell.number_format = (
+                            "0" if style.grouping == "none" else "#,##0"
+                        )
                     if isinstance(value, date):
                         cell.number_format = "dd/mm/yyyy"
                     cell.alignment = Alignment(vertical="top", wrap_text=True)
@@ -870,6 +906,9 @@ def export_bytes(format, headers, rows, title, company, selected, report):
             )
 
         sheet("Données", headers, rows)
+        if style.customized:
+            sheet("Affichage", headers, rows)
+            workbook.active = workbook["Affichage"]
         if long_texts:
             sheet(
                 "Textes longs",

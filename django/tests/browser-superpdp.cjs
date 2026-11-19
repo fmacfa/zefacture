@@ -78,7 +78,7 @@ const output = path.resolve('test-results/browser-superpdp');
     await page.getByRole('button', {name: 'Ajouter la note'}).click();
     await page.getByText('Suivi interne de démonstration', {exact: true}).first().waitFor();
     await page.goto(base + '/app/imports');
-    await page.getByLabel('Fichier', {exact: true}).setInputFiles({
+    await page.getByLabel('Fichiers', {exact: true}).setInputFiles({
       name: 'scan-exemple.tiff', mimeType: 'image/tiff', buffer: Buffer.from(fixture.two_page_scan, 'base64'),
     });
     await page.getByRole('button', {name: 'Importer', exact: true}).click();
@@ -103,6 +103,36 @@ const output = path.resolve('test-results/browser-superpdp');
     await page.getByLabel('Rechercher une opération').fill('Virement test');
     await page.getByRole('button', {name: 'Filtrer', exact: true}).click();
     assert.equal(new URL(page.url()).searchParams.get('q'), 'Virement test');
+    await page.goto(base + '/app/compte');
+    const secret = page.locator('input[name="password"]');
+    await secret.fill('abc');
+    await page.getByText(/Faible. Le minimum/).waitFor();
+    await secret.fill('Nuages rouges Trois Falaises 482!');
+    await page.getByText('Très robuste.', {exact:true}).waitFor();
+    await secret.fill('');
+    await page.goto(base + '/app/compte/affichage');
+    await page.getByLabel('Séparateur des milliers').selectOption('dot');
+    assert.equal(await page.locator('#number-preview').textContent(), '1.234.567,89');
+    await page.getByRole('button', {name:'Enregistrer les préférences'}).click();
+    await page.goto(base + '/app/finances/transactions');
+    const transaction = page.locator('form').filter({has:page.getByRole('heading',{name:'Nouvelle transaction'})});
+    await transaction.getByLabel('Montant',{exact:true}).fill('1.234,56');
+    assert.equal(await transaction.locator('input[name=amount]').inputValue(),'1234.56');
+    await transaction.getByLabel('Libellé').fill('Règlement de test');
+    await transaction.getByRole('button',{name:'Enregistrer',exact:true}).click();
+    await page.getByText('1.234,56 EUR',{exact:true}).waitFor();
+    await page.goto(base + '/app/imports');
+    await page.locator('[name=pipeline]').selectOption('none');
+    await page.getByLabel('Fichiers',{exact:true}).setInputFiles([
+      {name:'copie-test.tiff',mimeType:'image/tiff',buffer:Buffer.from(fixture.two_page_scan,'base64')},
+      {name:'vente-test.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7 test navigateur lot')},
+    ]);
+    await page.getByLabel('Type de vente-test.pdf').selectOption('sales_invoice');
+    await page.getByRole('button',{name:'Importer',exact:true}).click();
+    await page.getByText('Doublon exact · original déjà importé',{exact:true}).waitFor();
+    await page.getByRole('link',{name:'Voir les documents de ce lot'}).click();
+    await page.getByRole('link',{name:'vente-test.pdf'}).click();
+    await page.getByLabel('Nom du client').waitFor();
     const checks = [];
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({width, height: width < 700 ? 844 : 1000});
@@ -128,7 +158,7 @@ const output = path.resolve('test-results/browser-superpdp');
     await page.getByRole('button', {name: 'Synchroniser maintenant', exact: true}).click();
     await page.getByText('Une synchronisation attend le worker.', {exact: true}).waitFor();
     assert.equal(errors.length, 0, errors.join('\n'));
-    await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ok: true, synthetic_data_only: true, flows: ['incoming_invoice', 'provider_statuses', 'original_xml_sha256', 'readable_pdf_download', 'outgoing_invoice', 'uncertain_submission_display', 'manual_sync_request', 'inbox_refresh_preserves_filters', 'pdf_zoom', 'multipage_scan', 'invoice_contact', 'internal_note', 'dashboard_status_filter', 'bank_settings', 'bank_transactions_filter'], responsive: checks, javascript_and_csp_errors: errors}, null, 2));
+    await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ok: true, synthetic_data_only: true, flows: ['incoming_invoice', 'provider_statuses', 'original_xml_sha256', 'readable_pdf_download', 'outgoing_invoice', 'uncertain_submission_display', 'manual_sync_request', 'inbox_refresh_preserves_filters', 'pdf_zoom', 'multipage_scan', 'invoice_contact', 'internal_note', 'dashboard_status_filter', 'bank_settings', 'bank_transactions_filter', 'password_strength', 'number_settings', 'mixed_import_batch'], responsive: checks, javascript_and_csp_errors: errors}, null, 2));
   } finally { await browser.close(); }
   console.log('SUPERPDP : originaux, statuts, reprise et responsive OK.');
 })().catch(error => { console.error(error); process.exit(1); });

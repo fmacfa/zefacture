@@ -88,6 +88,7 @@ def authentication(request, mode="login", token=""):
     ):
         return redirect("first_connection")
     error = ""
+    retry_after = 0
     if request.method == "POST":
         try:
             throttle(request, mode)
@@ -193,6 +194,7 @@ def authentication(request, mode="login", token=""):
                 return redirect("/connexion")
         except BusinessError as exc:
             error = str(exc)
+            retry_after = getattr(exc, "retry_after", 0)
         except ValidationError as exc:
             error = " ".join(exc.messages)
     title = {
@@ -201,7 +203,7 @@ def authentication(request, mode="login", token=""):
         "forgot": "Mot de passe oublié",
         "reset": "Nouveau mot de passe",
     }[mode]
-    return render(
+    response = render(
         request,
         "core/auth.html",
         dict(
@@ -211,7 +213,11 @@ def authentication(request, mode="login", token=""):
             invite=request.GET.get("invite", ""),
             registration_open=settings.REGISTRATION_OPEN,
         ),
+        status=429 if retry_after else 200,
     )
+    if retry_after:
+        response["Retry-After"] = str(retry_after)
+    return response
 
 
 @sensitive_post_parameters("token")
@@ -266,7 +272,9 @@ def first_connection(request):
                 request.session.pop(INSTALLATION_SESSION_KEY, None)
                 start_session(request, user)
                 return redirect(
-                    "/app/compte/securite" if settings.MFA_REQUIRED_FOR_ADMINS else "/app"
+                    "/app/compte/securite"
+                    if settings.MFA_REQUIRED_FOR_ADMINS
+                    else "/app"
                 )
             status = 422
         except BusinessError as exc:
@@ -296,6 +304,7 @@ def account(request):
 
     select_company(request)
     error = ""
+    retry_after = 0
     if request.method == "POST":
         try:
             throttle(request, "account:" + request.user.user_uid, limit=10, seconds=900)
@@ -340,12 +349,17 @@ def account(request):
             return redirect("/app/compte")
         except BusinessError as exc:
             error = str(exc)
+            retry_after = getattr(exc, "retry_after", 0)
         except ValidationError as exc:
             error = " ".join(exc.messages)
     from core.services.account_security import enabled
 
-    return render(
+    response = render(
         request,
         "core/account.html",
         {"title": "Mon compte", "error": error, "has_mfa": enabled(request.user)},
+        status=429 if retry_after else 200,
     )
+    if retry_after:
+        response["Retry-After"] = str(retry_after)
+    return response

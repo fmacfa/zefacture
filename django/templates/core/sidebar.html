@@ -8,38 +8,51 @@
 
   <nav id="workspace-navigation" aria-label="Espace de gestion">
     <div class="sidebar-group">
-      <div class="sidebar-group-label">Activité</div>
-      {% include "core/sidebar_link.html" with route="/app" icon="dashboard" label="Vue d’ensemble" only %}
-      {% include "core/sidebar_link.html" with route="/app/devis" icon="quote" label="Devis" only %}
-      {% include "core/sidebar_link.html" with route="/app/factures" icon="invoice" label="Factures" only %}
-      {% include "core/sidebar_link.html" with route="/app/avoirs" icon="refund" label="Avoirs" only %}
-      {% include "core/sidebar_link.html" with route="/app/clients" icon="clients" label="Clients" only %}
-      {% include "core/sidebar_link.html" with route="/app/crm" icon="crm" label="CRM" only %}
-      {% if can_write %}{% include "core/sidebar_link.html" with route="/app/inventaire" icon="inventory" label="Inventaire" only %}{% endif %}
-    </div>
-
-    <div class="sidebar-group">
-      <div class="sidebar-group-label">Achats et finances</div>
-      {% include "core/sidebar_link.html" with route="/app/reception" icon="inbox" label="Factures fournisseurs" only %}
-      {% if can_write %}{% include "core/sidebar_link.html" with route="/app/imports" icon="import" label="Imports" only %}{% endif %}
-      {% include "core/sidebar_link.html" with route="/app/notes-de-frais" icon="expense" label="Notes de frais" only %}
+      <div class="sidebar-group-label">Pilotage</div>
+      {% include "core/sidebar_link.html" with route="/app" icon="dashboard" label="Vue d’ensemble" active_route=active_route only %}
       {% if can_finance %}
-        {% include "core/sidebar_link.html" with route="/app/finances" icon="finance" label="Finances" only %}
-        {% include "core/sidebar_link.html" with route="/app/rapports" icon="reports" label="Rapports" only %}
+      {% include "core/sidebar_link.html" with route="/app/rapports" icon="reports" label="Rapports" active_route=active_route only %}
       {% endif %}
     </div>
-
     <div class="sidebar-group">
-      <div class="sidebar-group-label">Administration</div>
-      {% include "core/sidebar_link.html" with route="/app/entreprise" icon="company" label="Mon entreprise" only %}
-      {% if can_admin %}
-        {% include "core/sidebar_link.html" with route="/app/entreprise/personnalisation" icon="branding" label="Personnalisation" only %}
-        {% include "core/sidebar_link.html" with route="/app/collaborateurs" icon="clients" label="Collaborateurs" only %}
-        {% include "core/sidebar_link.html" with route="/app/emails" icon="mail" label="Emails" only %}
-        {% include "core/sidebar_link.html" with route="/app/developpeurs" icon="api" label="API et intégrations" only %}
-        {% include "core/sidebar_link.html" with route="/app/entreprise/journal" icon="security" label="Journal de sécurité" only %}
+      <div class="sidebar-group-label">Ventes et CRM</div>
+      {% include "core/sidebar_link.html" with route="/app/factures" icon="invoice" label="Factures clients" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/devis" icon="quote" label="Devis" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/avoirs" icon="refund" label="Avoirs" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/clients" icon="clients" label="Clients et contacts" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/crm" icon="crm" label="Suivi CRM" active_route=active_route only %}
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Achats</div>
+      {% include "core/sidebar_link.html" with route="/app/reception" icon="inbox" label="Factures fournisseurs" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/notes-de-frais" icon="expense" label="Notes de frais" active_route=active_route only %}
+      {% if can_write %}
+      {% include "core/sidebar_link.html" with route="/app/imports" icon="import" label="Imports" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/inventaire" icon="inventory" label="Inventaire" active_route=active_route only %}
       {% endif %}
-      {% include "core/sidebar_link.html" with route="/app/compte" icon="account" label="Mon compte" only %}
+    </div>
+    {% if can_finance %}
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Banque et finances</div>
+      {% include "core/sidebar_link.html" with route="/app/finances/comptes" icon="bank" label="Comptes bancaires" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/finances/transactions" icon="transfer" label="Transactions" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/finances" icon="finance" label="Finances et trésorerie" active_route=active_route only %}
+    </div>
+    {% endif %}
+    <details class="sidebar-settings"{% if settings_open %} open{% endif %}>
+      <summary>Réglages de l’entreprise</summary><div class="sidebar-group">
+      {% include "core/sidebar_link.html" with route="/app/entreprise" icon="company" label="Mon entreprise" active_route=active_route only %}
+      {% if can_admin %}
+      {% include "core/sidebar_link.html" with route="/app/collaborateurs" icon="clients" label="Collaborateurs" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/entreprise/personnalisation" icon="branding" label="Personnalisation" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/emails" icon="mail" label="Emails" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/developpeurs" icon="api" label="API et intégrations" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/entreprise/journal" icon="security" label="Journal de sécurité" active_route=active_route only %}
+      {% endif %}
+      </div>
+    </details>
+    <div class="sidebar-account">
+      {% include "core/sidebar_link.html" with route="/app/compte" icon="account" label="Mon compte" active_route=active_route only %}
     </div>
   </nav>
   <div class="sidebar-footer"><a href="/source">ZeFacture · AGPL-3.0</a></div>

@@ -15,8 +15,8 @@
           </td>
           <td data-label="Date">{{ d.issue_date }}</td>
           <td data-label="Statut"><span class="badge {{ d.status }}">{{ d.get_status_label|default:d.status }}</span></td>
-          <td data-label="Total TTC" class="num">{{ d.total_including_tax|floatformat:2 }} {{ d.currency_code }}</td>
-          <td data-label="Reste dû" class="num">{{ d.amount_due|floatformat:2 }} {{ d.currency_code }}</td>
+          <td data-label="Total TTC" class="num">{{ d.total_including_tax|display_number:2 }} {{ d.currency_code }}</td>
+          <td data-label="Reste dû" class="num">{{ d.amount_due|display_number:2 }} {{ d.currency_code }}</td>
           <td>
             <div class="document-links">
               <a class="strong" href="{{ d.url }}">{% if d.type == "quote" %}Voir le devis{% elif d.type == "credit_note" %}Voir l’avoir{% else %}Voir la facture{% endif %}</a>
