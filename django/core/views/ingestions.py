@@ -30,6 +30,13 @@ SOURCE_LABELS = {
     "receipt": "Ticket de caisse",
 }
 
+def analysis_source(item):
+    provider = (item.extraction_model or "").split(":", 1)[0]
+    if provider == "local":
+        return "OCR local"
+    return extraction_ai.PROVIDERS[provider][0] if provider in extraction_ai.PROVIDERS else ""
+
+
 def fill_list_row(row, query, documents):
     extracted = unpack(row.extraction_json)
     if not isinstance(extracted, dict) or not extracted:
@@ -63,6 +70,7 @@ def fill_list_row(row, query, documents):
             pass
     row.source_label = SOURCE_LABELS.get(row.source_kind, "Justificatif")
     row.can_preview = preview_format(row)
+    row.analysis_source = analysis_source(row)
 
 
 def progress_response(request, selection, visible, documents, expenses, archived, detail):
@@ -192,6 +200,15 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         selection = selection.filter(batch_uid=batch)
     if following:
         return progress_response(request, query if item else selection, visible_imports, documents, expenses, archived, item)
+    if request.method == "POST" and not item and request.POST.get("action") == "analyser-lot":
+        if not batch or archived:
+            raise BusinessError("Choisissez un lot d’imports actifs.")
+        count = jobs.enqueue_batch_ai(selection, request.company.company_uid, request.POST.get("provider", ""))
+        if count:
+            messages.success(request, f"Analyse demandée pour {count} document{'s' if count > 1 else ''}.")
+        else:
+            messages.info(request, "Toutes les pièces de ce lot sont déjà analysées ou en cours de traitement.")
+        return redirect(f"{request.path}?lot={batch}")
     if action == "reglement":
         if request.method != "POST":
             return HttpResponse(status=405, headers={"Allow": "POST"})
@@ -380,6 +397,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             {
                 **base_context,
                 "parsed": parsed,
+                "analysis_source": analysis_source(item),
                 "lines": extracted_lines,
                 "inventory": [],
                 **expense_payments.context(item, purchase=item.source_kind != "sales_invoice"),
@@ -399,6 +417,10 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     jobs.set_progress(rows, request.company.company_uid)
     for row in rows:
         fill_list_row(row, query, documents)
+    choices = extraction_ai.choices(request.company.company_uid)
+    batch_count = 0
+    if batch and not archived and choices:
+        batch_count = min(50, jobs.awaiting_batch_ai(selection, request.company.company_uid).count())
     return render(
         request,
         "core/ingestions.html",
@@ -409,6 +431,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             "archives": archived,
             **expense_payments.context(None),
             "batch": batch,
-            "ai_choices": extraction_ai.choices(request.company.company_uid),
+            "batch_count": batch_count,
+            "ai_choices": choices,
         },
     )
