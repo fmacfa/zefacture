@@ -1,0 +1,10 @@
+{% extends "core/base.html" %}{% load static %}{% block styles %}<link rel="stylesheet" href="{% static 'banking.css' %}">{% endblock %}
+{% block content %}<div class="page-head"><h1>Vérifier le relevé PDF</h1><a class="button secondary" href="/app/finances/transactions#releve">Annuler</a></div>
+<form method="post" class="card stack" data-pdf-review data-limit="{{ max_slots }}" action="/app/finances/transactions/releve/confirmer">{% csrf_token %}<input type="hidden" name="preview" value="{{ token }}">
+<h2>{{ account.name }} · {{ account.currency_code }}</h2><p>Comparez les dates, libellés, montants et sens au relevé. Cochez uniquement les opérations vérifiées. Vous pouvez corriger une proposition ou ajouter une ligne manquante.</p>
+{% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+<details class="form-disclosure" open><summary>Texte lu dans le relevé</summary><textarea name="transcript" rows="8" readonly aria-label="Texte lu dans le relevé">{{ transcript }}</textarea></details>
+<div class="stack" data-pdf-rows>{% for row in rows %}{% include "core/statement_pdf_row.html" %}{% endfor %}</div>
+<template data-pdf-template>{% include "core/statement_pdf_row.html" with row=empty_row only %}</template>
+<div class="inline wrap"><button type="button" class="secondary" data-add-pdf-row hidden>Ajouter une ligne</button><button>Confirmer les lignes cochées</button></div>
+</form><script src="{% static 'bank-statements.js' %}" defer></script>{% endblock %}

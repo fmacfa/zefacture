@@ -248,6 +248,27 @@ class BankingTests(ApplicationCase):
         self.assertEqual(self.client.get(TRANSACTIONS).status_code, 403)
         self.assertEqual(self.client.post(CONNECTION + "synchroniser").status_code, 403)
 
+    def test_standalone_statement_entry_survives_bridge_matching_and_correction(self):
+        feed = self.connect()
+        self.api.rows[10] = [movement(320, label="PAIE-0012")]
+        self.sync(feed)
+        entry = BankFeedEntry.objects.get(remote_id="320")
+        tx = entry.transaction
+        finance.classify(self.company, tx, "salary", "Paie du mois")
+        invoice = self.invoice("PAIE-0012")
+        self.sync(feed)
+        tx.refresh_from_db()
+        invoice.refresh_from_db()
+        self.assertIsNone(tx.document_uid)
+        self.assertEqual((tx.standalone_category, invoice.amount_due), ("salary", 120))
+        self.api.rows[10] = [movement(320, amount=120, label="PAIE-0012", updated_at="2026-05-15T08:00:00Z")]
+        self.sync(feed)
+        entry.refresh_from_db()
+        self.assertEqual(entry.review, "classification")
+        self.assertEqual(self.client.post(TRANSACTIONS + f"/verification/{entry.pk}", {"choice":"correct"}).status_code, 302)
+        tx.refresh_from_db()
+        self.assertEqual((tx.direction, tx.standalone_category, tx.classification_note), ("incoming", "", "Paie du mois"))
+
     def test_multiple_accounts_cursor_reference_reconciliation_and_financial_correction(
         self,
     ):

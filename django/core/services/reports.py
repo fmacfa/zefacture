@@ -26,6 +26,7 @@ from core.models import (
 )
 from core.security import hidden_expense_documents, ROLES
 from .finance import csv_text, vat_rows
+from .bank_categories import category_label
 
 
 def document_status_cards(query, section, params):
@@ -762,6 +763,7 @@ def dataset(request, name, selected, report=None):
             "Compte",
             "Document",
             "Catégorie",
+            "Motif",
         ], [
             [
                 t.transaction_date,
@@ -771,7 +773,8 @@ def dataset(request, name, selected, report=None):
                 DIRECTION_LABELS.get(t.direction, t.direction),
                 t.account_uid,
                 t.document_uid,
-                t.category,
+                category_label(t),
+                t.classification_note,
             ]
             for t in between(query, "transaction_date", start, end).order_by(
                 "transaction_date", "id"

@@ -21,6 +21,7 @@ from core.models import (
 )
 from .bridge import Bridge, BridgeError
 from .finance import reconcile
+from .bank_categories import choices as classification_choices
 
 
 INTERVAL = timedelta(hours=4)
@@ -270,6 +271,8 @@ def project_entry(entry, *, distinct=False):
         )
         if tx.document_uid and changed_payment:
             entry.review = "correction"
+        elif tx.standalone_category and values["status"] == "booked" and tx.standalone_category not in classification_choices(values["direction"]):
+            entry.review = "classification"
         else:
             entry.review = ""
             # Preserve categories, accounting references and invoice links.
@@ -339,6 +342,7 @@ def match_invoice(company, entry):
     if (
         not tx
         or tx.document_uid
+        or tx.standalone_category
         or tx.status != "booked"
         or entry.review
         or not tx.amount
@@ -418,6 +422,9 @@ def resolve_entry(company, entry_id, choice):
     tx = BankTransaction.objects.select_for_update().get(
         pk=entry.transaction_id, company_uid=company.company_uid
     )
+    if entry.review == "classification":
+        tx.standalone_category = ""
+        tx.save(update_fields=["standalone_category"])
     if tx.document_uid:
         doc = Document.objects.select_for_update().get(
             company_uid=company.company_uid, document_uid=tx.document_uid
@@ -508,6 +515,7 @@ def sync_one(feed_id):
             feed_account__account__status="active",
             transaction__status="booked",
             transaction__document_uid__isnull=True,
+            transaction__standalone_category="",
             review="",
         ).values_list("pk", flat=True)
         if feed.auto_reconcile:

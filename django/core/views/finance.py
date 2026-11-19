@@ -1,26 +1,25 @@
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
-from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.db.models import Sum
+from django.db.models import Q
 from django.core.paginator import Paginator
 from django.conf import settings
-from core.common import BusinessError, today, stamp, decimal, iso_date, money
+from core.common import BusinessError, today, iso_date, money
 from core.models import (
     BankAccount,
     BankFeed,
     BankFeedEntry,
     BankTransaction,
-    Document,
     Forecast,
 )
+from core.services import bank_categories
+from . import bank_statements
 from core.services.bank_sync import candidates
 from core.forms import AccountForm, ForecastForm
 from core.security import scoped, scoped_get
 from core.services import finance as service
-from .management import table
 
 
 def download_csv(name, headers, rows):
@@ -86,16 +85,7 @@ def finance(request, section="overview", item_uid=None, action=None):
                     request.POST.get("document_uid"),
                 )
             elif action == "import":
-                uploaded = request.FILES.get("file")
-                if not uploaded:
-                    raise BusinessError("CSV requis.")
-                result = service.import_csv(
-                    company, request.POST.get("account_uid"), uploaded.read()
-                )
-                messages.success(
-                    request,
-                    f"{result['imported']} transactions importées, {result['skipped']} doublons, {result['rejected']} lignes rejetées.",
-                )
+                return bank_statements.upload(request)
             else:
                 service.create_transaction(company, request.POST)
             return redirect("/app/finances/transactions")
@@ -106,10 +96,47 @@ def finance(request, section="overview", item_uid=None, action=None):
             rows = rows.filter(label__icontains=request.GET["q"][:200])
         if request.GET.get("compte"):
             rows = rows.filter(account_uid=request.GET["compte"])
+        category = request.GET.get("categorie", "")
+        if category:
+            rows = rows.filter(standalone_category=category)
+        treatment = request.GET.get("traitement", "")
+        unlinked = Q(document_uid__isnull=True) | Q(document_uid="")
+        if treatment == "pending":
+            rows = rows.filter(
+                unlinked, status="booked", standalone_category=""
+            ).exclude(bank_feed__review__gt="")
+        elif treatment == "standalone":
+            rows = rows.filter(status="booked").exclude(standalone_category="")
+        elif treatment == "invoice":
+            rows = rows.exclude(unlinked)
+        start = iso_date(request.GET.get("from"), optional=True)
+        end = iso_date(request.GET.get("to"), optional=True)
+        if start and end and start > end:
+            raise BusinessError("Période invalide.")
+        if start:
+            rows = rows.filter(transaction_date__gte=start)
+        if end:
+            rows = rows.filter(transaction_date__lte=end)
+        accounts = list(
+            BankAccount.objects.filter(company_uid=company.company_uid).order_by("name")
+        )
+        by_uid = {a.account_uid: a for a in accounts}
         if action == "export":
             return download_csv(
                 "transactions",
-                ["date", "libellé", "montant", "sens", "compte", "document", "statut"],
+                [
+                    "date",
+                    "libellé",
+                    "montant",
+                    "sens",
+                    "compte",
+                    "document",
+                    "statut",
+                    "catégorie",
+                    "motif",
+                    "devise",
+                    "nom du compte",
+                ],
                 [
                     [
                         t.transaction_date,
@@ -119,6 +146,12 @@ def finance(request, section="overview", item_uid=None, action=None):
                         t.account_uid,
                         t.document_uid,
                         t.status,
+                        bank_categories.category_label(t),
+                        t.classification_note,
+                        by_uid[t.account_uid].currency_code
+                        if t.account_uid in by_uid
+                        else "EUR",
+                        by_uid[t.account_uid].name if t.account_uid in by_uid else "",
                     ]
                     for t in rows
                 ],
@@ -145,17 +178,17 @@ def finance(request, section="overview", item_uid=None, action=None):
         page = Paginator(rows.select_related("bank_feed"), 50).get_page(
             request.GET.get("page")
         )
-        accounts = list(
-            BankAccount.objects.filter(company_uid=company.company_uid).order_by("name")
-        )
-        by_uid = {a.account_uid: a for a in accounts}
         for row in page:
             row.account = by_uid.get(row.account_uid)
+            row.category_label = bank_categories.category_label(row)
         return render(
             request,
             "core/transactions.html",
             {
                 "title": "Transactions",
+                "categories": bank_categories.CATEGORIES,
+                "outgoing_categories": bank_categories.OUTGOING,
+                "incoming_categories": bank_categories.INCOMING,
                 "transactions": page,
                 "review_page": review_page,
                 "all_accounts": accounts,
@@ -163,9 +196,6 @@ def finance(request, section="overview", item_uid=None, action=None):
                 "accounts": BankAccount.objects.filter(
                     company_uid=company.company_uid, status="active"
                 ),
-                "documents": service.effective_documents(company)
-                .exclude(type="credit_note")
-                .filter(amount_due__gt=0),
             },
         )
     start = iso_date(
@@ -243,6 +273,7 @@ def finance(request, section="overview", item_uid=None, action=None):
             "core/vat.html",
             {
                 "title": "État de TVA",
+                "bank_vat": service.vat_payments(company, start, end),
                 "headers": headers,
                 "rows": rows,
                 "start": start,

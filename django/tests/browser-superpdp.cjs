@@ -120,7 +120,7 @@ const output = path.resolve('test-results/browser-superpdp');
     assert.equal(await transaction.locator('input[name=amount]').inputValue(),'1234.56');
     await transaction.getByLabel('Libellé').fill('Règlement de test');
     await transaction.getByRole('button',{name:'Enregistrer',exact:true}).click();
-    await page.getByText('1.234,56 EUR',{exact:true}).waitFor();
+    await page.getByText('+1.234,56 EUR',{exact:true}).waitFor();
     await page.goto(base + '/app/imports');
     await page.locator('[name=pipeline]').selectOption('none');
     await page.getByLabel('Fichiers',{exact:true}).setInputFiles([

@@ -7,3 +7,10 @@
   .bank-connection .inline { align-items: stretch; flex-direction: column; }
   .bank-connection .inline button { width: 100%; white-space: normal; }
 }
+.bank-detail { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.bank-pdf-row { min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--line); border-radius: .6rem; display: grid; gap: .8rem; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.bank-pdf-row .full { grid-column: 1 / -1; }
+.bank-pdf-row legend { font-weight: 700; padding-inline: .3rem; }
+.bank-original { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+[data-pdf-review] textarea[readonly] { white-space: pre; font-family: monospace; overflow: auto; }
+@media (max-width: 640px) { .bank-pdf-row { grid-template-columns: minmax(0,1fr); } }

@@ -190,15 +190,33 @@ Les administrateurs et comptables peuvent traiter les frais de l’entreprise. L
 3. Pour ajouter une deuxième banque, renouveler un accès ou retirer un compte, le même administrateur choisit **Relier ou gérer mes banques**. Chaque compte partagé dispose de son propre solde et d’un lien **Transactions de ce compte**. La période d’historique disponible dépend de l’établissement.
 4. **Synchroniser maintenant** demande une actualisation au serveur. Le worker récupère ensuite les nouvelles opérations et les corrections toutes les quatre heures. La date de dernière réussite et les éventuelles erreurs apparaissent dans **Comptes bancaires**.
 
+### Importer un relevé bancaire
+
+Dans **Finances → Comptes bancaires**, créer un compte avec sa devise et son solde d’ouverture, ou reprendre un compte déjà relié à Bridge. Choisir **Importer un relevé**, vérifier le compte de destination, puis sélectionner le fichier de la banque. La taille maximale est de 5 Mo.
+
+| Format | Contenu et vérification |
+| --- | --- |
+| CSV | Jusqu’à 1 000 opérations. Indiquer la date, le libellé et le montant signé, ou des colonnes débit et crédit. Une référence bancaire facilite la détection des doublons. |
+| OFX ou QFX | Un compte bancaire ou carte par fichier, avec les opérations comptabilisées, leur identifiant bancaire et la devise du compte. |
+| PDF texte ou scanné | Jusqu’à 15 pages et 100 propositions. La lecture et l’OCR sont locaux. Comparer le **Texte lu dans le relevé** à l’original, corriger la date, le libellé, le montant et le sens. **Ajouter une ligne** permet de compléter une opération manquante. Cocher les opérations vérifiées puis **Confirmer les lignes cochées**. |
+
+Le récapitulatif indique les lignes ajoutées, déjà présentes ou rejetées. Un nouvel import du même relevé conserve ses écritures déjà enregistrées. Les correspondances entre sources utilisent le compte, la date, le montant, le sens et la référence ou le libellé. Vérifier les libellés qui diffèrent entre la banque et le relevé.
+
+### Classer un mouvement sans facture
+
+Dans **Finances → Transactions**, filtrer sur **À traiter**, ouvrir **Traiter** sur la ligne, puis **Classer sans facture**. Choisir par exemple **Salaires**, **Cotisations sociales**, **Remboursement de frais versé**, **Paiement de TVA**, **Frais bancaires** ou **Autre dépense** pour une sortie. Pour une entrée, choisir **Remboursement de TVA reçu**, **Autre remboursement reçu** ou **Autre encaissement**. Le champ **Motif ou bénéficiaire** permet de préciser la dépense. Cliquer sur **Enregistrer le classement**. Une opération saisie dans **Nouvelle transaction** peut recevoir sa catégorie immédiatement.
+
+Le classement porte sur l’écriture bancaire existante et conserve son montant. Bridge respecte le classement lors des synchronisations suivantes. **Modifier** permet de corriger la catégorie. **Remettre à traiter** rend l’opération disponible pour un rapprochement avec une facture. **État de TVA** affiche les paiements et remboursements bancaires classés pour la période, à côté des montants issus des factures. Les filtres de la liste et les rapports permettent de retrouver les catégories et les motifs dans les exports.
+
 ### Rapprocher les règlements
 
 Dans **Transactions**, rechercher un libellé ou filtrer par compte. L’option **Rapprocher automatiquement** associe un mouvement comptabilisé à une seule facture ouverte si le libellé contient son numéro complet et si la devise, le sens du paiement et le reste dû concordent. Un encaissement règle une facture client et un décaissement règle une facture fournisseur. L’historique de la facture conserve le paiement.
 
-Pour un paiement partiel ou un libellé sans référence exploitable, sélectionner la facture sur la ligne et cliquer sur **Rapprocher**. Dans **Opérations à vérifier**, choisir l’écriture existante si elle correspond au même mouvement, ou **Créer une opération distincte** si deux paiements sont réellement différents. Si la banque annule ou modifie un paiement déjà rapproché, vérifier le mouvement puis confirmer la correction. La facture retrouve alors le montant dû correspondant.
+Pour un paiement partiel ou un libellé sans référence exploitable, ouvrir **Traiter → Rapprocher d’une facture**, sélectionner la facture et cliquer sur **Rapprocher**. Dans **Opérations à vérifier**, choisir l’écriture existante si elle correspond au même mouvement, ou **Créer une opération distincte** si deux paiements sont réellement différents. Si la banque annule ou modifie un paiement déjà rapproché, vérifier le mouvement puis confirmer la correction. La facture retrouve alors le montant dû correspondant.
 
 ### Comptes manuels et exports
 
-**Ajouter un compte manuel** permet de suivre un autre compte avec sa devise et son solde d’ouverture. Dans **Transactions → Importer un relevé CSV**, choisir le compte et un fichier de 1 000 lignes au maximum, avec les colonnes `date`, `libellé` et `montant`, ou `débit` et `crédit`. **Exporter le CSV** reprend les filtres de la liste. Les menus **Trésorerie**, **État de TVA** et **Export comptable** restent accessibles aux propriétaires, administrateurs et comptables.
+**Ajouter un compte manuel** permet de suivre un autre compte avec sa devise et son solde d’ouverture. **Exporter le CSV** reprend les filtres de la liste. Les menus **Trésorerie**, **État de TVA** et **Export comptable** restent accessibles aux propriétaires, administrateurs et comptables.
 
 Les soldes sont présentés par devise. L’état de TVA utilise la date d’émission des factures. Le journal exporté sert au suivi de la facturation. Pour le régime des encaissements ou la production du fichier des écritures comptables (FEC), faire valider les traitements complémentaires par le comptable de l’entreprise.
 

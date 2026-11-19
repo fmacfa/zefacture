@@ -26,6 +26,7 @@ from core.common import BusinessError, stamp
 
 # Per-company provider credentials and links to the Django stock ledger are not legacy PHP fields.
 DJANGO_ONLY_COLUMNS = {
+    "bank_transactions": {"standalone_category", "classification_note"},
     "companies": {"ingestion_ai"},
     "inventory_stock_movements": {"source_document_uid", "source_line_uid"},
 }
