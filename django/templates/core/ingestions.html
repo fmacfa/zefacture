@@ -34,14 +34,14 @@
     <a data-batch-link hidden>Voir les documents de ce lot</a>
     <details class="form-disclosure">
       <summary>Détails de la dépense (facultatif)</summary>
-      <p class="form-help">Vous pouvez aussi compléter ces champs après transcription.</p>
+      <p class="form-help">Ces valeurs s’appliquent aux achats et justificatifs sélectionnés. Vous pouvez les modifier sur chaque fiche.</p>
       <div class="form-grid">
         <label>Commerçant<input name="merchant_name"></label>
         <label>Date de dépense<input type="date" name="expense_date"></label>
         <label>Montant TTC<input type="number" step="0.01" min="0" name="expense_amount"></label>
         <label>Devise<input name="expense_currency" placeholder="EUR" maxlength="3"></label>
         <label>Catégorie<input name="expense_category" placeholder="Transport, repas, hébergement…"></label>
-        <label>Description<input name="expense_description"></label>
+        {% include "core/payment_fields.html" %}
       </div>
     </details>
     <div class="form-actions end-actions"><button>Importer</button></div>
@@ -51,7 +51,7 @@
 {% if batch %}<p><strong>Documents de ce lot</strong> · <a href="?lot={{ batch }}">Actualiser les analyses</a> · <a href="/app/imports">Voir tous les imports</a></p>{% endif %}
 <section class="card table-wrap">
   <table>
-    <thead><tr><th>Fichier</th><th>Type</th><th>Date du document</th><th>Total TTC</th><th>État</th></tr></thead>
+    <thead><tr><th>Fichier</th><th>Type</th><th>Date du document</th><th>Total TTC</th>{% if expenses %}<th>Règlement et motif</th>{% endif %}<th>État</th></tr></thead>
     <tbody>
       {% for i in items %}
         <tr>
@@ -59,10 +59,11 @@
           <td>{{ i.source_label }}</td>
           <td>{{ i.list_date|default:"—" }}</td>
           <td>{% if i.list_amount is not None %}{{ i.list_amount|display_number:2 }} {{ i.list_currency|default:"" }}{% else %}—{% endif %}</td>
+          {% if expenses %}<td>{{ i.get_expense_payment_method_display|default:"Non renseigné" }}{% if i.expense_paid_by %}<small>{{ i.get_expense_paid_by_display }}</small>{% endif %}{% if i.expense_description %}<small>{{ i.expense_description|truncatechars:100 }}</small>{% endif %}</td>{% endif %}
           <td><span class="badge">{% if archives %}Archivé{% else %}{{ i.state_label }}{% endif %}</span>{% if i.transcription_status == "queued" %} · Analyse en file{% endif %}{% if i.duplicate %}<br><a class="badge duplicate-badge" href="/app/imports/{{ i.ingestion_uid }}#doublons">Doublon possible · vérifier</a>{% endif %}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="5" class="empty">{% if archives %}Aucun justificatif archivé.{% else %}Aucun justificatif.{% endif %}</td></tr>
+        <tr><td colspan="{% if expenses %}6{% else %}5{% endif %}" class="empty">{% if archives %}Aucun justificatif archivé.{% else %}Aucun justificatif.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>

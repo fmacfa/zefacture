@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from core.common import BusinessError, decimal, iso_date, unpack
+from core.payment_details import PaymentMethod, payment_fields
 
 EXPENSE_KINDS = {"expense_note", "expense", "expense_receipt", "receipt"}
 CURRENCIES = {"EUR", "USD", "GBP", "CHF", "CAD", "JPY", "SEK", "NOK", "DKK", "PLN"}
@@ -156,6 +157,38 @@ def expense_suggestion(item):
     }
 
 
+def suggested_payment(text):
+    """Only suggest an explicitly stated, unambiguous form of settlement."""
+    methods = {
+        "carte bancaire": PaymentMethod.CARD,
+        "carte": PaymentMethod.CARD,
+        "cb": PaymentMethod.CARD,
+        "visa": PaymentMethod.CARD,
+        "mastercard": PaymentMethod.CARD,
+        "credit card": PaymentMethod.CARD,
+        "especes": PaymentMethod.CASH,
+        "cash": PaymentMethod.CASH,
+        "virement": PaymentMethod.TRANSFER,
+        "virement bancaire": PaymentMethod.TRANSFER,
+        "prelevement": PaymentMethod.DIRECT_DEBIT,
+        "prelevement sepa": PaymentMethod.DIRECT_DEBIT,
+        "cheque": PaymentMethod.CHEQUE,
+        "paypal": PaymentMethod.WALLET,
+    }
+    found = set()
+    for line in (text or "").splitlines():
+        if len(line) > 200:
+            continue
+        line = " ".join(simplify(line).split())
+        match = re.fullmatch(
+            r"(?:(?:mode de paiement|moyen de paiement|reglement|paiement|paye(?:e)? (?:par|en)|regle(?:e)? (?:par|en)|payment method)\s*[:=-]?\s*)?([a-z ]+?)(?:\s*[:=-]?\s*\d+(?:[,.]\d{2})?\s*(?:eur|€)?)?",
+            line,
+        )
+        if match and (method := methods.get(match[1].strip())):
+            found.add(method)
+    return next(iter(found)).label if len(found) == 1 else ""
+
+
 def expense_values(data, require_complete=False):
     def text(name, limit):
         return data.get(name, "").replace("\0", "").strip()[:limit]
@@ -181,5 +214,5 @@ def expense_values(data, require_complete=False):
         "expense_amount": amount,
         "expense_currency": currency,
         "expense_category": text("expense_category", 255),
-        "expense_description": text("expense_description", 2000),
+        **payment_fields(data),
     }

@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 from core.common import BusinessError, decimal, stamp, unpack, uid
 from core.models import Company, Document, Ingestion
 from core.security import hidden_expense_documents, scoped, ROLES
-from core.services import extraction_ai, ingestion, files, jobs, invoice_imports
+from core.services import extraction_ai, ingestion, files, jobs, invoice_imports, expense_payments
 from core.services.account_security import audit
 from core.services.document_preview import preview_format
 from .preview import preview_response
@@ -17,6 +17,7 @@ from core.services.receipt_extraction import (
     EXPENSE_KINDS,
     expense_suggestion,
     expense_values,
+    suggested_payment,
 )
 
 SOURCE_LABELS = {
@@ -125,6 +126,14 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     item = query.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
     if ingestion_uid and not item:
         raise BusinessError("Import introuvable.", 404)
+    if action == "reglement":
+        if request.method != "POST":
+            return HttpResponse(status=405, headers={"Allow": "POST"})
+        if item.document_uid and item.source_kind not in EXPENSE_KINDS and request.role not in ROLES["finance"]:
+            raise BusinessError("Le suivi d’une facture validée nécessite un accès financier.", 403)
+        expense_payments.save(item, request.POST, purchase=item.source_kind != "sales_invoice")
+        messages.success(request, "Suivi du règlement enregistré.")
+        return redirect("/app/imports/" + item.ingestion_uid + "#suivi-reglement")
     if action == "apercu":
         if request.method != "GET":
             return HttpResponse(status=405, headers={"Allow": "GET"})
@@ -197,7 +206,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 raise BusinessError("Type d'import invalide.")
             if expenses and kind not in EXPENSE_KINDS:
                 raise BusinessError("Choisissez un type de justificatif de frais.")
-            details = expense_values(request.POST)
+            details = expense_values(request.POST) if kind != "sales_invoice" else {}
             uploads = request.FILES.getlist("file") or request.FILES.getlist(
                 "source_file"
             )
@@ -302,6 +311,10 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 "lines": extracted_lines,
                 "inventory": [],
                 "is_expense": is_expense,
+                **expense_payments.context(item, purchase=item.source_kind != "sales_invoice"),
+                "edit_payment": request.role in ROLES["write"] and (not item.document_uid or is_expense or request.role in ROLES["finance"]),
+                "payment_action": f"/app/imports/{item.ingestion_uid}/reglement",
+                "payment_suggestion": suggested_payment(item.transcription_text),
                 "is_sale": item.source_kind == "sales_invoice",
                 "duplicate_documents": duplicate_documents,
                 "duplicate_imports": duplicate_imports,
@@ -362,6 +375,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             "items": rows,
             "expenses": expenses,
             "archives": archived,
+            **expense_payments.context(None),
             "batch": batch,
             "ai_choices": extraction_ai.choices(),
         },

@@ -788,12 +788,14 @@ def dataset(request, name, selected, report=None):
         return [
             "Date",
             "Commerçant",
-            "Description",
+            "Motif de la dépense",
             "Catégorie",
             "Montant",
             "Devise",
             "Déposé par",
             "Statut",
+            "Moyen de paiement",
+            "Origine des fonds",
         ], [
             [
                 i.expense_date,
@@ -804,6 +806,8 @@ def dataset(request, name, selected, report=None):
                 i.expense_currency,
                 i.uploaded_by_user_uid,
                 STATUS_LABELS.get(i.status, i.status),
+                i.get_expense_payment_method_display(),
+                i.get_expense_paid_by_display(),
             ]
             for i in between(query, "expense_date", start, end).order_by(
                 "expense_date", "id"

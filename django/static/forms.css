@@ -152,3 +152,7 @@ form [hidden] {
 
 .duplicate-notice { border-inline-start: .3rem solid #d27b24; }
 .duplicate-badge { display: inline-block; background: #fff1dd; color: #693600; border-radius: .35rem; padding: .2rem .5rem; }
+
+.payment-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(15rem,100%),1fr)); gap: 1rem; margin: 0; }
+.payment-summary dt { color: var(--muted); font-size: .875rem; }
+.payment-summary dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
