@@ -97,14 +97,14 @@ def transcribe(item):
 
 
 def analyze(item, provider="openrouter"):
+    options = (
+        {"company_uid": item.company_uid} if getattr(item, "company_uid", None) else {}
+    )
     if getattr(item, "source_kind", "") == "sales_invoice":
-        data, model = extraction_ai.extract(
-            provider, item.transcription_text, sale=True
-        )
-    else:
-        data, model = extraction_ai.extract(
-            provider, getattr(item, "transcription_text", None)
-        )
+        options["sale"] = True
+    data, model = extraction_ai.extract(
+        provider, getattr(item, "transcription_text", None), **options
+    )
     item.extraction_json = json_text(data)
     from .invoice_imports import index_extraction
 

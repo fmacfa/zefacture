@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}{% block content %}
+<header class="page-head"><div><h1>{% if doc.direction == "incoming" %}Entrée de stock{% else %}Sortie de stock{% endif %}</h1><a href="{{ doc.url }}">Facture {{ doc.number }}</a></div><a class="button secondary" href="/app/inventaire/factures{% if doc.direction == 'outgoing' %}?sens=ventes{% endif %}">Retour aux factures</a></header>
+<form method="post" class="card stack">{% csrf_token %}
+  <p>Sélectionnez les articles correspondant aux marchandises. Si une quantité figure déjà dans le stock, rattachez le mouvement existant.</p>
+  <label>Date du mouvement<input type="date" name="date" value="{{ effective_date }}" required></label>
+  {% for line in lines %}<fieldset class="form-section"><legend>{{ line.description }}</legend>
+    <p>{{ line.quantity|display_number:"-8" }} {{ line.unit_code }}{% if line.item_reference %} · Réf. {{ line.item_reference }}{% endif %}</p>
+    {% if line.recorded %}<p class="notice success">Déjà enregistré{% if line.stock_item %} · <a href="/app/inventaire/{{ line.stock_item.item_uid }}">{{ line.stock_item.name }}</a>{% endif %}</p>
+    {% else %}{% if line.possible_prior %}<p class="notice">Un mouvement existant de cette quantité mentionne cette facture. Vérifiez-le avant de créer un mouvement.</p>{% endif %}<label for="line-{{ line.line_uid }}">Article ou mouvement pour cette ligne</label><select id="line-{{ line.line_uid }}" name="line_{{ line.line_uid }}">
+      <option value="">Ignorer cette ligne</option>
+      {% if line.articles %}<optgroup label="Articles dans la même unité">{% for article in line.articles %}<option value="item:{{ article.item_uid }}"{% if line.suggested.pk == article.pk %} selected{% endif %}>{{ article.name }}{% if article.reference %} · {{ article.reference }}{% endif %}</option>{% endfor %}</optgroup>{% endif %}
+      {% if doc.direction == "incoming" %}<option value="new">Créer un produit depuis cette ligne</option>{% endif %}
+      {% if line.prior %}<optgroup label="Rattacher un mouvement existant">{% for move in line.prior %}<option value="move:{{ move.movement_uid }}">{{ move.occurred_on }} · {{ move.article.name }} · {{ move.reason|default:"Mouvement" }}{% if move.reference %} · {{ move.reference }}{% endif %}</option>{% endfor %}</optgroup>{% endif %}
+    </select>{% endif %}
+  </fieldset>{% empty %}<p>Cette facture ne contient aucune ligne de détail.</p>{% endfor %}
+  {% if pending %}<div class="form-actions"><button>{% if doc.direction == "incoming" %}Enregistrer les entrées{% else %}Enregistrer les sorties{% endif %}</button></div>{% endif %}
+</form>{% include "core/pagination.html" %}{% endblock %}

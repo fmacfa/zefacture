@@ -24,6 +24,13 @@ from dotenv import dotenv_values
 from core.common import BusinessError, stamp
 
 
+# Per-company provider credentials and links to the Django stock ledger are not legacy PHP fields.
+DJANGO_ONLY_COLUMNS = {
+    "companies": {"ingestion_ai"},
+    "inventory_stock_movements": {"source_document_uid", "source_line_uid"},
+}
+
+
 def models_by_table():
     return {
         m._meta.db_table: m
@@ -176,7 +183,7 @@ def import_legacy(archive, verify_only=False):
             raise BusinessError("Format ou tables de migration inattendus.")
         for table, data in snapshot["tables"].items():
             fields = {f.column: f for f in models[table]._meta.concrete_fields}
-            if set(data["columns"]) - set(fields):
+            if set(data["columns"]) - (set(fields) - DJANGO_ONLY_COLUMNS.get(table,set())):
                 raise BusinessError(f"Colonnes non prises en charge : {table}")
             if table_hash(data["rows"], data["columns"]) != data["sha256"]:
                 raise BusinessError(f"Somme de contrôle invalide : {table}")

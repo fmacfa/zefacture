@@ -660,9 +660,13 @@ def dataset(request, name, selected, report=None):
         movements = StockMovement.objects.filter(
             company_uid=company_uid, occurred_on__lte=str(end)
         )
+        bought, used = defaultdict(Decimal), defaultdict(Decimal)
         stocks = defaultdict(Decimal)
         prior_stocks = defaultdict(Decimal)
         for movement in movements:
+            if movement.occurred_on >= str(start):
+                if movement.movement_type=="out": used[movement.item_uid]+=movement.quantity
+                elif movement.source_line_uid: bought[movement.item_uid]+=movement.quantity
             stocks[movement.item_uid] += (
                 movement.quantity
                 if movement.movement_type == "in"
@@ -699,6 +703,8 @@ def dataset(request, name, selected, report=None):
             "Statut",
             "Stock comparé",
             "Écart de stock",
+            "Acheté sur facture pendant la période",
+            "Sorti pendant la période",
         ], [
             [
                 item.name,
@@ -716,6 +722,8 @@ def dataset(request, name, selected, report=None):
                 stocks[item.item_uid] - prior_stocks[item.item_uid]
                 if selected.compare_end and item.stock_tracking
                 else None,
+                bought[item.item_uid] if item.stock_tracking else None,
+                used[item.item_uid] if item.stock_tracking else None,
             ]
             for item in InventoryItem.objects.filter(company_uid=company_uid).order_by(
                 "name"

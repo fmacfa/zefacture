@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}{% block content %}
+<header class="page-head"><h1>Intelligence artificielle</h1><a class="button secondary" href="/app/imports">Ouvrir les imports</a></header>
+<p>Les connexions ci-dessous s’appliquent à {{ company.legal_name }}. Lors d’une analyse avec IA, le fournisseur sélectionné reçoit le texte transcrit.</p>
+{% if services_disabled %}<p class="notice">Les appels aux services externes sont désactivés sur cette instance.</p>{% endif %}
+<div class="grid two">
+{% for p in providers %}<section class="card stack" id="{{ p.id }}">
+  <h2>{{ p.label }}</h2>
+  <p>{% if p.active %}<strong>{% if p.custom %}Clé de l’entreprise{% else %}Configuration de l’instance{% endif %}</strong> · {{ p.model }}{% elif p.disabled %}Désactivé pour cette entreprise{% else %}À configurer{% endif %}</p>
+  <details class="form-disclosure"{% if not p.active and not p.disabled and p.id == "google" %} open{% endif %}>
+    <summary>{% if p.custom %}Modifier la connexion{% else %}Ajouter une clé{% endif %}</summary>
+    <form method="post" class="stack" autocomplete="off">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}">
+      <label for="{{ p.id }}-model">Modèle</label><input id="{{ p.id }}-model" name="model" value="{{ p.model }}" maxlength="160" required spellcheck="false">
+      <label for="{{ p.id }}-key">{% if p.custom %}Nouvelle clé API{% else %}Clé API{% endif %}</label><input id="{{ p.id }}-key" name="api_key" type="password" autocomplete="new-password" spellcheck="false"{% if not p.custom %} required{% endif %}>
+      {% if p.custom %}<small>Un champ vide conserve la clé enregistrée.</small>{% endif %}<button name="action" value="save">Enregistrer la connexion</button>
+    </form>
+  </details>
+  <div class="inline wrap">
+    {% if p.active and not services_disabled %}<form method="post">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="secondary" name="action" value="test">Tester avec un ticket fictif</button></form>{% endif %}
+    {% if p.active %}<form method="post" data-confirm="Désactiver ce fournisseur pour l’entreprise et retirer sa clé locale ?">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="text-button" name="action" value="disable">Désactiver{% if p.custom %} et retirer la clé{% endif %}</button></form>{% endif %}
+    {% if p.has_profile %}<form method="post" data-confirm="Remplacer le réglage de l’entreprise par celui de l’instance ?">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="text-button" name="action" value="instance">Revenir au réglage de l’instance</button></form>{% endif %}
+  </div>
+</section>{% endfor %}</div>
+{% endblock %}

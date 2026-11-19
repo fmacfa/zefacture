@@ -86,7 +86,15 @@ Pour écrire au client depuis sa fiche, choisir l’activité email et l’adres
 4. Dans la fiche, enregistrer une **entrée** ou une **sortie** avec une quantité positive, la date, le motif et une référence éventuelle. Le sens du mouvement détermine son effet ; ne pas saisir une quantité négative.
 5. Consulter la quantité disponible et l’historique. Une sortie dépassant le stock disponible est refusée.
 
-Le seuil déclenche un avertissement dans la fiche ; il ne crée pas automatiquement de commande d’achat ou d’email d’alerte. Une facture ne décrémente pas automatiquement le stock : enregistrer explicitement le mouvement correspondant. L’archivage d’un article conserve son historique.
+Le seuil déclenche un avertissement dans la fiche ; il ne crée pas automatiquement de commande d’achat ou d’email d’alerte. La réception et la sortie de marchandises se confirment dans l’inventaire. L’archivage d’un article conserve son historique.
+
+### Récupérer les achats et suivre les quantités consommées
+
+Dans **Achats → Inventaire**, ouvrir **Récupérer les achats et les ventes**, choisir **Achats fournisseurs**, puis la facture. La page est aussi accessible depuis la fiche fournisseur via **Récupérer les achats dans l’inventaire**. Les factures reçues, acceptées ou payées, y compris celles importées par SUPERPDP, sont disponibles avec leurs lignes détaillées. Choisir les articles reçus, vérifier les quantités et la date de réception, puis cliquer sur **Enregistrer les entrées**.
+
+Une référence unique dans la même unité propose l’article. En l’absence de référence, une désignation identique et unique peut suffire. Pour un nouveau produit, choisir **Créer un produit depuis cette ligne** puis compléter son prix de vente dans le catalogue. Laisser les prestations sur **Ignorer cette ligne**. Si la réception a déjà été saisie manuellement, rattacher un mouvement existant de même quantité, unité et sens préserve le solde. Chaque ligne est enregistrée une seule fois.
+
+Sur la fiche d’un article, **Acheté sur facture**, **Sorti du stock** et **Disponible** présentent les quantités dans son unité. Pour du matériel utilisé en interne, cliquer sur **Enregistrer une consommation**, saisir la quantité utilisée, la date et le motif. Pour des produits vendus, choisir **Ventes aux clients** depuis l’inventaire ou **Enregistrer les sorties de stock** sur la facture émise. Les devis, acomptes et brouillons ne constituent pas des mouvements de marchandises.
 
 Pour consulter ou exporter le stock d’une période, utiliser **Rapports → Stock en fin de période** ou **Mouvements de stock**, avec un rôle financier. Le stock passé est reconstruit à partir des mouvements enregistrés ; le prix du catalogue reste son prix actuel.
 
@@ -153,7 +161,13 @@ Pour un reçu de restaurant, ouvrir **Notes de frais → Ticket de caisse** et j
 
 Pour une facture fournisseur, passer par **Imports → Facture fournisseur**. Après transcription, relire les informations de facturation, le total TTC et les lignes. La conversion en facture reçue est une action explicite réservée aux rôles financiers.
 
-Après transcription, **Analyser avec l’IA** propose les fournisseurs configurés sur le serveur. Ce bouton transmet le texte transcrit au fournisseur sélectionné. Le résultat peut suggérer les champs et les lignes lisibles. Les montants, la TVA et les dates doivent être relus avant enregistrement. Les informations déjà saisies dans la fiche de frais restent prioritaires. Voir la [configuration des fournisseurs](GUIDE_AUTOHEBERGEMENT.md#analyse-facultative-des-justificatifs).
+### Configurer les clés IA de l’entreprise
+
+Avec un compte administrateur, ouvrir **Réglages de l’entreprise → Intelligence artificielle** ou **Gérer les clés IA de l’entreprise** dans **Imports**. Sur la carte Google Gemini, OpenAI, Anthropic ou OpenRouter, choisir **Ajouter une clé**, renseigner la clé et l’identifiant du modèle puis **Enregistrer la connexion**. **Tester avec un ticket fictif** contacte le fournisseur. Une clé enregistrée est chiffrée. **Modifier la connexion** permet de remplacer la clé ou de changer uniquement le modèle. **Désactiver et retirer la clé** coupe le fournisseur pour l’entreprise.
+
+Pour Gemma 4, créer la clé dans Google AI Studio et saisir par exemple `gemma-4-26b-a4b-it` dans **Modèle** sur la carte **Google Gemini**. Le quota disponible dépend du projet Google. [Modèles Gemma hébergés par Google](https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api) · [Tarifs Google](https://ai.google.dev/gemini-api/docs/pricing#gemma-4)
+
+Après transcription, **Analyser avec l’IA** propose les fournisseurs disponibles pour l’entreprise. Ce bouton transmet le texte transcrit au fournisseur sélectionné. Le résultat peut suggérer les champs et les lignes lisibles. Les montants, la TVA et les dates doivent être relus avant enregistrement. Les informations déjà saisies dans la fiche de frais restent prioritaires. Voir la [configuration des fournisseurs](GUIDE_AUTOHEBERGEMENT.md#analyse-facultative-des-justificatifs).
 
 ### Indiquer le règlement et le motif d’une dépense
 
@@ -248,7 +262,7 @@ Une nouvelle identité visuelle s’applique aux nouveaux documents et aux broui
 | Une rubrique est absente ou renvoie un refus | Vérifier l’entreprise sélectionnée et demander à un administrateur de contrôler son rôle |
 | Un membre ne reçoit pas son invitation | Vérifier l’adresse et la boîte d’envoi ; un administrateur peut transmettre le lien privé encore valide |
 | Un tableau paraît vide | Choisir **Toutes les dates**, contrôler le jeu de données et l’entreprise |
-| Le stock ne change pas après facturation | Enregistrer le mouvement explicite dans l’inventaire |
+| Le stock ne change pas après facturation | Ouvrir **Récupérer les achats et les ventes**, choisir la facture et confirmer les lignes physiques |
 | Une facture émise doit être corrigée | Préparer un avoir lié ; ne pas modifier ses originaux |
 | Un original n’est plus téléchargeable | Demander à l’exploitant de restaurer l’original vérifié depuis une sauvegarde |
 | Gmail/Outlook demande une reconnexion | Faire réautoriser la connexion par un administrateur ; les prérequis fournisseur sont détaillés dans le guide serveur |

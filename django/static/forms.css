@@ -156,3 +156,6 @@ form [hidden] {
 .payment-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(15rem,100%),1fr)); gap: 1rem; margin: 0; }
 .payment-summary dt { color: var(--muted); font-size: .875rem; }
 .payment-summary dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
+
+.stock-quantities { grid-template-columns: repeat(auto-fit,minmax(min(14rem,100%),1fr)); }
+.stock-quantities strong { font-size: 1.5rem; }

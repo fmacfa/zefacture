@@ -73,7 +73,7 @@ SCHEMA = object_schema(
 )
 
 
-def configuration(provider):
+def instance_configuration(provider):
     if provider not in PROVIDERS:
         raise BusinessError("Fournisseur d’analyse inconnu.")
     label, prefix = PROVIDERS[provider]
@@ -84,23 +84,52 @@ def configuration(provider):
     )
 
 
-def choices():
+def profiles_for(company_uid):
+    if not company_uid:
+        return {}
+    from core.models import Company
+
+    return (
+        Company.objects.filter(company_uid=company_uid)
+        .values_list("ingestion_ai", flat=True)
+        .first()
+        or {}
+    )
+
+
+def configuration(provider, profiles=None, *, reveal=True):
+    from .files import decrypt
+
+    label, fallback_key, fallback_model = instance_configuration(provider)
+    local = (profiles or {}).get(provider)
+    if local is None:
+        return label, fallback_key if reveal else bool(fallback_key), fallback_model
+    key = local.get("secret", "") if not local.get("disabled") else ""
+    return (
+        label,
+        (decrypt(key) if reveal and key else bool(key)),
+        local.get("model", ""),
+    )
+
+
+def choices(company_uid=None):
     if settings.EXTERNAL_SERVICES_DISABLED:
         return []
+    profiles = profiles_for(company_uid)
     available = [
         (provider, label)
         for provider in PROVIDERS
-        for label, key, model in [configuration(provider)]
+        for label, key, model in [configuration(provider, profiles, reveal=False)]
         if key and model
     ]
     preferred = os.getenv("INGESTION_AI_PROVIDER", "").strip()
     return sorted(available, key=lambda item: item[0] != preferred)
 
 
-def require_provider(provider):
+def require_provider(provider, company_uid=None):
     if settings.EXTERNAL_SERVICES_DISABLED:
         raise BusinessError("L’analyse externe est désactivée sur cette instance.", 503)
-    label, key, model = configuration(provider)
+    label, key, model = configuration(provider, profiles_for(company_uid))
     if not key or not model:
         raise BusinessError(f"L’analyse via {label} n’est pas configurée.", 503)
     return label, key, model
@@ -160,17 +189,18 @@ def request_data(provider, key, model, source, *, sale=False):
         model = model.removeprefix("models/")
         if not re.fullmatch(r"[A-Za-z0-9._-]{1,120}", model):
             raise BusinessError("Identifiant de modèle Gemini invalide.")
+        generation = {"maxOutputTokens": 4096}
+        if not model.startswith("gemma-"):
+            generation.update(
+                responseMimeType="application/json", responseJsonSchema=schema
+            )
         return (
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
             {"x-goog-api-key": key},
             {
                 "systemInstruction": {"parts": [{"text": instructions}]},
                 "contents": [{"role": "user", "parts": [{"text": source}]}],
-                "generationConfig": {
-                    "maxOutputTokens": 4096,
-                    "responseMimeType": "application/json",
-                    "responseJsonSchema": schema,
-                },
+                "generationConfig": generation,
             },
         )
     return (
@@ -275,8 +305,8 @@ def normalize_extraction(data, *, sale=False):
     return result
 
 
-def extract(provider, transcription, *, sale=False):
-    label, key, model = require_provider(provider)
+def extract(provider, transcription, *, sale=False, company_uid=None):
+    label, key, model = require_provider(provider, company_uid)
     if not transcription or not transcription.strip():
         raise BusinessError("Transcrivez d’abord le document.")
     url, headers, payload = request_data(
@@ -306,6 +336,12 @@ def extract(provider, transcription, *, sale=False):
                             "La réponse de l’IA est trop volumineuse.", 502
                         )
         output = response_text(provider, json.loads(raw))
+        if provider == "google" and model.removeprefix("models/").startswith("gemma-"):
+            fenced = re.fullmatch(
+                r"\s*```(?:json)?\s*(\{.*\})\s*```\s*", output, re.S | re.I
+            )
+            if fenced:
+                output = fenced.group(1)
         return normalize_extraction(
             json.loads(output), sale=sale
         ), f"{provider}:{model}"

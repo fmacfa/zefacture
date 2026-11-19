@@ -10,6 +10,7 @@ from django.db.models import Q, Sum
 from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from core.services import invoice_stock
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods
 from core.common import (
@@ -441,14 +442,15 @@ def inventory(request, item_uid=None, action=None):
             direction = request.POST.get("movement_type")
             if not item.stock_tracking or qty <= 0 or direction not in {"in", "out"}:
                 raise BusinessError("Mouvement de stock invalide.")
-            if direction == "out" and qty > item.stock:
+            when = iso_date(request.POST.get("occurred_on") or today())
+            if direction == "out" and qty > invoice_stock.available_onwards(item, when):
                 raise BusinessError("Stock insuffisant.")
             StockMovement.objects.create(
                 company_uid=item.company_uid,
                 item_uid=item.item_uid,
                 movement_type=direction,
                 quantity=qty,
-                occurred_on=iso_date(request.POST.get("occurred_on") or today()),
+                occurred_on=when,
                 reason=request.POST.get("reason"),
                 reference=request.POST.get("movement_reference"),
                 created_by_user_uid=request.user.user_uid,
@@ -479,21 +481,15 @@ def inventory(request, item_uid=None, action=None):
             obj.updated_at = stamp()
             obj.save()
             return redirect("/app/inventaire/" + obj.item_uid)
-        return render(
-            request,
-            "core/inventory.html",
-            {
-                "title": item.name if item else "Nouvel article",
-                "form": form,
-                "item": item,
-                "movements": StockMovement.objects.filter(item_uid=item_uid).order_by(
-                    "-id"
-                )
-                if item
-                else [],
-                "today": today(),
-            },
-        )
+        movements = list(StockMovement.objects.filter(company_uid=request.company.company_uid,item_uid=item_uid).order_by("-occurred_on","-pk")) if item else []
+        visible = {doc.document_uid:doc for doc in Document.objects.filter(company_uid=request.company.company_uid,document_uid__in={m.source_document_uid for m in movements if m.source_document_uid}).exclude(document_uid__in=hidden_expense_documents(request))}
+        for movement in movements:
+            movement.invoice = visible.get(movement.source_document_uid)
+        return render(request,"core/inventory.html",{
+            "title": item.name if item else "Nouvel article","form":form,"item":item,"movements":movements,
+            "totals":invoice_stock.totals_by_item(request.company.company_uid,item_uid).get(item_uid,invoice_stock.EMPTY_TOTALS) if item else {},
+            "today":today(),
+        })
     query = InventoryItem.objects.filter(
         company_uid=request.company.company_uid,
         status=request.GET.get("status", "active"),
@@ -503,10 +499,11 @@ def inventory(request, item_uid=None, action=None):
             Q(name__icontains=request.GET["q"][:200])
             | Q(reference__icontains=request.GET["q"][:200])
         )
+    balances=invoice_stock.totals_by_item(request.company.company_uid)
     return table(
         request,
         "Inventaire",
-        ["Article", "Référence", "Type", "Prix HT", "TVA %", "Stock"],
+        ["Article", "Référence", "Type", "Prix HT", "TVA %", "Acheté sur facture", "Sorti", "Disponible", "Unité"],
         [
             {
                 "url": "/app/inventaire/" + i.item_uid,
@@ -516,12 +513,14 @@ def inventory(request, item_uid=None, action=None):
                     i.item_type,
                     i.unit_price_excluding_tax.quantize(Decimal("0.01")),
                     i.vat_rate.normalize(),
-                    i.stock if i.stock_tracking else "—",
+                    *[balances.get(i.item_uid,invoice_stock.EMPTY_TOTALS)[key].normalize() if i.stock_tracking else "—" for key in ("bought","used","available")],
+                    i.unit_code,
                 ],
             }
             for i in query.order_by("name")
         ],
         new_url="/app/inventaire/nouveau",
+        stock_actions=True,
     )
 
 

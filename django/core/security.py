@@ -185,6 +185,7 @@ def navigation(request):
         "/app/finances/transactions",
         "/app/finances/comptes",
         "/app/entreprise/personnalisation",
+        "/app/entreprise/ia",
         "/app/entreprise/journal",
     ):
         if request.path == nested or request.path.startswith(nested + "/"):

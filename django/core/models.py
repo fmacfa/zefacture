@@ -46,6 +46,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Company(models.Model):
+    ingestion_ai = models.JSONField(default=dict, blank=True)
     company_uid = models.CharField(max_length=32, unique=True, default=uid)
     owner_user_uid = models.CharField(max_length=32, db_index=True, default="")
     legal_name = models.TextField(default="")
@@ -366,7 +367,7 @@ class InventoryItem(models.Model):
     def stock(self):
         return sum(
             m.quantity if m.movement_type == "in" else -m.quantity
-            for m in StockMovement.objects.filter(item_uid=self.item_uid)
+            for m in StockMovement.objects.filter(company_uid=self.company_uid, item_uid=self.item_uid)
         )
 
     class Meta:
@@ -376,6 +377,8 @@ class InventoryItem(models.Model):
 class StockMovement(models.Model):
     movement_uid = models.CharField(max_length=32, unique=True, default=uid)
     item_uid = models.CharField(max_length=32, db_index=True, default="")
+    source_document_uid = models.CharField(max_length=32, blank=True, default="", db_index=True)
+    source_line_uid = models.CharField(max_length=32, blank=True, default="")
     company_uid = models.CharField(max_length=32, db_index=True, default="")
     movement_type = models.TextField(default="")
     quantity = models.DecimalField(max_digits=30, decimal_places=8)
@@ -387,6 +390,9 @@ class StockMovement(models.Model):
 
     class Meta:
         db_table = "inventory_stock_movements"
+        constraints = [
+            models.UniqueConstraint(fields=("company_uid", "source_line_uid"), condition=~models.Q(source_line_uid=""), name="unique_stock_invoice_line")
+        ]
 
 
 class Ingestion(models.Model):
