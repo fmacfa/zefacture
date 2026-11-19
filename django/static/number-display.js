@@ -49,10 +49,11 @@
     visible.type = 'text';
     visible.inputMode = 'decimal';
     visible.required = original.required;
-    for (const attr of ['id','class','aria-label','aria-describedby','placeholder']) {
+    for (const attr of ['id','class','aria-label','aria-labelledby','aria-describedby','placeholder','title']) {
       if (original.hasAttribute(attr)) visible.setAttribute(attr, original.getAttribute(attr));
     }
-    if (original.id) original.removeAttribute('id');
+    for (const attr of ['id','aria-label','aria-labelledby','aria-describedby','title']) original.removeAttribute(attr);
+    original.setAttribute('aria-hidden','true');
     original.dataset.numberReady = '1';
     original.type = 'hidden';
     visible.value = format(original.value, group, decimal);
