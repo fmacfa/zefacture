@@ -10,6 +10,11 @@ GROUPS = {"none": "", "space": "\u202f", "dot": ".", "comma": ","}
 DECIMALS = {"comma": ",", "dot": "."}
 
 
+def numeric_columns(rows):
+    """Identify columns containing quantities or amounts without interpreting text identifiers."""
+    return {index for row in rows for index, value in enumerate(row) if type(value) in (Decimal, int, float)}
+
+
 @dataclass(frozen=True)
 class NumberStyle:
     grouping: str = "space"
@@ -76,6 +81,11 @@ def current_style():
     return _current.get()
 
 
+def company_style(company, fallback):
+    shared = getattr(company, "number_format", None)
+    return NumberStyle.for_preferences(shared) if shared else fallback
+
+
 @contextmanager
 def number_context(style):
     token = _current.set(style)
@@ -93,11 +103,14 @@ class NumberPreferencesMiddleware:
         if not request.path.startswith("/app") or not request.user.is_authenticated:
             return self.get_response(request)
         from core.models import UserPreferences
+        from core.security import select_company
 
         request.display_preferences = UserPreferences.objects.filter(
             user_uid=request.user.user_uid
         ).first()
-        with number_context(NumberStyle.for_preferences(request.display_preferences)):
+        active = select_company(request)
+        style = company_style(active, NumberStyle.for_preferences(request.display_preferences))
+        with number_context(style):
             return self.get_response(request)
 
 

@@ -129,7 +129,7 @@ urlpatterns = [
     path("app/imports", ingestions.ingestions),
     path("app/notes-de-frais", ingestions.ingestions, {"expenses": True}),
     re_path(
-        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>apercu|telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif|reglement|archiver|restaurer))?$",
+        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>apercu|telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif|reglement|remboursement|relancer|archiver|restaurer))?$",
         ingestions.ingestions,
     ),
     path("app/finances", finance.finance),

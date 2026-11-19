@@ -2,7 +2,7 @@
   <td><a href="/app/imports/{{ i.ingestion_uid }}">{{ i.original_filename }}</a>{% if can_write and i.can_preview %}<small><a href="/app/imports/{{ i.ingestion_uid }}/apercu">Aperçu</a></small>{% endif %}</td>
   <td>{{ i.source_label }}</td>
   <td>{{ i.list_date|default:"—" }}</td>
-  <td>{% if i.list_amount is not None %}{{ i.list_amount|display_number:2 }} {{ i.list_currency|default:"" }}{% else %}—{% endif %}</td>
+  <td class="num">{% if i.list_amount is not None %}{{ i.list_amount|display_number:2 }} {{ i.list_currency|default:"" }}{% else %}—{% endif %}</td>
   {% if expenses %}<td>{{ i.get_expense_payment_method_display|default:"Non renseigné" }}{% if i.expense_paid_by %}<small>{{ i.get_expense_paid_by_display }}</small>{% endif %}{% if i.expense_description %}<small>{{ i.expense_description|truncatechars:100 }}</small>{% endif %}</td>{% endif %}
   <td>{% include "core/import_state.html" with i=i only %}{% if i.progress.code == "analyzed" and i.analysis_source %}<small>{{ i.analysis_source }}</small>{% endif %}{% if i.duplicate %}<br><a class="badge duplicate-badge" href="/app/imports/{{ i.ingestion_uid }}#doublons">Doublon possible · vérifier</a>{% endif %}</td>
 </tr>

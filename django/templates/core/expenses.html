@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}{% load static %}
+{% block styles %}<link rel="stylesheet" href="{% static 'reception.css' %}"><link rel="stylesheet" href="{% static 'expenses.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">Achats</p><h1>{% if archives %}Notes de frais archivées{% else %}Notes de frais{% endif %}</h1></div>
+  <div class="inline wrap">
+    {% if not archives and can_write %}<a class="button" href="?importer=1#importer">Importer des justificatifs</a>{% endif %}
+    <a class="button secondary" href="{{ request.path }}{% if not archives %}?archives=1{% endif %}">{% if archives %}Revenir à la liste active{% else %}Voir les archives{% endif %}</a>
+  </div>
+</div>
+{% if not archives and not batch and can_write and request.GET.importer %}
+  <section id="importer"><h2>Importer des justificatifs</h2>{% include "core/ingestion_upload.html" %}</section>
+{% endif %}
+{% if batch %}<p><strong>Documents de ce lot</strong> · <a href="{{ request.path }}">Voir toutes les notes de frais</a></p>
+{% elif not archives and latest_batch %}<p><a href="{{ request.path }}?lot={{ latest_batch }}">Ouvrir le dernier lot importé</a></p>{% endif %}
+{% include "core/ingestion_batch_analysis.html" %}
+<form class="card reception-filters" method="get" role="search" aria-labelledby="search-title"><h2 id="search-title">Rechercher des notes de frais</h2>
+  {% if archives %}<input type="hidden" name="archives" value="1">{% endif %}{% if batch %}<input type="hidden" name="lot" value="{{ batch }}">{% endif %}
+  {% if request.GET.statut %}<input type="hidden" name="statut" value="{{ request.GET.statut }}">{% endif %}
+  <div class="reception-fields">
+    <label>Rechercher<input type="search" name="q" placeholder="Commerçant, motif, fichier…" value="{{ request.GET.q }}"></label>
+    <label>Catégorie<select name="categorie"><option value="">Toutes les catégories</option>{% for name in categories %}<option{% if request.GET.categorie == name %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+    <label>Du<input type="date" name="from" value="{{ request.GET.from }}"></label><label>Au<input type="date" name="to" value="{{ request.GET.to }}"></label>
+    <button class="secondary">Filtrer</button>{% if request.GET.q or request.GET.categorie or request.GET.from or request.GET.to or request.GET.statut %}<a href="{{ request.path }}{% if archives %}?archives=1{% elif batch %}?lot={{ batch }}{% endif %}">Effacer les filtres</a>{% endif %}
+  </div>
+</form>
+<p data-import-connection role="status" hidden></p>
+<div data-expense-results>{% include "core/expense_results.html" %}</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'import-progress.js' %}" defer></script><script src="{% static 'batch-imports.js' %}" defer></script>{% endblock %}

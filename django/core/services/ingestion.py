@@ -102,6 +102,8 @@ def analyze(item, provider="openrouter"):
     )
     if getattr(item, "source_kind", "") == "sales_invoice":
         options["sale"] = True
+    elif getattr(item, "source_kind", "") in EXPENSE_KINDS:
+        options["expense"] = True
     data, model = extraction_ai.extract(
         provider, getattr(item, "transcription_text", None), **options
     )

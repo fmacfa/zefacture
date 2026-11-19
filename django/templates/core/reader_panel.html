@@ -1,0 +1,20 @@
+  <section class="card reader" aria-label="Aperçu du document" data-reader{% if inline_reader %} data-inline-pages="{{ page_count }}" data-image-url="{{ reader_url }}"{% endif %}>
+    <div class="reader-tools" id="commandes">
+      <nav aria-label="Pages du document" class="reader-pages">
+        {% if page > 1 or inline_reader and page_count > 1 %}<a class="button secondary" href="{{ reader_url }}?page={{ page|add:'-1' }}#commandes" rel="prev"{% if page == 1 %} hidden{% endif %} aria-label="Page précédente">←</a>{% endif %}
+        <strong aria-live="polite">Page <span data-reader-page>{{ page }}</span> sur {{ page_count|display_number }}</strong>
+        {% if page < page_count %}<a class="button secondary" href="{{ reader_url }}?page={{ page|add:'1' }}#commandes" rel="next" aria-label="Page suivante">→</a>{% endif %}
+      </nav>
+      <div class="reader-zoom" aria-label="Zoom" role="group" hidden>
+        <button type="button" class="secondary" data-step="-1" aria-label="Réduire le zoom">−</button>
+        <output aria-live="polite">100 %</output>
+        <button type="button" class="secondary" data-step="1" aria-label="Agrandir le zoom">+</button>
+        <button type="button" class="text-button" data-fit>Ajuster à la largeur</button>
+      </div>
+    </div>
+    <p class="request-inline-busy" role="status" data-reader-loading hidden>Chargement de la page du document…</p>
+    <p class="notice error" role="alert" data-render-error hidden>Impossible d’afficher cette page. Vous pouvez réessayer ou télécharger le fichier.</p>
+    <div class="reader-stage" tabindex="0" role="region" aria-label="Page du document, zone de défilement" data-zoom="100">
+      <img src="{{ reader_url }}?page={{ page }}&amp;image=1" alt="Page {{ page }} sur {{ page_count|display_number }} de {{ title }}">
+    </div>
+  </section>

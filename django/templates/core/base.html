@@ -1,7 +1,7 @@
 {% load static %}
 <!doctype html>
 <html lang="fr" data-theme="{% if user.is_authenticated %}{{ preferences.theme|default:'system' }}{% else %}light{% endif %}"
-      data-density="{{ preferences.density|default:'comfortable' }}" data-number-group="{{ preferences.number_grouping }}" data-number-decimal="{{ preferences.number_decimal }}">
+      data-density="{{ preferences.density|default:'comfortable' }}" data-number-group="{% if number_style.customized %}{{ number_style.grouping }}{% endif %}" data-number-decimal="{% if number_style.customized %}{{ number_style.decimal }}{% endif %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{% static 'sidebar.css' %}">
   <link rel="stylesheet" href="{% static 'document-list.css' %}">
   {% block styles %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'numbers.css' %}">
   <link rel="stylesheet" href="{% static 'request-feedback.css' %}">
   <script src="{% static 'request-feedback.js' %}" defer></script>
   <script src="{% static 'number-display.js' %}" defer></script>

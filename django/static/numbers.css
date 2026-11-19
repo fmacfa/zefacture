@@ -1,0 +1,9 @@
+/* Align comparable values in their column, including mobile invoice cards. */
+input[type="number"], input[inputmode="decimal"], .num, .invoice-table .document-row td.num,
+.stat > strong, .stat > .comparison-values, .big-number, .amount-cards dd, .expense-metrics dd,
+.reader-amounts dd.num, .invoice-state strong, .reader-zoom output, .stock-quantity {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.stock-quantity { display: block; }
+.expense-metrics dd small { display: inline; }

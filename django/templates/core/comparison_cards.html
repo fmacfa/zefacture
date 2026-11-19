@@ -1,9 +1,9 @@
 <div class="stats comparison-stats">
 {% for metric in report.metrics %}
   <article class="stat"><span>{{ metric.label }} · {{ metric.currency }}</span><strong>{{ metric.value|display_number:2 }}</strong>
-  {% if period.compare_start %}<span>Avant : {{ metric.before|display_number:2 }} · Écart {{ metric.difference|display_number:2 }}{% if metric.percentage != None %} ({{ metric.percentage|display_number:2 }} %){% elif metric.value %} (nouvelle activité){% endif %}</span>{% endif %}</article>
+  {% if period.compare_start %}<span class="comparison-values">Avant : {{ metric.before|display_number:2 }} · Écart {{ metric.difference|display_number:2 }}{% if metric.percentage != None %} ({{ metric.percentage|display_number:2 }} %){% elif metric.value %} (nouvelle activité){% endif %}</span>{% endif %}</article>
 {% endfor %}
 </div>
 <div class="stats">
-{% for metric in report.count_metrics %}<article class="stat"><span>{{ metric.label }}</span><strong>{{ metric.value|display_number }}</strong>{% if period.compare_start %}<span>Avant : {{ metric.before }} · Écart {{ metric.difference }}</span>{% endif %}</article>{% endfor %}
+{% for metric in report.count_metrics %}<article class="stat"><span>{{ metric.label }}</span><strong>{{ metric.value|display_number }}</strong>{% if period.compare_start %}<span class="comparison-values">Avant : {{ metric.before|display_number }} · Écart {{ metric.difference|display_number }}</span>{% endif %}</article>{% endfor %}
 </div>

@@ -791,11 +791,9 @@ def dataset(request, name, selected, report=None):
             "TVA",
         ], vat_rows(request.company, str(start), str(end))
     if name == "expenses":
-        query = Ingestion.objects.filter(
-            company_uid=company_uid,
-            source_kind__in=["expense_note", "expense", "expense_receipt", "receipt"],
-            archived_at__isnull=True,
-        )
+        from .expense_workspace import receipts_for, reimbursement_state, STATES
+
+        query = receipts_for(request).filter(archived_at__isnull=True).select_related("reimbursement")
         return [
             "Date",
             "Commerçant",
@@ -807,6 +805,8 @@ def dataset(request, name, selected, report=None):
             "Statut",
             "Moyen de paiement",
             "Origine des fonds",
+            "Remboursement",
+            "Date du versement",
         ], [
             [
                 i.expense_date,
@@ -819,6 +819,8 @@ def dataset(request, name, selected, report=None):
                 STATUS_LABELS.get(i.status, i.status),
                 i.get_expense_payment_method_display(),
                 i.get_expense_paid_by_display(),
+                STATES[reimbursement_state(i)],
+                getattr(getattr(i, "reimbursement", None), "paid_on", None),
             ]
             for i in between(query, "expense_date", start, end).order_by(
                 "expense_date", "id"
@@ -842,7 +844,7 @@ def dataset(request, name, selected, report=None):
 
 
 def export_bytes(format, headers, rows, title, company, selected, report):
-    from core.numbers import current_style
+    from core.numbers import current_style, numeric_columns
 
     style = current_style()
     if format == "csv":
@@ -859,6 +861,7 @@ def export_bytes(format, headers, rows, title, company, selected, report):
 
         def sheet(name, sheet_headers, sheet_rows):
             ws = workbook.create_sheet(name)
+            numeric = numeric_columns(sheet_rows)
             ws.freeze_panes = "A2"
             for i in range(1, len(sheet_headers) + 1):
                 ws.column_dimensions[get_column_letter(i)].width = 24 if i < 5 else 19
@@ -910,7 +913,9 @@ def export_bytes(format, headers, rows, title, company, selected, report):
                         )
                     if isinstance(value, date):
                         cell.number_format = "dd/mm/yyyy"
-                    cell.alignment = Alignment(vertical="top", wrap_text=True)
+                    cell.alignment = Alignment(
+                        horizontal="right" if column - 1 in numeric else None, vertical="top", wrap_text=True
+                    )
                     if index == 0:
                         cell.font = Font(bold=True, color="FFFFFF")
                         cell.fill = PatternFill("solid", fgColor="176F60")
@@ -997,6 +1002,7 @@ def export_bytes(format, headers, rows, title, company, selected, report):
                 "period": selected,
                 "headers": headers,
                 "rows": pdf_rows,
+                "numeric_columns": numeric_columns(rows),
                 "record_count": len(rows),
                 "report": report,
                 "generated_on": today(),

@@ -1,0 +1,9 @@
+<tr class="document-row" data-import-row="{{ i.ingestion_uid }}">
+  <td><a class="document-party" href="/app/imports/{{ i.ingestion_uid }}">{{ i.facts.merchant|default:"Commerçant à identifier" }}</a>
+    <small>{% include "core/import_state.html" with i=i only %}</small></td>
+  <td data-label="Date de dépense">{{ i.facts.date|default:"À compléter" }}</td>
+  <td data-label="Catégorie">{{ i.facts.category|default:"À classer" }}</td>
+  <td data-label="Remboursement"><span class="expense-chip refund-{{ i.facts.status }}">{{ i.facts.status_label }}</span>{% if i.facts.payer_label %}<small>{{ i.facts.payer_label }}</small>{% endif %}</td>
+  <td data-label="Total TTC" class="num">{% if i.facts.amount != "" %}{{ i.facts.amount|display_number:"2g" }} {{ i.facts.currency }}{% else %}À compléter{% endif %}</td>
+  <td><a class="strong" href="/app/imports/{{ i.ingestion_uid }}" title="{{ i.original_filename }}">Voir la note</a></td>
+</tr>

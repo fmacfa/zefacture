@@ -129,19 +129,22 @@ def local_suggestion(text):
     }
 
 
-def expense_suggestion(item):
+def expense_suggestion(item, parsed=None):
     local = local_suggestion(item.transcription_text)
-    parsed = unpack(item.extraction_json)
+    if parsed is None:
+        parsed = unpack(item.extraction_json)
     if not isinstance(parsed, dict):
         parsed = {}
 
     def facts(group):
         supplied = parsed.get(group)
         return {
-            field: (supplied.get(field) if isinstance(supplied, dict) else "") or value
+            field: (supplied.get(field) if isinstance(supplied, dict) else "")
+            or ("" if f"{group}.{field}" in reviewed else value)
             for field, value in local[group].items()
         }
 
+    reviewed = parsed.get("_reviewed") or []
     supplier, invoice, totals = (
         facts(group) for group in ("supplier", "invoice", "totals")
     )
@@ -222,6 +225,6 @@ def expense_values(data, require_complete=False):
         "expense_date": when,
         "expense_amount": amount,
         "expense_currency": currency,
-        "expense_category": text("expense_category", 255),
+        **({"expense_category": text("expense_category", 255)} if "expense_category" in data else {}),
         **payment_fields(data),
     }

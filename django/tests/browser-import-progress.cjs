@@ -12,9 +12,13 @@ module.exports = async function checkExpenseImportProgress(context) {
     const errors = [];
     page.on("pageerror", err => errors.push(err.message));
     await page.goto(base + "/app/notes-de-frais");
-    const supplier = await fs.readFile(path.resolve("test-results/browser/supplier.pdf"));
+    await page.getByRole("link", {name: "Importer des justificatifs"}).click();
+    const fixture = await context.newPage();
+    await fixture.setContent('<html lang="fr"><body><h1>Restaurant de démonstration</h1><p>Date 12/01/2026</p><p>Repas</p><p>TOTAL TTC 48,60 EUR</p><section style="break-before:page">Détail du justificatif</section></body></html>');
+    const receipt = await fixture.pdf({format:"A4"});
+    await fixture.close();
     const payload = [
-      {name: "frais-demo.pdf", mimeType: "application/pdf", buffer: Buffer.concat([supplier, Buffer.from("\n% receipt demo\n")])},
+      {name: "frais-demo.pdf", mimeType: "application/pdf", buffer: receipt},
       {name: "illisible-demo.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-incomplet")},
     ];
     await page.getByLabel("Fichiers", {exact: true}).setInputFiles(payload);
@@ -27,7 +31,7 @@ module.exports = async function checkExpenseImportProgress(context) {
       if (route.request().method() === "POST") await holdUpload;
       await route.continue();
     });
-    await page.route(/\/app\/notes-de-frais\?suivi=/, async route => {
+    await page.route(/\/app\/notes-de-frais\?[^#]*\bsuivi=/, async route => {
       await holdStatus;
       await route.continue();
     });
@@ -41,16 +45,74 @@ module.exports = async function checkExpenseImportProgress(context) {
     await fs.mkdir(output, {recursive: true});
     await page.screenshot({path: path.join(output, "attente-mobile.png")});
     allowStatus();
-    const success = page.locator("[data-import-row]").filter({hasText: "frais-demo.pdf"});
-    const failure = page.locator("[data-import-row]").filter({hasText: "illisible-demo.pdf"});
+    const success = page.locator("[data-import-row]").filter({has: page.locator('[title="frais-demo.pdf"]')});
+    const failure = page.locator("[data-import-row]").filter({has: page.locator('[title="illisible-demo.pdf"]')});
     await success.getByText("Analyse terminée · à vérifier", {exact:true}).waitFor({timeout:90000});
     await failure.getByText("Échec du traitement", {exact:true}).waitFor({timeout:90000});
     assert.equal(await page.locator("[data-batch-files] [data-pending]").count(), 0);
     await page.getByRole("link", {name:"Voir les documents de ce lot"}).click();
     assert.match(page.url(), /app\/notes-de-frais\?lot=/);
-    await page.getByRole("link", {name:"frais-demo.pdf", exact:true}).click();
+    await success.getByRole("link", {name:"Voir la note"}).click();
     assert.ok(Number(await page.locator('input[name=expense_amount]').inputValue()) > 0);
     assert.equal(await page.locator("[data-import-wait]").count(), 0);
+    const picture = page.locator('[data-reader] img');
+    await picture.evaluate(img => img.decode());
+    assert.ok(await picture.isVisible());
+    assert.equal(await page.getByRole("heading", {name:"Lire le justificatif"}).count(), 0);
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({width, height:900});
+      assert.ok(await page.getByLabel("Moyen de paiement utilisé").isVisible());
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "Fiche " + width);
+      assert.equal(await page.locator(".expense-metrics dd").first().evaluate(el => getComputedStyle(el).textAlign), "right");
+    }
+    await page.getByLabel("Motif de la dépense").fill("Motif en cours de saisie");
+    await page.getByRole("link", {name:"Page suivante"}).click();
+    await page.waitForFunction(() => document.querySelector("[data-reader-page]")?.textContent === "2");
+    await picture.evaluate(img => img.decode());
+    assert.equal(await page.getByLabel("Motif de la dépense").inputValue(), "Motif en cours de saisie");
+    await page.getByRole("link", {name:"Page précédente"}).click();
+    await picture.evaluate(img => img.decode());
+    assert.equal(await page.getByLabel("Catégorie", {exact:true}).inputValue(), "Repas");
+    await page.screenshot({path:path.join(output, "fiche-bureau.png"), fullPage:true});
+    await page.getByRole("button", {name:"Agrandir le zoom"}).click();
+    assert.equal(await page.locator(".reader-zoom output").textContent(), "125 %");
+    await page.getByLabel("Commerçant", {exact:true}).fill("Atelier de démonstration");
+    await page.getByLabel("Date de dépense", {exact:true}).fill("2026-01-12");
+    await page.getByLabel("Catégorie", {exact:true}).fill("Fournitures");
+    await page.getByLabel("Origine des fonds", {exact:true}).selectOption("personal");
+    await page.getByRole("button", {name:"Enregistrer le justificatif"}).click();
+    await page.locator("#remboursement .refund-due").waitFor();
+    await page.getByLabel("État du remboursement").selectOption("paid");
+    await page.getByLabel("Date du versement").fill("2026-01-13");
+    await page.getByRole("button", {name:"Enregistrer le remboursement"}).click();
+    await page.locator("#remboursement .refund-paid").waitFor();
+    await page.goto(base + "/app/notes-de-frais?statut=paid");
+    await page.getByRole("link", {name:"Atelier de démonstration"}).waitFor();
+    await page.setViewportSize({width:320,height:844});
+    assert.equal(await page.locator("td.num").first().evaluate(el => getComputedStyle(el).textAlign), "right");
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    await page.screenshot({path:path.join(output,"liste-mobile.png"), fullPage:true});
+    await page.goto(base + "/app/entreprises");
+    await page.getByLabel("Raison sociale").fill("Entreprise de test des formats");
+    await page.getByRole("button", {name:"Créer l'entreprise"}).click();
+    await page.locator(".settings-navigation").getByRole("link", {name:"Format des nombres"}).click();
+    await page.getByLabel("Séparateur des milliers").selectOption("dot");
+    await page.getByLabel("Séparateur décimal").selectOption("comma");
+    assert.equal(await page.locator("#number-preview").textContent(), "1.234.567,89");
+    await page.getByRole("button", {name:"Enregistrer pour l’entreprise"}).click();
+    await page.goto(base + "/app");
+    await page.getByRole("link", {name:"Saisir la CFE"}).click();
+    const manual = page.locator("[data-manual-bank]");
+    assert.equal(await manual.locator("[name=direction]").inputValue(), "outgoing");
+    assert.equal(await manual.locator("[name=standalone_category]").inputValue(), "cfe");
+    const amount = manual.getByLabel("Montant", {exact:true});
+    await amount.fill("1.234,56");
+    assert.equal(await amount.evaluate(el => getComputedStyle(el).textAlign), "right");
+    await manual.getByLabel("Libellé").fill("CFE de démonstration");
+    await manual.getByRole("button", {name:"Enregistrer"}).click();
+    await page.locator("td.num").filter({hasText:"1.234,56"}).waitFor();
+    await page.goto(base + "/app?preset=all");
+    await page.locator("td.num").filter({hasText:"1.234,56"}).waitFor();
     assert.deepEqual(errors, []);
     await fs.writeFile(path.join(output, "report.json"), JSON.stringify({ok:true, flows:["selection","upload","pending","completed","failed","expense_batch","prefilled_amount","reduced_motion"]}, null, 2));
   } finally {
