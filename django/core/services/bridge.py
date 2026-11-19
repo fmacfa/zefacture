@@ -114,7 +114,8 @@ class Bridge:
             PREFIX + "user-management-sessions",
             data={
                 "user_email": email,
-                "callback_url": callback,
+                # The management portal can redirect to this URL verbatim.
+                "callback_url": f"{callback}?context={nonce}",
                 "context": nonce,
                 "account_types": "payment",
             },
