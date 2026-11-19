@@ -47,7 +47,7 @@ Pour une instance restaurée, utiliser la fonction Compose et le fichier de conf
 2. Un propriétaire ou administrateur ouvre **Mon entreprise → Connexion SUPERPDP**.
 3. Choisir **Se connecter à SUPERPDP**, puis lire et accorder personnellement le consentement chez le fournisseur.
 4. De retour dans ZeFacture, utiliser **Vérifier la connexion SUPERPDP** et contrôler l’environnement et l’état de vérification de l’entreprise.
-5. Commencer la synchronisation lorsque le fournisseur indique `company_verification_status=verified`.
+5. Une fois l’entreprise vérifiée, ZeFacture demande une première récupération de son historique. Ouvrir **Achats et finances → Factures fournisseurs** pour suivre son avancement.
 
 L’état OAuth est lié à l’utilisateur, l’entreprise, la version de configuration et la paire d’identifiants serveur. Il expire après dix minutes et est consommé en base avant l’échange, même si cet échange échoue. Les jetons sont chiffrés avec `app.key` et les renouvellements sont sérialisés pour préserver leur rotation.
 
@@ -71,6 +71,10 @@ Le dépôt utilise `POST /v1.beta/invoices`, un corps `application/pdf` et les p
 Un document déjà émis n’est pas régénéré pour changer son contenu ou son identité visuelle. Une correction suit le parcours d’avoir et de nouvelle émission approprié. Une nouvelle tentative d’envoi ne réinitialise pas un paiement local effectué pendant l’attente.
 
 ## 5. Recevoir les factures et leurs originaux
+
+Ouvrir **Achats et finances → Factures fournisseurs**. Le panneau **Factures reçues via SUPERPDP** indique combien de documents de l’entreprise sont enregistrés et la date de la dernière récupération réussie. Un membre disposant du droit d’écriture peut cliquer sur **Récupérer les factures**. La liste s’actualise à la fin du traitement et permet aussi une actualisation manuelle. Une nouvelle récupération retrouve les documents déjà enregistrés.
+
+Sous le numéro de chaque facture synchronisée, **Original PDF** ou **Original XML** télécharge le fichier conservé. Pour un XML, **PDF de lecture** télécharge aussi la représentation lisible lorsque le fournisseur l’a fournie. Les noms de téléchargement reprennent le numéro de facture. Cliquer sur ce numéro pour consulter la fiche et le suivi des statuts.
 
 Dans **Connexion SUPERPDP → Factures et statuts** :
 

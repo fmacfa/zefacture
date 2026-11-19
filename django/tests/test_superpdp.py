@@ -68,6 +68,7 @@ class SuperpdpTests(ApplicationCase):
         return pdp_sync.sync_company(self.company.company_uid, force=True)
 
     def test_technical_credentials_are_verified_from_the_settings_page(self):
+        self.provider.add()
         url = "/app/entreprise/pdp"
         response = self.client.post(
             url, {"action": "save_and_verify", "api_base": self.provider.origin}, follow=True
@@ -78,6 +79,35 @@ class SuperpdpTests(ApplicationCase):
         self.assertEqual(self.session.status, "active")
         self.assertEqual(self.session.company_verification_status, "verified")
         self.assertFalse(PdpSyncState.objects.get().enabled)
+        self.assertTrue(PdpSyncState.objects.get().requested)
+        self.assertEqual(pdp_sync.sync_due(), 1)
+        self.assertContains(self.client.get("/app/reception"), "Original PDF")
+        self.client.post(url, {"action": "verify"})
+        self.assertFalse(PdpSyncState.objects.get().requested)
+
+    def test_reception_requests_verified_import_and_keeps_the_periodic_preference(self):
+        sync_url = "/app/reception/synchroniser"
+        self.assertEqual(self.client.get(sync_url).status_code, 405)
+        self.assertEqual(self.client.post(sync_url).status_code, 409)
+        self.provider.verification = "needs_review"
+        self.client.post("/app/entreprise/pdp", {"action": "verify"})
+        self.assertFalse(PdpSyncState.objects.get().requested)
+        self.assertNotContains(self.client.get("/app/reception"), "Récupérer les factures")
+
+        self.provider.verification = "verified"
+        self.sync()
+        with override_settings(EXTERNAL_SERVICES_DISABLED=True):
+            self.assertEqual(self.client.post(sync_url).status_code, 409)
+        observed = len(self.provider.requests)
+        response = self.client.post(sync_url, follow=True)
+        self.assertRedirects(response, "/app/reception", fetch_redirect_response=False)
+        self.assertContains(response, "Récupération en cours")
+        self.assertEqual(len(self.provider.requests), observed)
+        self.assertTrue(PdpSyncState.objects.get().requested)
+        self.assertFalse(PdpSyncState.objects.get().enabled)
+        self.assertEqual(pdp_sync.sync_due(), 1)
+        self.assertContains(self.client.get("/app/reception"), "Dernière récupération réussie")
+        self.assertNotContains(self.client.get("/app/reception"), "Récupération en cours")
 
     def original(self, document, raw=None):
         raw = raw or pdf_bytes()
@@ -158,6 +188,24 @@ class SuperpdpTests(ApplicationCase):
         response = self.client.get(document.url + "/telecharger")
         self.assertEqual(response.content, raw)
         self.assertEqual(response["Content-Type"], "application/xml")
+        self.assertIn("fourn-2026-001-original.xml", response["Content-Disposition"])
+        inbox = self.client.get("/app/reception")
+        self.assertEqual(inbox.context["pdp_count"], 1)
+        self.assertContains(inbox, "Original XML")
+        self.assertContains(inbox, "PDF de lecture")
+        for file_uid, suffix, content in (
+            (link.original_file_uid, "original.xml", raw),
+            (link.readable_file_uid, "lecture.pdf", read_verified(DocumentFile.objects.get(file_uid=link.readable_file_uid))),
+        ):
+            url = f"/app/documents/{document.document_uid}/fichiers/{file_uid}"
+            self.assertContains(inbox, url)
+            response = self.client.get(url)
+            self.assertEqual(response.content, content)
+            self.assertIn("fourn-2026-001-" + suffix, response["Content-Disposition"])
+            self.assertEqual(response["Cache-Control"], "private, no-store")
+        filtered = self.client.get("/app/reception", {"q": "absent"})
+        self.assertContains(filtered, "Aucune facture ne correspond aux filtres")
+        self.assertNotContains(filtered, link.original_file_uid)
 
     def test_original_larger_than_json_limit_is_downloaded_without_truncation(self):
         raw = pdf_bytes() + b"\n%" + b"x" * 2_100_000
@@ -478,6 +526,10 @@ class SuperpdpTests(ApplicationCase):
         )
         membership.role = "viewer"
         membership.save()
+        inbox = self.client.get("/app/reception")
+        self.assertContains(inbox, "Original PDF")
+        self.assertNotContains(inbox, "Récupérer les factures")
+        self.assertEqual(self.client.post("/app/reception/synchroniser").status_code, 403)
         self.assertEqual(
             self.client.post("/app/entreprise/pdp", {"action": "sync"}).status_code, 403
         )
@@ -509,6 +561,13 @@ class SuperpdpTests(ApplicationCase):
             role="owner",
         )
         self.assertEqual(self.client.get(document.url).status_code, 404)
+        inbox = self.client.get("/app/reception")
+        self.assertEqual(inbox.context["pdp_count"], 0)
+        self.assertNotContains(inbox, document.number)
+        link = PdpInvoice.objects.get(document_uid=document.document_uid)
+        self.assertEqual(self.client.get(
+            f"/app/documents/{document.document_uid}/fichiers/{link.original_file_uid}"
+        ).status_code, 404)
         self.assertEqual(
             self.client.post(
                 f"/app/documents/{document.document_uid}/pdp", {"action": "sync"}
@@ -546,6 +605,7 @@ class SuperpdpTests(ApplicationCase):
         url = "/app/entreprise/pdp/callback?state=" + state + "&code=synthetic-code"
         self.assertEqual(self.client.get(url).status_code, 302)
         self.assertIsNotNone(OAuthAttempt.objects.get().consumed_at)
+        self.assertTrue(PdpSyncState.objects.get().requested)
         session = self.client.session
         session["pdp_oauth"] = pending
         session.save()
@@ -601,6 +661,9 @@ class SuperpdpTests(ApplicationCase):
         self.assertEqual(Document.objects.values().get(), before)
         self.assertEqual(read_verified(original), raw)
         self.assertFalse(PdpInvoice.objects.get().imported)
+        self.assertEqual(
+            generate_document(document).file_uid, PdpInvoice.objects.get().original_file_uid
+        )
 
     def test_remote_outgoing_invoice_keeps_original_and_does_not_consume_numbering(
         self,

@@ -1,1 +1,37 @@
-{% extends "core/base.html" %}{% block content %}<div class="page-head"><div><p class="eyebrow">FACTURATION</p><h1>{{ title }}</h1></div>{% if can_write %}<a class="button" href="{{ new_url }}">+ Créer un document</a>{% endif %}</div><form class="filters" method="get"><input name="q" placeholder="Numéro, client, objet…" value="{{ request.GET.q }}" aria-label="Rechercher"><select name="status" aria-label="Statut"><option value="">Tous les statuts</option><option value="draft">Brouillons</option><option value="sent">Envoyés</option><option value="accepted">Acceptés</option><option value="paid">Payés</option><option value="cancelled">Annulés</option><option value="received">Reçus</option><option value="simulated">Simulations</option></select><label>Du<input type="date" name="from" value="{{ request.GET.from }}"></label><label>Au<input type="date" name="to" value="{{ request.GET.to }}"></label><button class="secondary">Filtrer</button></form><section class="card">{% include "core/document_table.html" %}</section>{% include "core/pagination.html" with page=documents %}{% if section == "reception" %}<p class="muted">Réception par import de fichiers ou saisie manuelle. La synchronisation automatique SUPERPDP dépend de son contrat d'API.</p>{% endif %}{% endblock %}
+{% extends "core/base.html" %}
+{% load static %}
+{% block styles %}{% if section == "reception" %}<link rel="stylesheet" href="{% static 'reception.css' %}">{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><p class="eyebrow">FACTURATION</p><h1>{{ title }}</h1></div>
+  {% if can_write %}<a class="button{% if section == 'reception' %} secondary{% endif %}" href="{{ new_url }}">{% if section == "reception" %}Saisir une facture fournisseur{% else %}+ Créer un document{% endif %}</a>{% endif %}
+</div>
+{% if section == "reception" %}{% include "core/reception_sync.html" %}{% endif %}
+<form class="filters" method="get">
+  <input name="q" placeholder="{% if section == 'reception' %}Numéro, fournisseur, objet…{% else %}Numéro, client, objet…{% endif %}" value="{{ request.GET.q }}" aria-label="Rechercher">
+  <select name="status" aria-label="Statut">
+    <option value="">Tous les statuts</option>
+    <option value="draft"{% if request.GET.status == "draft" %} selected{% endif %}>Brouillons</option>
+    <option value="sent"{% if request.GET.status == "sent" %} selected{% endif %}>Envoyés</option>
+    <option value="received"{% if request.GET.status == "received" %} selected{% endif %}>Reçus</option>
+    {% if section == "reception" %}
+      <option value="refused"{% if request.GET.status == "refused" %} selected{% endif %}>Refusés</option>
+      <option value="disputed"{% if request.GET.status == "disputed" %} selected{% endif %}>En litige</option>
+    {% endif %}
+    <option value="accepted"{% if request.GET.status == "accepted" %} selected{% endif %}>Acceptés</option>
+    <option value="paid"{% if request.GET.status == "paid" %} selected{% endif %}>Payés</option>
+    <option value="cancelled"{% if request.GET.status == "cancelled" %} selected{% endif %}>Annulés</option>
+    <option value="simulated"{% if request.GET.status == "simulated" %} selected{% endif %}>Simulations</option>
+  </select>
+  <label>Du<input type="date" name="from" value="{{ request.GET.from }}"></label>
+  <label>Au<input type="date" name="to" value="{{ request.GET.to }}"></label>
+  <button class="secondary">Filtrer</button>
+</form>
+<div id="document-results">
+  <section class="card">{% include "core/document_table.html" %}</section>
+  {% include "core/pagination.html" with page=documents %}
+</div>
+{% endblock %}
+{% block scripts %}
+  {% if pdp_pending %}<script defer src="{% static 'reception.js' %}"></script>{% endif %}
+{% endblock %}

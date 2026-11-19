@@ -7,8 +7,11 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import OuterRef, Q
 from django.core.serializers.json import DjangoJSONEncoder
+from django.utils import timezone
+from django.utils.http import content_disposition_header
+from django.utils.text import slugify
 from core.common import BusinessError, today, stamp, digest
 from core.models import (
     Company,
@@ -17,9 +20,11 @@ from core.models import (
     InventoryItem,
     DocumentFile,
     InvoiceEvent,
+    PdpInvoice,
+    PdpSyncState,
 )
 from core.security import scoped, scoped_get, ROLES, hidden_expense_documents
-from core.services import documents as service, files
+from core.services import documents as service, files, pdp
 from core.services.mail import queue
 
 SECTIONS = {
@@ -60,6 +65,32 @@ def section_query(company, section, request=None):
     )
 
 
+def reception_context(company, visible, page):
+    links = PdpInvoice.objects.filter(company_uid=company.company_uid, direction="in")
+    original = DocumentFile.objects.filter(
+        document_uid=OuterRef("document_uid"), file_uid=OuterRef("original_file_uid")
+    )
+    page_links = (
+        links.filter(document_uid__in=[doc.document_uid for doc in page])
+        .annotate(original_mime=original.values("mime_type")[:1])
+        .values("document_uid", "original_mime", "original_file_uid", "readable_file_uid")
+    )
+    by_document = {link["document_uid"]: link for link in page_links}
+    for document in page:
+        document.pdp_files = by_document.get(document.document_uid)
+    sync = PdpSyncState.objects.filter(company_uid=company.company_uid).first()
+    connected = pdp.reception_connected(company)
+    return {
+        "pdp_connected": connected,
+        "pdp_sync": sync,
+        "pdp_count": links.filter(document_uid__in=visible.values("document_uid")).count(),
+        "pdp_pending": bool(connected and sync and (
+            sync.requested or sync.lease_until and sync.lease_until > timezone.now()
+        )),
+        "external_services_disabled": settings.EXTERNAL_SERVICES_DISABLED,
+    }
+
+
 def read_data(request):
     try:
         if request.content_type == "application/json":
@@ -72,6 +103,21 @@ def read_data(request):
         return data
     except (ValueError, TypeError):
         raise BusinessError("Données du document invalides.")
+
+
+def document_download(document, file, default_name, default_mime):
+    name = default_name
+    if file.kind in {"pdp_original", "pdp_readable"}:
+        number = slugify(document.number or "")[:140] or document.document_uid
+        name = number + ("-original" if file.kind == "pdp_original" else "-lecture")
+    return HttpResponse(
+        files.read_verified(file),
+        content_type=file.mime_type or default_mime,
+        headers={
+            "Content-Disposition": content_disposition_header(True, name + files.download_extension(file.mime_type)),
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @scoped("write")
@@ -93,16 +139,9 @@ def documents(request, section, document_uid=None, action=None):
         if request.method != "GET":
             return HttpResponse(status=405)
         file = files.generate_document(document)
-        content = files.read_verified(file)
-        response = HttpResponse(
-            content, content_type=file.mime_type or "application/pdf"
+        return document_download(
+            document, file, f"{document.type}-{document.document_uid}", "application/pdf"
         )
-        response["Content-Disposition"] = (
-            f'attachment; filename="{document.type}-{document.document_uid}'
-            f'{files.download_extension(file.mime_type)}"'
-        )
-        response["Cache-Control"] = "private, no-store"
-        return response
     if action == "facture-avancement" and document and request.method == "GET":
         if request.role not in ROLES["write"]:
             raise BusinessError("Modification non autorisée.", 403)
@@ -269,7 +308,7 @@ def documents(request, section, document_uid=None, action=None):
             },
         )
     if document:
-        from core.models import PdpInvoice, PdpOutbox
+        from core.models import PdpOutbox
         from core.services.pdp_sync import STATUS_LABELS, OUTBOX_LABELS
 
         pdp_link = PdpInvoice.objects.filter(
@@ -309,7 +348,8 @@ def documents(request, section, document_uid=None, action=None):
                 "pdp_operations": pdp_operations,
             },
         )
-    query = section_query(request.company, section, request)
+    visible = section_query(request.company, section, request)
+    query = visible
     if request.GET.get("q"):
         q = request.GET["q"][:200]
         query = query.filter(
@@ -339,6 +379,7 @@ def documents(request, section, document_uid=None, action=None):
             "documents": page,
             "section": section,
             "new_url": f"/app/{section}/{new}",
+            **(reception_context(request.company, visible, page) if section == "reception" else {}),
         },
     )
 
@@ -455,16 +496,5 @@ def attachment(request, document_uid, file_uid=None):
         file = document.files.filter(file_uid=file_uid).first()
         if not file:
             raise BusinessError("Fichier introuvable.", 404)
-        response = HttpResponse(
-            files.read_verified(file),
-            content_type=file.mime_type or "application/octet-stream",
-        )
-        response["Content-Disposition"] = (
-            'attachment; filename="'
-            + file.file_uid
-            + files.download_extension(file.mime_type)
-            + '"'
-        )
-        response["Cache-Control"] = "private, no-store"
-        return response
+        return document_download(document, file, file.file_uid, "application/octet-stream")
     return HttpResponse(status=405)
