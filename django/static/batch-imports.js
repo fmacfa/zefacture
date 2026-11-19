@@ -13,7 +13,8 @@
       name.textContent=file.name;
       const choice=type.cloneNode(true);
       choice.removeAttribute('name'); choice.value=type.value;
-      label.append('Type de '+file.name,choice);
+      choice.setAttribute('aria-label','Type de '+file.name);
+      label.append('Type de document',choice);
       if (input.files.length>1) { line.append(name,label,result); list.append(line); }
       return {file,choice,result,done:false};
     });
