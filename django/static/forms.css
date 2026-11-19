@@ -146,6 +146,7 @@ form [hidden] {
 .password-strength:not([hidden]) { display: grid; gap: .3rem; grid-column: 1 / -1; }
 .password-strength meter { width: min(100%, 20rem); height: .85rem; }
 .password-strength [role=status] { font-size: .9rem; }
+.batch-files:empty, [data-batch-progress]:empty { display: none; }
 .batch-files li { display:grid; grid-template-columns:minmax(0,1fr) minmax(10rem,1fr) minmax(0,1fr); align-items:center; gap:.75rem; border-top:1px solid var(--line); padding:.5rem 0; overflow-wrap:anywhere; }
 @media (max-width:700px) { .batch-files li { grid-template-columns:minmax(0,1fr); } }
 

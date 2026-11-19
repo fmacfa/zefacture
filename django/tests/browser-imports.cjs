@@ -21,8 +21,14 @@ const output=path.resolve('test-results/browser');
   await dialog.waitFor({state:'hidden'});
   assert.equal(await page.locator('select[name=customer_uid] option:checked').textContent(),'Client rapide fictif');
   await page.goto(base+'/app/imports');
+  if(!process.env.TEST_IMPORT_FILE){
+    await page.locator('input[name=file]').setInputFiles(path.join(output,'factur-x.pdf'));
+    await Promise.all([page.waitForURL(/\/app\/factures\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Importer',exact:true}).click()]);
+    await page.getByText('Doublon exact · facture déjà enregistrée',{exact:true}).waitFor();
+    await page.goto(base+'/app/imports');
+  }
   await page.locator('select[name=pipeline]').selectOption('none');
-  await page.locator('input[name=file]').setInputFiles(process.env.TEST_IMPORT_FILE||path.join(output,'factur-x.pdf'));
+  await page.locator('input[name=file]').setInputFiles(process.env.TEST_IMPORT_FILE||path.join(output,'supplier.pdf'));
   await Promise.all([page.waitForURL(/\/app\/imports\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Importer',exact:true}).click()]);
   const ingestion=page.url();
   const aiGuide=page.getByRole('link',{name:'Configurer une clé API pour l’IA',exact:true});

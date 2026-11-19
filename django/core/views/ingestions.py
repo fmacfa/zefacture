@@ -119,6 +119,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     documents = Document.objects.filter(
         company_uid=request.company.company_uid
     ).exclude(document_uid__in=hidden_expense_documents(request))
+    visible_imports = query
     if expenses:
         query = query.filter(source_kind__in=EXPENSE_KINDS)
     item = query.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
@@ -214,7 +215,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                     result = invoice_imports.upload_one(
                         request.company,
                         request.user,
-                        query,
+                        visible_imports,
                         documents,
                         uploaded,
                         kind,

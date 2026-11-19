@@ -83,6 +83,12 @@ class BatchImportTests(ApplicationCase):
             HTTP_ACCEPT="application/json",
         )
         self.assertEqual(replay.json()["files"][0]["state"], "duplicate")
+        expense_replay = self.client.post(
+            "/app/notes-de-frais",
+            {"file": photo("achat.png", "red")},
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(expense_replay.json()["files"][0]["state"], "duplicate")
         self.assertEqual(BackgroundJob.objects.count(), 2)
 
     def test_sale_preserves_buyer_original_number_and_receivable_without_reissue(self):

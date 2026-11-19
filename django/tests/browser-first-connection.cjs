@@ -62,7 +62,7 @@ async function run() {
       await field.click();
       await field.fill(value);
     }
-    const status = page.getByRole('status');
+    const status = page.locator('[data-setup-status]');
     const [missingAuthorization] = await Promise.all([
       page.waitForResponse(response => response.url() === verificationURL && response.request().method() === 'GET'),
       submit.click(),
