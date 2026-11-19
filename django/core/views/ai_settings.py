@@ -47,6 +47,10 @@ def update(request, provider, action):
         if not cipher:
             raise BusinessError("Saisissez une clé API pour cette entreprise.")
         profiles[provider] = {"model": model, "secret": cipher}
+    elif action == "default":
+        if provider not in dict(extraction_ai.choices(company.company_uid)):
+            raise BusinessError("Connectez ce fournisseur avant de le choisir pour les imports.")
+        profiles["preferred"] = provider
     elif action == "disable":
         profiles[provider] = {"disabled": True}
     elif action == "instance":
@@ -105,6 +109,7 @@ def providers(request):
         {
             "title": "Intelligence artificielle",
             "providers": cards,
+            "choices": extraction_ai.choices(request.company.company_uid),
             "services_disabled": settings.EXTERNAL_SERVICES_DISABLED,
         },
     )

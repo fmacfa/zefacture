@@ -4,9 +4,10 @@ from django.db import transaction
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from core.common import BusinessError, decimal, stamp, unpack, uid
+from core.common import BusinessError, decimal, json_text, stamp, unpack, uid
 from core.models import Company, Document, Ingestion
 from core.security import hidden_expense_documents, scoped, ROLES
 from core.services import extraction_ai, ingestion, files, jobs, invoice_imports, expense_payments
@@ -17,7 +18,7 @@ from core.services.receipt_extraction import (
     EXPENSE_KINDS,
     expense_suggestion,
     expense_values,
-    suggested_payment,
+    suggested_payment_method,
 )
 
 SOURCE_LABELS = {
@@ -28,13 +29,66 @@ SOURCE_LABELS = {
     "expense_receipt": "Ticket de caisse",
     "receipt": "Ticket de caisse",
 }
-STATUS_LABELS = {
-    "uploaded": "Importé",
-    "transcribed": "Transcrit",
-    "analyzed": "Analysé",
-    "converted": "Facture créée",
-    "failed": "Traitement à vérifier",
-}
+
+def fill_list_row(row, query, documents):
+    extracted = unpack(row.extraction_json)
+    if not isinstance(extracted, dict) or not extracted:
+        extracted = (
+            invoice_imports.local_invoice(row) if row.transcription_text else {}
+        )
+    row.duplicate = (
+        any(invoice_imports.inspect_duplicates(row, query, documents, extracted))
+        if extracted
+        else False
+    )
+    invoice = extracted.get("invoice")
+    totals = extracted.get("totals")
+    row.list_date, row.list_amount, row.list_currency = (
+        row.expense_date,
+        row.expense_amount,
+        row.expense_currency,
+    )
+    if isinstance(invoice, dict):
+        row.list_date = row.list_date or invoice.get("issue_date")
+        if row.source_kind not in EXPENSE_KINDS or not row.list_currency:
+            row.list_currency = invoice.get("currency_code")
+    if (
+        row.list_amount is None
+        and isinstance(totals, dict)
+        and totals.get("total_including_tax") not in (None, "")
+    ):
+        try:
+            row.list_amount = decimal(totals["total_including_tax"])
+        except BusinessError:
+            pass
+    row.source_label = SOURCE_LABELS.get(row.source_kind, "Justificatif")
+    row.can_preview = preview_format(row)
+
+
+def progress_response(request, selection, visible, documents, expenses, archived, detail):
+    identifiers = request.GET["suivi"].split(",")
+    if len(identifiers) > 200 or not all(re.fullmatch("[a-f0-9]{32}", i) for i in identifiers):
+        raise BusinessError("Sélection de fichiers invalide.")
+    if detail:
+        selection = selection.filter(pk=detail.pk)
+    items = list(selection.filter(ingestion_uid__in=identifiers).only(
+        "ingestion_uid", "archived_at", "document_uid", "status", "transcription_status", "extraction_status"
+    ))
+    jobs.set_progress(items, request.company.company_uid)
+    states = {i.ingestion_uid: i.progress for i in items}
+    if not detail:
+        missing_rows = set(request.GET.get("ajouter", "").split(","))
+        refresh = [key for key, state in states.items() if not state["busy"] or key in missing_rows]
+        for row in selection.filter(ingestion_uid__in=refresh):
+            row.progress = states[row.ingestion_uid]
+            fill_list_row(row, visible, documents)
+            row_html = render_to_string("core/ingestion_row.html", {
+                "i": row, "expenses": expenses, "archives": archived,
+            }, request=request)
+            states[row.ingestion_uid] = {**row.progress, "row": row_html}
+    response = JsonResponse({"items": states})
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @transaction.atomic
@@ -73,7 +127,8 @@ def review(request, item, action, query, documents):
                 raise BusinessError("Extraction JSON invalide.")
             invoice_imports.index_extraction(item, data)
             fields.extend(["source_invoice_ref", "source_invoice_match"])
-            item.extraction_json = raw
+            invoice_imports.mark_reviewed(item, data)
+            item.extraction_json = json_text(data)
             item.extraction_status = "done"
             fields += ["extraction_json", "extraction_status"]
         if item.transcription_text:
@@ -123,9 +178,20 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
     visible_imports = query
     if expenses:
         query = query.filter(source_kind__in=EXPENSE_KINDS)
-    item = query.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
+    following = action is None and request.method == "GET" and "suivi" in request.GET
+    lookup = query.only("pk") if following else query
+    item = lookup.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
     if ingestion_uid and not item:
         raise BusinessError("Import introuvable.", 404)
+    archived = request.GET.get("archives") == "1"
+    batch = request.GET.get("lot", "")
+    selection = query.filter(archived_at__isnull=not archived)
+    if batch:
+        if not re.fullmatch("[a-f0-9]{32}", batch):
+            raise BusinessError("Lot invalide.")
+        selection = selection.filter(batch_uid=batch)
+    if following:
+        return progress_response(request, query if item else selection, visible_imports, documents, expenses, archived, item)
     if action == "reglement":
         if request.method != "POST":
             return HttpResponse(status=405, headers={"Allow": "POST"})
@@ -215,9 +281,12 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             batch = request.POST.get("batch_uid") or uid()
             if not re.fullmatch("[a-f0-9]{32}", batch):
                 raise BusinessError("Lot invalide.")
-            pipeline = request.POST.get("pipeline", "none")
+            pipeline = request.POST.get("pipeline")
+            if pipeline is None:
+                providers = extraction_ai.choices(request.company.company_uid)
+                pipeline = providers[0][0] if providers else "none"
             if pipeline not in {"local", "none"}:
-                extraction_ai.require_provider(pipeline,request.company.company_uid)
+                extraction_ai.require_provider(pipeline, request.company.company_uid)
             results = []
             for uploaded in uploads:
                 try:
@@ -246,17 +315,13 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             return render(
                 request,
                 "core/import_results.html",
-                {"title": "Résultat du lot", "results": results, "batch": batch},
+                {"title": "Résultat du lot", "results": results, "batch": batch, "expenses": expenses},
             )
         elif action in {"transcrire", "analyser"}:
             jobs.enqueue(
                 item,
                 "transcribe" if action == "transcrire" else "analyze",
                 request.POST.get("provider", "") if action == "analyser" else "",
-            )
-            messages.success(
-                request,
-                "Traitement ajouté à la file. Actualisez cette page pour consulter le résultat.",
             )
         elif action in {
             "valider-facture",
@@ -269,9 +334,17 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 return redirect(document.url)
         return redirect("/app/imports/" + item.ingestion_uid)
     if item:
-        parsed = unpack(item.extraction_json)
-        if not isinstance(parsed, dict) or not parsed:
-            parsed = invoice_imports.local_invoice(item)
+        jobs.set_progress([item], request.company.company_uid)
+        base_context = {
+            "title": item.original_filename,
+            "item": item,
+            "can_preview": preview_format(item),
+            "is_expense": item.source_kind in EXPENSE_KINDS,
+            "source_label": SOURCE_LABELS.get(item.source_kind, "Justificatif"),
+        }
+        if item.progress["busy"]:
+            return render(request, "core/ingestion.html", base_context)
+        parsed = invoice_imports.review_data(item)
         extracted_lines = (
             parsed.get("lines")
             or parsed.get("line_items")
@@ -300,73 +373,32 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         duplicate_documents, duplicate_imports = invoice_imports.inspect_duplicates(
             item, query, documents, parsed
         )
+        method = suggested_payment_method(item.transcription_text, parsed)
         return render(
             request,
             "core/ingestion.html",
             {
-                "title": item.original_filename,
-                "item": item,
-                "can_preview": preview_format(item),
+                **base_context,
                 "parsed": parsed,
                 "lines": extracted_lines,
                 "inventory": [],
-                "is_expense": is_expense,
                 **expense_payments.context(item, purchase=item.source_kind != "sales_invoice"),
                 "edit_payment": request.role in ROLES["write"] and (not item.document_uid or is_expense or request.role in ROLES["finance"]),
                 "payment_action": f"/app/imports/{item.ingestion_uid}/reglement",
-                "payment_suggestion": suggested_payment(item.transcription_text),
+                "payment_suggestion": method.label if method else "",
+                "suggested_method": method,
                 "is_sale": item.source_kind == "sales_invoice",
                 "duplicate_documents": duplicate_documents,
                 "duplicate_imports": duplicate_imports,
                 "expense": expense,
                 "suggested": suggested,
                 "ai_choices": extraction_ai.choices(request.company.company_uid),
-                "source_label": SOURCE_LABELS.get(item.source_kind, "Justificatif"),
-                "state_label": STATUS_LABELS.get(item.status, "À vérifier"),
             },
         )
-    archived = request.GET.get("archives") == "1"
-    batch = request.GET.get("lot", "")
-    selection = query.filter(archived_at__isnull=not archived)
-    if batch:
-        if not re.fullmatch("[a-f0-9]{32}", batch):
-            raise BusinessError("Lot invalide.")
-        selection = selection.filter(batch_uid=batch)
     rows = list(selection.order_by("-id")[:200])
+    jobs.set_progress(rows, request.company.company_uid)
     for row in rows:
-        extracted = unpack(row.extraction_json)
-        if not isinstance(extracted, dict) or not extracted:
-            extracted = (
-                invoice_imports.local_invoice(row) if row.transcription_text else {}
-            )
-        row.duplicate = (
-            any(invoice_imports.inspect_duplicates(row, query, documents, extracted))
-            if extracted
-            else False
-        )
-        invoice = extracted.get("invoice")
-        totals = extracted.get("totals")
-        row.list_date, row.list_amount, row.list_currency = (
-            row.expense_date,
-            row.expense_amount,
-            row.expense_currency,
-        )
-        if isinstance(invoice, dict):
-            row.list_date = row.list_date or invoice.get("issue_date")
-            if row.source_kind not in EXPENSE_KINDS or not row.list_currency:
-                row.list_currency = invoice.get("currency_code")
-        if (
-            row.list_amount is None
-            and isinstance(totals, dict)
-            and totals.get("total_including_tax") not in (None, "")
-        ):
-            try:
-                row.list_amount = decimal(totals["total_including_tax"])
-            except BusinessError:
-                pass
-        row.source_label = SOURCE_LABELS.get(row.source_kind, "Justificatif")
-        row.state_label = STATUS_LABELS.get(row.status, "À vérifier")
-        row.can_preview = preview_format(row)
+        fill_list_row(row, query, documents)
     return render(
         request,
         "core/ingestions.html",

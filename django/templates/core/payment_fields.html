@@ -2,7 +2,7 @@
   <label for="expense-method">Moyen de paiement utilisé</label>
   <select id="expense-method" name="expense_payment_method">
     <option value="">Non renseigné</option>
-    {% for value, label in payment_methods %}<option value="{{ value }}"{% if payment_record.expense_payment_method == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    {% for value, label in payment_methods %}<option value="{{ value }}"{% if payment_record.expense_payment_method == value or not payment_record.expense_payment_method and suggested_method == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
   </select>
 </div>
 {% if is_purchase %}

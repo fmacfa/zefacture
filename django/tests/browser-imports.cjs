@@ -30,7 +30,6 @@ const output=path.resolve('test-results/browser');
   await page.locator('select[name=pipeline]').selectOption('none');
   await page.locator('input[name=file]').setInputFiles(process.env.TEST_IMPORT_FILE||path.join(output,'supplier.pdf'));
   await Promise.all([page.waitForURL(/\/app\/imports\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Importer',exact:true}).click()]);
-  const ingestion=page.url();
   const tracking=page.locator('#suivi-reglement');
   await tracking.getByLabel('Moyen de paiement utilisé',{exact:true}).selectOption('card');
   await tracking.getByLabel('Origine des fonds',{exact:true}).selectOption('personal');
@@ -41,11 +40,7 @@ const output=path.resolve('test-results/browser');
   assert.equal(await aiGuide.getAttribute('target'),'_blank');
   assert.equal(await aiGuide.getAttribute('rel'),'noopener noreferrer');
   await page.getByRole('button',{name:'Transcrire',exact:true}).click();
-  for(let attempt=0;attempt<30;attempt++){
-    await page.goto(ingestion);
-    if((await page.locator('textarea[name=transcription_text]').inputValue()).includes('Atelier Démonstration'))break;
-    await page.waitForTimeout(1000);
-  }
+  await page.waitForFunction(() => document.querySelector('textarea[name=transcription_text]')?.value.includes('Atelier Démonstration'), null, {timeout:60000});
   assert.match(await page.locator('textarea[name=transcription_text]').inputValue(),/Atelier Démonstration/);
   await page.getByLabel('Nom du fournisseur',{exact:true}).fill('Fournisseur test OCR');
   await page.getByLabel('Numéro de facture',{exact:true}).fill('SUP-BROWSER-'+Date.now());
@@ -72,5 +67,6 @@ const output=path.resolve('test-results/browser');
   assert.equal(path.extname(download.suggestedFilename()),expectedExtension);
   assert.equal(errors.length,0,errors.join('\n'));
   await fs.writeFile(path.join(output,process.env.TEST_IMPORT_FILE?'ocr-report.json':'imports-report.json'),JSON.stringify({ok:true,flow:['quick_customer','upload','queued_local_transcription','manual_review_form','supplier_invoice_conversion','original_download'],javascript_errors:errors},null,2));
+  if (!process.env.TEST_IMPORT_FILE) await require("./browser-import-progress.cjs")(context);
   await browser.close();console.log('Browser imports passed: 6 checks.');
 })().catch(error=>{console.error(error);process.exit(1)});

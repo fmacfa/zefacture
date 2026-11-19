@@ -1,0 +1,1 @@
+<span class="import-state" data-import-id="{{ i.ingestion_uid }}" data-code="{{ i.progress.code }}"{% if i.progress.busy %} data-pending{% endif %}><span class="request-spinner" aria-hidden="true"{% if not i.progress.busy %} hidden{% endif %}></span><span data-state-label>{{ i.progress.label }}</span></span>

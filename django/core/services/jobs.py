@@ -77,11 +77,15 @@ def work_one():
         if job.operation in {"transcribe", "pipeline"}:
             ingestion.transcribe(item)
             if job.operation == "pipeline":
-                from .invoice_imports import local_invoice, index_extraction
+                from .invoice_imports import (
+                    local_invoice,
+                    index_extraction,
+                    keep_reviewed,
+                )
                 from core.common import json_text
 
                 if job.provider == "local":
-                    data = local_invoice(item)
+                    data = keep_reviewed(item, local_invoice(item))
                     item.extraction_json = json_text(data)
                     index_extraction(item, data)
                     item.extraction_model = "local"
@@ -117,3 +121,70 @@ def work_one():
     job.finished_at = timezone.now()
     job.save()
     return True
+
+
+# The worker owns the job lifecycle. In particular, a pipeline stays active
+# between saving the OCR text and receiving the structured extraction.
+PROGRESS_LABELS = {
+    "queued": "En attente de traitement",
+    "ocr": "Lecture du texte (OCR)…",
+    "extracting": "Remplissage des champs…",
+    "ai": "Analyse IA des champs…",
+    "analyzed": "Analyse terminée · à vérifier",
+    "transcribed": "Texte lu · à vérifier",
+    "failed": "Échec du traitement",
+    "uploaded": "Importé sans analyse",
+    "converted": "Facture créée",
+    "archived": "Archivé",
+}
+
+
+def set_progress(items, company_uid):
+    from django.db.models import Max
+
+    latest = (
+        BackgroundJob.objects.filter(
+            company_uid=company_uid, ingestion_uid__in=[i.ingestion_uid for i in items]
+        )
+        .order_by()
+        .values("ingestion_uid")
+        .annotate(last_id=Max("id"))
+        .values("last_id")
+    )
+    by_item = {
+        j.ingestion_uid: j
+        for j in BackgroundJob.objects.filter(id__in=latest).only(
+            "ingestion_uid", "status", "operation", "provider"
+        )
+    }
+    for item in items:
+        job = by_item.get(item.ingestion_uid)
+        if item.archived_at:
+            code = "archived"
+        elif item.document_uid:
+            code = "converted"
+        elif job and job.status == "queued":
+            code = "queued"
+        elif job and job.status == "running":
+            if job.operation == "transcribe" or (
+                job.operation == "pipeline" and item.transcription_status != "done"
+            ):
+                code = "ocr"
+            else:
+                code = "extracting" if job.provider == "local" else "ai"
+        elif (job and job.status == "failed") or item.status == "failed":
+            code = "failed"
+        elif item.status == "analyzed" or item.extraction_status == "done":
+            code = "analyzed"
+        elif item.status == "transcribed" or item.transcription_status == "done":
+            code = "transcribed"
+        elif "queued" in (item.transcription_status, item.extraction_status):
+            # Historical interrupted jobs can leave the import flag behind.
+            code = "failed"
+        else:
+            code = "uploaded"
+        item.progress = {
+            "code": code,
+            "label": PROGRESS_LABELS[code],
+            "busy": code in {"queued", "ocr", "extracting", "ai"},
+        }
