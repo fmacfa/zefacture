@@ -3,6 +3,7 @@ import os
 import secrets
 from unittest.mock import patch
 from django.test import override_settings
+from core.common import BusinessError
 from core.models import CompanyMember
 from core.services import extraction_ai
 from core.views.ai_settings import TEST_RECEIPT
@@ -13,6 +14,35 @@ from .test_receipts_assistant import fake_http
 @override_settings(EXTERNAL_SERVICES_DISABLED=False, SENSITIVE_REAUTH_REQUIRED=False)
 class CompanyAITests(ApplicationCase):
     url = "/app/entreprise/ia"
+
+    def test_inline_provider_result_and_native_download_signal(self):
+        payload = {"provider": "google", "action": "test"}
+        with patch("core.services.extraction_ai.extract") as probe:
+            response = self.client.post(
+                self.url, payload, HTTP_ACCEPT="application/json"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("Connexion réussie", response.json()["message"])
+            probe.side_effect = BusinessError(
+                "Fournisseur temporairement indisponible.", 502
+            )
+            failure = self.client.post(
+                self.url, payload, HTTP_ACCEPT="application/json"
+            )
+            self.assertEqual(failure.status_code, 502)
+            self.assertIn("indisponible", failure.json()["error"])
+        token = secrets.token_hex(16)
+        for path, value, expected in (
+            ("/app/finances/transactions/export", token, True),
+            ("/app/finances/transactions/export", "invalide", False),
+            (self.url, token, False),
+        ):
+            reply = self.client.get(path, {"_zf_download": value})
+            self.assertEqual("zf_download_" + value in reply.cookies, expected)
+            if expected:
+                self.assertEqual(
+                    reply.cookies["zf_download_" + value]["samesite"], "Strict"
+                )
 
     def test_store_replace_disable_model_and_company_isolation(self):
         key = secrets.token_urlsafe(18)

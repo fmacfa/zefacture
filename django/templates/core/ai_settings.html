@@ -1,4 +1,4 @@
-{% extends "core/base.html" %}{% block content %}
+{% extends "core/base.html" %}{% load static %}{% block content %}
 <header class="page-head"><h1>Intelligence artificielle</h1><a class="button secondary" href="/app/imports">Ouvrir les imports</a></header>
 <p>Les connexions ci-dessous s’appliquent à {{ company.legal_name }}. Lors d’une analyse avec IA, le fournisseur sélectionné reçoit le texte transcrit.</p>
 {% if services_disabled %}<p class="notice">Les appels aux services externes sont désactivés sur cette instance.</p>{% endif %}
@@ -15,9 +15,12 @@
     </form>
   </details>
   <div class="inline wrap">
-    {% if p.active and not services_disabled %}<form method="post">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="secondary" name="action" value="test">Tester avec un ticket fictif</button></form>{% endif %}
+    {% if p.active and not services_disabled %}<form method="post" data-ai-probe>{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="secondary" name="action" value="test" data-loading-label="Test de la connexion à {{ p.label }} en cours…">Tester avec un ticket fictif</button></form>{% endif %}
     {% if p.active %}<form method="post" data-confirm="Désactiver ce fournisseur pour l’entreprise et retirer sa clé locale ?">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="text-button" name="action" value="disable">Désactiver{% if p.custom %} et retirer la clé{% endif %}</button></form>{% endif %}
     {% if p.has_profile %}<form method="post" data-confirm="Remplacer le réglage de l’entreprise par celui de l’instance ?">{% csrf_token %}<input type="hidden" name="provider" value="{{ p.id }}"><button class="text-button" name="action" value="instance">Revenir au réglage de l’instance</button></form>{% endif %}
   </div>
+  {% if p.active and not services_disabled %}<p class="notice" data-probe-result role="status" aria-live="polite" hidden></p>{% endif %}
 </section>{% endfor %}</div>
 {% endblock %}
+
+{% block scripts %}<script defer src="{% static 'ai-settings.js' %}"></script>{% endblock %}

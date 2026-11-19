@@ -8,6 +8,8 @@
   <link rel="icon" type="image/svg+xml" href="{% static 'zefacture-mark.svg' %}">
   <link rel="stylesheet" href="{% static 'identity.css' %}">
   <link rel="stylesheet" href="{% static 'first-connection.css' %}">
+  <link rel="stylesheet" href="{% static 'request-feedback.css' %}">
+  <script src="{% static 'request-feedback.js' %}" defer></script>
   <script src="{% static 'first-connection.js' %}" defer></script>
 <script src="{% static 'password-strength.js' %}" defer></script>
 </head>
@@ -63,10 +65,11 @@
           {% if not authorized %}
             <noscript>Activez JavaScript pour vérifier le lien d’installation.</noscript>
           {% endif %}
-          <button class="setup-submit" type="submit">Créer mon espace <span aria-hidden="true">→</span></button>
+          <button class="setup-submit" type="submit" data-loading-label="Création de votre espace…">Créer mon espace <span aria-hidden="true">→</span></button>
         </fieldset>
       </form>
     </section>
   </main>
+  {% include "core/request_status.html" %}
 </body>
 </html>

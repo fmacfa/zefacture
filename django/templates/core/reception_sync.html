@@ -2,8 +2,8 @@
   <div class="reception-sync-head">
     <h2 id="reception-title">Factures reçues via SUPERPDP</h2>
     {% if can_write and pdp_connected %}
-      {% if pdp_pending %}<button type="button" disabled>Synchronisation en cours…</button>{% else %}
-        <form method="post" action="/app/reception/synchroniser{% querystring %}">{% csrf_token %}<button>Synchroniser SUPERPDP</button></form>
+      {% if pdp_pending %}<button type="button" class="request-pending" aria-busy="true" disabled>Synchronisation en cours…</button>{% else %}
+        <form method="post" data-loading-label="Demande de synchronisation SUPERPDP…" action="/app/reception/synchroniser{% querystring %}">{% csrf_token %}<button>Synchroniser SUPERPDP</button></form>
       {% endif %}
     {% endif %}
   </div>

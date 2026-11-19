@@ -16,7 +16,7 @@
       {% if can_admin %}{% if not feed.owner_uid or feed.owner_uid == user.user_uid %}
         <form method="post" action="/app/finances/comptes/connexion/autoriser">{% csrf_token %}<button>{% if feed.remote_user %}Relier ou gérer mes banques{% else %}Relier ma banque{% endif %}</button></form>
       {% else %}<p class="form-help">L’administrateur ayant ouvert la connexion gère les autorisations auprès des banques.</p>{% endif %}{% endif %}
-      {% if feed.enabled %}<form method="post" action="/app/finances/comptes/connexion/synchroniser">{% csrf_token %}<button class="secondary">Synchroniser maintenant</button></form>{% endif %}
+      {% if feed.enabled %}<form method="post" data-loading-label="Demande de synchronisation bancaire…" action="/app/finances/comptes/connexion/synchroniser">{% csrf_token %}<button class="secondary">Synchroniser maintenant</button></form>{% endif %}
       {% if can_admin and feed.remote_user %}<form method="post" action="/app/finances/comptes/connexion/activation">{% csrf_token %}
         {% if feed.enabled %}<button name="action" value="pause" class="text-button">Mettre en pause</button>{% else %}<button name="action" value="resume" class="secondary">Reprendre la synchronisation</button>{% endif %}
       </form>{% endif %}

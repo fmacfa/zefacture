@@ -24,7 +24,7 @@
               {% if d.preview_file %}<a class="preview-link" href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.preview_file.file_uid }}/apercu">Aperçu</a>{% endif %}
             </div>
             {% if d.pdp_files %}
-              <small class="form-help"><a href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.pdp_files.original_file_uid }}">Original{% if d.pdp_files.original_mime == "application/pdf" %} PDF{% elif d.pdp_files.original_mime == "application/xml" or d.pdp_files.original_mime == "text/xml" %} XML{% endif %}</a>{% if d.pdp_files.readable_file_uid %} · <a href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.pdp_files.readable_file_uid }}">PDF de lecture</a>{% endif %}</small>
+              <small class="form-help"><a data-download href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.pdp_files.original_file_uid }}">Original{% if d.pdp_files.original_mime == "application/pdf" %} PDF{% elif d.pdp_files.original_mime == "application/xml" or d.pdp_files.original_mime == "text/xml" %} XML{% endif %}</a>{% if d.pdp_files.readable_file_uid %} · <a data-download href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.pdp_files.readable_file_uid }}">PDF de lecture</a>{% endif %}</small>
             {% endif %}
           </td>
         </tr>

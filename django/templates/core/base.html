@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="{% static 'sidebar.css' %}">
   <link rel="stylesheet" href="{% static 'document-list.css' %}">
   {% block styles %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'request-feedback.css' %}">
+  <script src="{% static 'request-feedback.js' %}" defer></script>
   <script src="{% static 'number-display.js' %}" defer></script>
   <script src="{% static 'app.js' %}" defer></script>
   {% if title == "Mon compte" or mode == "register" or mode == "reset" %}<script src="{% static 'password-strength.js' %}" defer></script>{% endif %}
@@ -62,5 +64,6 @@
     </footer>
   </div>
   {% block scripts %}{% endblock %}
+  {% include "core/request_status.html" %}
 </body>
 </html>

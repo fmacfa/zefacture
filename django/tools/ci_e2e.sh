@@ -57,6 +57,7 @@ dc exec -T web python manage.py shell < tests/pdp_browser_fixture.py > test-resu
 node tests/browser-superpdp.cjs
 node tests/browser-stock-ai.cjs
 node tests/browser-bank-statements.cjs
+node tests/browser-request-feedback.cjs
 node tests/browser-oauth-branding.cjs
 dc stop web worker
 dc run --rm --no-deps -T --entrypoint python web manage.py shell < tests/instance_fingerprint.py > test-results/ci-before.json

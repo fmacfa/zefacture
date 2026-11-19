@@ -2,6 +2,7 @@
 
 import hmac
 import ipaddress
+import re
 import secrets
 from django.conf import settings
 
@@ -63,5 +64,18 @@ class SecurityHeadersMiddleware:
                 "/devis/",
             )
         ):
+            response["Cache-Control"] = "private, no-store"
+        # The page can release its spinner when the browser receives the attachment headers.
+        download_id = request.GET.get("_zf_download", "")
+        if response.get("Content-Disposition", "").lower().startswith(
+            "attachment"
+        ) and re.fullmatch(r"[a-f0-9]{32}", download_id):
+            response.set_cookie(
+                "zf_download_" + download_id,
+                "1",
+                max_age=90,
+                secure=request.is_secure(),
+                samesite="Strict",
+            )
             response["Cache-Control"] = "private, no-store"
         return response

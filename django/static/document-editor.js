@@ -48,7 +48,7 @@
   }
   async function autosave() {
     if (submitting||inFlight||form.dataset.quote!=='1'||!lines.every(row=>row.description.trim())) return;
-    inFlight=true;dirty=false;status.textContent='Enregistrement…';
+    inFlight=true;dirty=false;status.classList.add('request-inline-busy');status.textContent='Enregistrement…';
     try {
       const response=await fetch('/app/devis/brouillon/sauvegarder',{method:'POST',body:new FormData(form),headers:{Accept:'application/json'}});
       const data=await response.json();
@@ -56,7 +56,7 @@
       form.elements.document_uid.value=data.document_uid;
       form.action=data.url;
       status.textContent='Brouillon enregistré';
-    } catch(error) {status.textContent=error.message;} finally {inFlight=false;if(dirty&&!submitting)timer=setTimeout(autosave,1000);}
+    } catch(error) {status.textContent=error.message;} finally {status.classList.remove('request-inline-busy');inFlight=false;if(dirty&&!submitting)timer=setTimeout(autosave,1000);}
   }
   function changed() {dirty=true;clearTimeout(timer);if(form.dataset.quote==='1')timer=setTimeout(autosave,1200);}
   form.addEventListener('input',()=>{update();changed();});

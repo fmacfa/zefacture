@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head reader-heading">
   <div><a href="{{ back_url }}">← Retour à la fiche</a><h1>{{ title }}</h1></div>
-  <a class="button secondary" href="{{ download_url }}">{% if reading_copy %}Télécharger le PDF de lecture{% else %}Télécharger l’original{% endif %}</a>
+  <a class="button secondary" data-download href="{{ download_url }}">{% if reading_copy %}Télécharger le PDF de lecture{% else %}Télécharger l’original{% endif %}</a>
 </div>
 {% if invoice %}
   <dl class="reader-amounts" aria-label="Montants du document">
@@ -39,6 +39,7 @@
         <button type="button" class="text-button" data-fit>Ajuster à la largeur</button>
       </div>
     </div>
+    <p class="request-inline-busy" role="status" data-reader-loading hidden>Chargement de la page du document…</p>
     <p class="notice error" role="alert" data-render-error hidden>Impossible d’afficher cette page. Vous pouvez réessayer ou télécharger le fichier.</p>
     <div class="reader-stage" tabindex="0" role="region" aria-label="Page du document, zone de défilement" data-zoom="100">
       <img src="?page={{ page }}&amp;image=1" alt="Page {{ page }} sur {{ page_count|display_number }} de {{ title }}">

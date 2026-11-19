@@ -1,12 +1,12 @@
 {% extends "core/base.html" %}{% load static %}
 {% block styles %}<link rel="stylesheet" href="{% static 'banking.css' %}">{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Transactions</h1><div class="inline wrap"><a class="button secondary" href="/app/finances/comptes">Comptes et connexion Bridge</a><a class="button secondary" href="/app/finances/transactions/export{% querystring %}">Exporter le CSV</a></div></div>
+<div class="page-head"><h1>Transactions</h1><div class="inline wrap"><a class="button secondary" href="/app/finances/comptes">Comptes et connexion Bridge</a><a class="button secondary" data-download href="/app/finances/transactions/export{% querystring %}">Exporter le CSV</a></div></div>
 {% include "core/bank_reviews.html" %}
 <section class="card stack" id="releve">
   <h2>Importer un relevé bancaire</h2>
   {% if accounts %}
-  <form class="form-grid" method="post" enctype="multipart/form-data" action="/app/finances/transactions/import">{% csrf_token %}
+  <form class="form-grid" method="post" enctype="multipart/form-data" data-loading-label="Lecture du relevé bancaire…" action="/app/finances/transactions/import">{% csrf_token %}
     <label>Compte du relevé<select name="account_uid" required><option value="">Choisir le compte…</option>{% for a in accounts %}<option value="{{ a.account_uid }}"{% if request.GET.compte == a.account_uid %} selected{% endif %}>{{ a.name }} · {{ a.currency_code }}</option>{% endfor %}</select></label>
     <label>Fichier du relevé<input name="file" type="file" accept=".csv,.ofx,.qfx,.pdf" required></label>
     <p class="full form-help">CSV, OFX, QFX ou PDF, jusqu’à 5 Mo. Pour un PDF, vérifiez les lignes avant enregistrement. Pour un CSV, fournissez la date, le libellé et le montant ou les colonnes débit et crédit.</p>

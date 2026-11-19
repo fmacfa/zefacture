@@ -28,6 +28,7 @@
     if(entries.length>50){status.textContent='Sélectionnez au maximum 50 fichiers par lot.';return;}
     running=true;
     const button=form.querySelector('button[type=submit],button:not([type])');
+    const pending=window.ZeRequests.start(form,button,"Import des documents en cours…");
     button.disabled=true; input.disabled=true; type.disabled=true;
     for(const entry of entries) entry.choice.disabled=true;
     try {
@@ -54,6 +55,7 @@
       status.textContent=done+' sur '+entries.length+' traités.'+(done<entries.length?' Cliquez sur Importer pour reprendre les fichiers en erreur.':'');
       link.href='/app/imports?lot='+batch; link.hidden=false;
     } finally {
+      pending.finish();
       running=false;button.disabled=false;input.disabled=false;type.disabled=false;
       for(const entry of entries) entry.choice.disabled=false;
     }

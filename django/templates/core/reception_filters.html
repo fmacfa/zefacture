@@ -27,7 +27,7 @@
         <option value="xml"{% if request.GET.format == "xml" %} selected{% endif %}>XML uniquement</option>
       </select>
     </label>
-    <button type="submit" formaction="/app/reception/export.zip">Télécharger le ZIP</button>
+    <button type="submit" data-download formaction="/app/reception/export.zip">Télécharger le ZIP</button>
     <p id="zip-period-help" class="form-help">Choisissez les deux dates pour le ZIP. L’export inclut toutes les pages correspondant aux filtres.</p>
   </div>
 </form>
