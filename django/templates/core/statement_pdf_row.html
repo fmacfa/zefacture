@@ -1,0 +1,6 @@
+<fieldset class="bank-pdf-row"><legend>{% if row.page %}Page {{ row.page }}{% else %}Opération{% endif %}</legend>
+{% if row.original %}<p class="full bank-original">{{ row.original }}</p>{% endif %}
+<input type="hidden" name="slot" value="{{ row.slot }}"><label class="check full"><input type="checkbox" name="selected" value="{{ row.slot }}"{% if row.selected %} checked{% endif %}> Enregistrer cette ligne</label>
+<label>Date<input type="date" name="date_{{ row.slot }}" value="{{ row.date }}"></label><label>Libellé<input name="label_{{ row.slot }}" value="{{ row.label }}" maxlength="500"></label>
+<label>Montant<input type="number" name="amount_{{ row.slot }}" min="0.01" step="0.01" value="{{ row.amount }}"></label>
+<label>Sens<select aria-label="Sens" name="direction_{{ row.slot }}"><option value="">À préciser</option><option value="outgoing"{% if row.direction == 'outgoing' %} selected{% endif %}>Décaissement</option><option value="incoming"{% if row.direction == 'incoming' %} selected{% endif %}>Encaissement</option></select></label></fieldset>

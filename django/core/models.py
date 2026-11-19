@@ -528,6 +528,8 @@ class BankTransaction(models.Model):
     amount = models.DecimalField(max_digits=30, decimal_places=8, default=0)
     direction = models.TextField(default="")
     category = models.TextField(null=True, blank=True)
+    standalone_category = models.CharField(max_length=32, blank=True, default="")
+    classification_note = models.CharField(max_length=500, blank=True, default="")
     status = models.TextField(default="booked")
     external_id = models.TextField(null=True, blank=True)
     import_hash = models.TextField(null=True, blank=True)
@@ -543,8 +545,24 @@ class BankTransaction(models.Model):
                 condition=models.Q(import_hash__isnull=False)
                 & ~models.Q(import_hash=""),
                 name="unique_company_bank_import",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(standalone_category="") | models.Q(document_uid__isnull=True) | models.Q(document_uid=""),
+                name="bank_class_or_invoice",
+            ),
         ]
+
+
+class StatementMatch(models.Model):
+    account = models.ForeignKey(BankAccount, on_delete=models.CASCADE)
+    transaction = models.ForeignKey(BankTransaction, on_delete=models.CASCADE, related_name="statement_matches")
+    kind = models.CharField(max_length=3)
+    file_digest = models.CharField(max_length=64)
+    row_key = models.CharField(max_length=64)
+
+    class Meta:
+        db_table = "django_bank_statement_matches"
+        constraints = [models.UniqueConstraint(fields=("account", "row_key"), name="bank_statement_row_once")]
 
 
 class BankFeed(models.Model):

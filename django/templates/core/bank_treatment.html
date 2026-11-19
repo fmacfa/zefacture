@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}{% block content %}
+<div class="page-head"><h1>Traiter une opération</h1><a class="button secondary" href="/app/finances/transactions">Retour aux transactions</a></div>
+<section class="card stack"><h2>{{ item.label }}</h2><strong class="big-number">{% if item.direction == "outgoing" %}−{% else %}+{% endif %}{{ item.amount|display_number:2 }} {{ currency }}</strong>
+<p>{{ item.transaction_date }} · {{ account.name|default:"Sans compte" }} · {% if item.bank_feed %}Bridge{% elif item.import_hash %}Relevé importé{% else %}Saisie manuelle{% endif %}</p></section>
+{% if item.bank_feed.review %}<p class="notice"><a href="/app/finances/transactions#bank-reviews">Vérifier la correction bancaire</a></p>
+{% elif item.status != "booked" %}<p class="notice">{% if item.status == "cancelled" %}Opération annulée.{% else %}Opération en attente de comptabilisation.{% endif %}</p>
+{% elif item.document_uid %}<section class="card"><h2>Rapprochée d’une facture</h2><a href="/app/{% if item.direction == 'incoming' %}factures{% else %}reception{% endif %}/{{ item.document_uid }}">Ouvrir la facture</a></section>
+{% else %}
+<div class="grid two"><section class="card stack"><h2>Classer sans facture</h2>
+<form method="post" class="stack">{% csrf_token %}<label>Catégorie<select name="category" aria-label="Catégorie" required><option value="">Choisir une catégorie…</option>{% for code,label in categories.items %}<option value="{{ code }}"{% if item.standalone_category == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Motif ou bénéficiaire (facultatif)<textarea name="note" rows="2" maxlength="500">{{ item.classification_note }}</textarea></label><div><button name="action" value="classify">Enregistrer le classement</button></div></form></section>
+<section class="card stack"><h2>Rapprocher d’une facture</h2>{% if item.standalone_category %}<p>Cette opération est classée sans facture. Pour l’associer à une facture, remettez-la à traiter.</p><form method="post">{% csrf_token %}<button class="secondary" name="action" value="reset">Remettre à traiter</button></form>
+{% elif documents %}<form method="post" class="stack" action="/app/finances/transactions/{{ item.transaction_uid }}/rapprocher">{% csrf_token %}<label>Facture<select name="document_uid" aria-label="Facture" required><option value="">Choisir la facture…</option>{% for d in documents %}<option value="{{ d.document_uid }}">{{ d.number }} · {{ d.amount_due|display_number:2 }} {{ d.currency_code }}</option>{% endfor %}</select></label><div><button class="secondary">Rapprocher</button></div></form>{% else %}<p>Aucune facture ouverte ne correspond au sens, à la devise et au montant de cette opération.</p>{% endif %}</section></div>
+{% endif %}{% endblock %}

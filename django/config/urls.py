@@ -6,6 +6,7 @@ from core.views import (
     document_followup,
     finance,
     banking,
+    bank_statements,
     ingestions,
     inventory_invoices,
     ai_settings,
@@ -155,6 +156,8 @@ urlpatterns = [
         finance.finance,
         {"section": "transactions"},
     ),
+    path("app/finances/transactions/releve/confirmer", bank_statements.confirm_pdf),
+    re_path(r"^app/finances/transactions/(?P<item_uid>[a-f0-9]{32})/traiter$", bank_statements.treatment),
     path("app/finances/tresorerie", finance.finance, {"section": "cashflow"}),
     re_path(
         r"^app/finances/tresorerie/(?P<item_uid>[a-f0-9]{32})/annuler$",
