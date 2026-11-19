@@ -31,13 +31,15 @@ class MigrationTests(ApplicationCase):
             company_uid=self.company.company_uid,
             key_hash=digest("legacy-test-key"),
         )
+        from core.services.migration import DJANGO_ONLY_COLUMNS
+
         old_user_extra = {"last_login", "is_superuser", "is_active", "is_staff"}
         with sqlite3.connect(root / "storage/zefacture.sqlite") as connection:
             for table, model in models_by_table().items():
                 fields = [
                     field
                     for field in model._meta.concrete_fields
-                    if not (
+                    if field.column not in DJANGO_ONLY_COLUMNS.get(table, set()) and not (
                         (table == "users" and field.name in old_user_extra)
                         or (table == "api_keys" and field.name == "scope")
                     )

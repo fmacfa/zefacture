@@ -306,7 +306,7 @@ class BatchImportTests(ApplicationCase):
             ) as external,
         ):
             jobs.work_one()
-        external.assert_called_once_with("openai", "Texte fictif", sale=True)
+        external.assert_called_once_with("openai", "Texte fictif", sale=True, company_uid=self.company.company_uid)
         self.assertEqual(Ingestion.objects.get().source_invoice_ref, "t-1")
         _, _, payload = extraction_ai.request_data(
             "openai", "fake", "test", "contenu", sale=True

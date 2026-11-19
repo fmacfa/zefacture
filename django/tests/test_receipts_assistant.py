@@ -296,7 +296,7 @@ class ReceiptFlowTests(ApplicationCase):
                 ),
             ) as extract:
                 self.assertTrue(jobs.work_one())
-                extract.assert_called_once_with("google", OCR_TEXT)
+                extract.assert_called_once_with("google", OCR_TEXT, company_uid=self.company.company_uid)
         item.refresh_from_db()
         self.assertEqual(item.extraction_model, "google:test-model")
         self.assertEqual(item.merchant_name, "Nom vérifié")

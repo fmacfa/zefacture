@@ -84,9 +84,10 @@
       {% else %}
         <section>
           <h3>Analyse avec l’IA</h3>
-          <p class="form-help">{% if ai_choices %}Transcrivez d’abord le justificatif pour analyser le texte.{% else %}L’exploitant doit configurer une clé API et un modèle pour activer cette option.{% endif %}</p>
+          <p class="form-help">{% if ai_choices %}Transcrivez d’abord le justificatif pour analyser le texte.{% else %}Un administrateur de l’entreprise peut connecter un fournisseur dans les réglages.{% endif %}</p>
         </section>
       {% endif %}
+      {% if can_admin %}<a href="/app/entreprise/ia">Gérer les clés IA de l’entreprise</a>{% endif %}
       <a href="https://zefacture.com/documentation/autohebergement#analyse-facultative-des-justificatifs" target="_blank" rel="noopener noreferrer">Configurer une clé API pour l’IA</a>
     </section>
   </div>

@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}{% block content %}
+<header class="page-head"><h1>Stock depuis les factures</h1><a class="button secondary" href="/app/inventaire">Retour à l’inventaire</a></header>
+<form class="card form-grid" method="get">
+  <div class="form-field"><label for="stock-direction">Factures à consulter</label><select id="stock-direction" name="sens"><option value="achats">Achats fournisseurs</option><option value="ventes"{% if outgoing %} selected{% endif %}>Ventes aux clients</option></select></div>
+  <label>Numéro ou tiers<input type="search" name="q" value="{{ request.GET.q }}"></label>
+  <label>Du<input type="date" name="du" value="{{ request.GET.du }}"></label><label>Au<input type="date" name="au" value="{{ request.GET.au }}"></label><div class="form-actions"><button>Filtrer</button></div>
+</form>
+<section class="card table-wrap"><h2>{% if outgoing %}Sorties sur factures de vente{% else %}Entrées sur factures d’achat{% endif %}</h2>
+<table><thead><tr><th>Facture</th><th>{% if outgoing %}Client{% else %}Fournisseur{% endif %}</th><th>Date</th><th>Lignes déjà enregistrées</th></tr></thead><tbody>
+{% for doc in docs %}<tr><td><a href="/app/inventaire/factures/{{ doc.document_uid }}">{{ doc.number }}</a></td><td>{% if outgoing %}{{ doc.buyer.name }}{% else %}{{ doc.seller.name }}{% endif %}</td><td>{{ doc.issue_date }}</td><td>{{ doc.recorded_count|display_number }}</td></tr>{% empty %}<tr><td colspan="4">Aucune facture pour cette sélection.</td></tr>{% endfor %}
+</tbody></table>{% include "core/pagination.html" %}</section>{% endblock %}

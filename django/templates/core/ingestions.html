@@ -29,6 +29,7 @@
     <label>Analyse après import<select name="pipeline"><option value="local">OCR et extraction locale</option>
       {% for key, label in ai_choices %}<option value="{{ key }}">OCR puis analyse avec {{ label }}</option>{% endfor %}
       <option value="none">Importer seulement</option></select></label>
+    {% if can_admin %}<a href="/app/entreprise/ia">Gérer les clés IA de l’entreprise</a>{% endif %}
     {% if ai_choices %}<small>Avec une IA, le texte de chaque document est envoyé au fournisseur choisi.</small>{% endif %}
     <ul class="batch-files clean-list" data-batch-files></ul><p role="status" data-batch-progress></p>
     <a data-batch-link hidden>Voir les documents de ce lot</a>

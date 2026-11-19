@@ -27,9 +27,9 @@ def enqueue(item, operation, provider=""):
         if not (item.transcription_text or "").strip():
             raise BusinessError("Transcrivez d'abord le document.")
         provider = provider or "openrouter"
-        extraction_ai.require_provider(provider)
+        extraction_ai.require_provider(provider, item.company_uid)
     if operation == "pipeline" and provider != "local":
-        extraction_ai.require_provider(provider)
+        extraction_ai.require_provider(provider, item.company_uid)
     job = BackgroundJob.objects.create(
         company_uid=item.company_uid,
         ingestion_uid=item.ingestion_uid,

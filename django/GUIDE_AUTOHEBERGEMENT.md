@@ -316,11 +316,14 @@ Créer ou sélectionner l’entreprise dans **Mes entreprises**, puis inviter le
 
 Le CRM distingue prospects/clients et professionnels/particuliers, avec contacts, opportunités, tâches et activités. Les stocks utilisent des mouvements explicites d’entrée/sortie ; une facture ne décrémente pas automatiquement le stock. Les périodes et comparatifs sont accessibles depuis le dashboard et les rapports. Les exports CSV, Excel et PDF reprennent le jeu de données et les filtres choisis, au-delà de la pagination de l’écran. Les devises restent séparées, sans conversion de change automatique.
 
-Les PDF/Factur-X et l’OCR sont générés localement. L’analyse IA reste facultative et utilise le service configuré par l’exploitant ; son activation transmet le texte concerné. Une transmission PDP nécessite également une configuration et une action dédiées. Le logiciel conserve l’historique mais ne remplace pas la validation des coordonnées, montants et mentions avant émission.
+Les PDF/Factur-X et l’OCR sont générés localement. L’analyse IA reste facultative et utilise le fournisseur choisi pour l’entreprise ; son activation transmet le texte concerné. Une transmission PDP nécessite également une configuration et une action dédiées. Le logiciel conserve l’historique mais ne remplace pas la validation des coordonnées, montants et mentions avant émission.
 
 ### Analyse facultative des justificatifs
 
-La transcription locale suggère les champs courants des tickets, même sans fournisseur externe. Pour proposer des champs supplémentaires et des lignes à partir du texte transcrit, ajouter une clé et un identifiant de modèle dans le fichier `.env` **privé** de l’instance. Chaque paire renseignée ajoute un choix au formulaire d’analyse.
+La configuration courante se fait dans **Réglages de l’entreprise → Intelligence artificielle**. Chaque entreprise peut enregistrer et tester ses propres clés et modèles dans le navigateur. Sa configuration prime sur la valeur de l’instance. Conserver la clé de chiffrement de ZeFacture avec la sauvegarde privée pour pouvoir restaurer les connexions. **Désactiver et retirer la clé** coupe le fournisseur pour cette entreprise. **Revenir au réglage de l’instance** rétablit les valeurs par défaut de l’exploitant.
+
+
+La transcription locale suggère les champs courants des tickets, même sans fournisseur externe. Pour partager une configuration par défaut entre entreprises, l’exploitant peut définir ces variables dans la configuration privée de l’instance. Une clé saisie dans le formulaire prend effet immédiatement pour les futures analyses de l’entreprise.
 
 | Fournisseur | Clé API | Identifiant du modèle |
 | --- | --- | --- |
@@ -329,9 +332,9 @@ La transcription locale suggère les champs courants des tickets, même sans fou
 | Google Gemini | `GEMINI_API_KEY` | `GEMINI_MODEL` |
 | Anthropic Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL` |
 
-Choisir un modèle texte compatible avec les sorties JSON de son API. Utiliser la clé de l’API du fournisseur, distincte des identifiants de messagerie et de la clé ZeFacture pour Codex. `INGESTION_AI_PROVIDER` peut placer `openrouter`, `openai`, `google` ou `anthropic` en tête du menu lorsque la paire correspondante est configurée. Après modification, relancer `docker compose up -d web worker` depuis le dossier de déploiement pour charger la nouvelle configuration. Avec une installation native systemd, modifier le fichier privé indiqué par `ZEFACTURE_ENV_FILE`, puis redémarrer les services web et worker de l’instance.
+Choisir un modèle texte compatible avec les sorties JSON de son API. Utiliser la clé de l’API du fournisseur, distincte des identifiants de messagerie et de la clé ZeFacture pour Codex. `INGESTION_AI_PROVIDER` peut placer `openrouter`, `openai`, `google` ou `anthropic` en tête du menu lorsque la paire correspondante est configurée. Après une modification des variables d’environnement, relancer `docker compose up -d web worker` depuis le dossier de déploiement pour charger la nouvelle configuration. Avec une installation native systemd, modifier le fichier privé indiqué par `ZEFACTURE_ENV_FILE`, puis redémarrer les services web et worker de l’instance.
 
-Les clés et modèles sont configurés par l’exploitant pour l’instance entière. Vérifier les conditions de traitement et de conservation du fournisseur avant d’autoriser cette fonction sur des pièces réelles. Seul le texte transcrit, jusqu’à 80 000 caractères, est transmis après une action explicite. ZeFacture n’envoie pas l’image ou le PDF et ne change pas de fournisseur en cas d’échec. `EXTERNAL_SERVICES_DISABLED=1` bloque les analyses externes tout en laissant fonctionner l’OCR. Vérifier chaque fournisseur souhaité sur un justificatif fictif avant usage réel.
+Les clés d’entreprise sont accessibles uniquement au serveur lors des appels au fournisseur. Vérifier les conditions de traitement et de conservation du fournisseur avant d’autoriser cette fonction sur des pièces réelles. Seul le texte transcrit, jusqu’à 80 000 caractères, est transmis après une action explicite. ZeFacture n’envoie pas l’image ou le PDF et ne change pas de fournisseur en cas d’échec. `EXTERNAL_SERVICES_DISABLED=1` bloque les analyses externes tout en laissant fonctionner l’OCR. Vérifier chaque fournisseur souhaité sur un justificatif fictif avant usage réel.
 
 ## 10. Sécurité, second facteur et intégrations
 

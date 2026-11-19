@@ -28,7 +28,7 @@ from core.models import (
     PdpSyncState,
 )
 from core.security import scoped, scoped_get, ROLES, hidden_expense_documents
-from core.services import documents as service, files, pdp, supplier_archive, expense_payments
+from core.services import documents as service, files, pdp, supplier_archive, expense_payments, invoice_stock
 from core.services.document_preview import preferred_file, preview_format
 from core.services.mail import queue
 from core.services.reports import document_status_cards
@@ -375,6 +375,7 @@ def documents(request, section, document_uid=None, action=None):
                     source_quote_uid=document.document_uid,
                 ),
                 "section": section,
+                "can_move_stock": invoice_stock.can_transfer(document),
                 "pdp_link": pdp_link,
                 "pdp_status_label": STATUS_LABELS.get(
                     pdp_link.latest_status, pdp_link.latest_status

@@ -217,7 +217,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 raise BusinessError("Lot invalide.")
             pipeline = request.POST.get("pipeline", "none")
             if pipeline not in {"local", "none"}:
-                extraction_ai.require_provider(pipeline)
+                extraction_ai.require_provider(pipeline,request.company.company_uid)
             results = []
             for uploaded in uploads:
                 try:
@@ -320,7 +320,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 "duplicate_imports": duplicate_imports,
                 "expense": expense,
                 "suggested": suggested,
-                "ai_choices": extraction_ai.choices(),
+                "ai_choices": extraction_ai.choices(request.company.company_uid),
                 "source_label": SOURCE_LABELS.get(item.source_kind, "Justificatif"),
                 "state_label": STATUS_LABELS.get(item.status, "À vérifier"),
             },
@@ -377,6 +377,6 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             "archives": archived,
             **expense_payments.context(None),
             "batch": batch,
-            "ai_choices": extraction_ai.choices(),
+            "ai_choices": extraction_ai.choices(request.company.company_uid),
         },
     )
