@@ -6,7 +6,57 @@
   margin: 0;
 }
 
+.reception-fields,
+.reception-export {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+
+.reception-fields label,
+.reception-export label {
+  min-width: 0;
+  margin: 0;
+}
+
+.reception-fields label:first-child {
+  flex: 1 1 13rem;
+}
+
+.reception-export {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.reception-export .form-help {
+  flex: 1 1 17rem;
+  align-self: center;
+  margin: 0;
+}
+
 @media (max-width: 700px) {
+  .reception-fields,
+  .reception-export {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reception-fields label:nth-child(-n+3),
+  .reception-export .form-help {
+    grid-column: 1 / -1;
+  }
+
+  .reception-export {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reception-filters :is(input, select, button) {
+    width: 100%;
+    min-width: 0;
+  }
+
   .reception-table,
   .reception-table tbody {
     display: block;

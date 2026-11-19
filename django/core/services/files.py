@@ -39,6 +39,26 @@ def read_verified(file):
     return data
 
 
+def is_invoice_xml(raw, *, allow_legacy=False):
+    from lxml import etree
+
+    try:
+        root = etree.fromstring(
+            raw,
+            etree.XMLParser(
+                resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False
+            ),
+        )
+        if root.getroottree().docinfo.doctype:
+            return False
+        name = etree.QName(root).localname
+        return name in {"Invoice", "CreditNote", "CrossIndustryInvoice"} or (
+            allow_legacy and name == "CrossIndustryDocument"
+        )
+    except (etree.LxmlError, ValueError):
+        return False
+
+
 def put(relative, data):
     target = resolve(relative)
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)

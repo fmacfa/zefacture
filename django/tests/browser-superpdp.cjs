@@ -27,6 +27,18 @@ const output = path.resolve('test-results/browser-superpdp');
     await page.goto(base + '/app/reception');
     await page.getByRole('heading', {name: 'Factures reçues via SUPERPDP'}).waitFor();
     const row = page.getByRole('row').filter({hasText: 'FOURNISSEUR-SUPERPDP-001'});
+    const zipForm = page.locator('form.reception-filters');
+    await zipForm.getByLabel('Du', {exact: true}).fill('2026-11-01');
+    await zipForm.getByLabel('Au', {exact: true}).fill('2026-11-30');
+    for (const [format, suffix] of [['pdf', 'pdf'], ['xml', 'xml'], ['both', 'pdf-xml']]) {
+      await zipForm.getByLabel('Format du ZIP').selectOption(format);
+      const [zip] = await Promise.all([page.waitForEvent('download'), zipForm.getByRole('button', {name: 'Télécharger le ZIP'}).click()]);
+      assert.equal(zip.suggestedFilename(), `factures-fournisseurs_2026-11-01_2026-11-30_${suffix}.zip`);
+      const bytes = await fs.readFile(await zip.path());
+      assert.equal(bytes.readUInt32LE(0), 0x04034b50);
+      assert.equal(bytes.includes(Buffer.from('PDF/')), format !== 'xml');
+      assert.equal(bytes.includes(Buffer.from('XML/')), format !== 'pdf');
+    }
     for (const [label, filename] of [['Original XML', 'fournisseur-superpdp-001-original.xml'], ['PDF de lecture', 'fournisseur-superpdp-001-lecture.pdf']]) {
       const [file] = await Promise.all([page.waitForEvent('download'), row.getByRole('link', {name: label, exact: true}).click()]);
       assert.equal(file.suggestedFilename(), filename);

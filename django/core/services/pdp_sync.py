@@ -750,24 +750,8 @@ def _binary(session, remote_id, format="original"):
     if raw.startswith(b"%PDF-") and mime == "application/pdf":
         return raw, mime, ".pdf"
     if mime in {"application/xml", "text/xml"} and format == "original":
-        from lxml import etree
-
-        try:
-            tree = etree.fromstring(
-                raw,
-                parser=etree.XMLParser(
-                    resolve_entities=False,
-                    no_network=True,
-                    load_dtd=False,
-                    huge_tree=False,
-                ),
-            )
-            if tree.getroottree().docinfo.doctype or etree.QName(
-                tree
-            ).localname not in {"Invoice", "CreditNote", "CrossIndustryInvoice"}:
-                raise ValueError()
-        except (etree.LxmlError, ValueError) as exc:
-            raise BusinessError("Original XML SUPERPDP invalide.", 502) from exc
+        if not files.is_invoice_xml(raw):
+            raise BusinessError("Original XML SUPERPDP invalide.", 502)
         return raw, "application/xml", ".xml"
     raise BusinessError("Le fichier reçu n'est pas un original PDF/XML reconnu.", 502)
 

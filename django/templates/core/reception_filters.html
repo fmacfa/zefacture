@@ -1,0 +1,32 @@
+<form class="card reception-filters" method="get" action="/app/reception">
+  <h2>Filtrer et exporter</h2>
+  {% if reception_error %}<p class="notice error" role="alert">{{ reception_error }}</p>{% endif %}
+  <div class="reception-fields">
+    <label>Rechercher
+      <input name="q" placeholder="Numéro, fournisseur, objet…" value="{{ request.GET.q }}">
+    </label>
+    <label>Statut
+      {% include "core/document_status_select.html" %}
+    </label>
+    <label>Période selon
+      <select name="date_field">
+        <option value="issue">Date de facture</option>
+        <option value="received"{% if request.GET.date_field == "received" %} selected{% endif %}>Réception dans ZeFacture</option>
+      </select>
+    </label>
+    <label>Du<input type="date" name="from" value="{{ request.GET.from }}" required aria-describedby="zip-period-help"></label>
+    <label>Au<input type="date" name="to" value="{{ request.GET.to }}" required aria-describedby="zip-period-help"></label>
+    <button type="submit" class="secondary" formnovalidate>Filtrer</button>
+  </div>
+  <div class="reception-export">
+    <label>Format du ZIP
+      <select name="format">
+        <option value="both">PDF et XML</option>
+        <option value="pdf"{% if request.GET.format == "pdf" %} selected{% endif %}>PDF uniquement</option>
+        <option value="xml"{% if request.GET.format == "xml" %} selected{% endif %}>XML uniquement</option>
+      </select>
+    </label>
+    <button type="submit" formaction="/app/reception/export.zip">Télécharger le ZIP</button>
+    <p id="zip-period-help" class="form-help">Choisissez les deux dates pour le ZIP. L’export inclut toutes les pages correspondant aux filtres.</p>
+  </div>
+</form>
