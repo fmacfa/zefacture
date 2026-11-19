@@ -248,6 +248,15 @@ class BankingTests(ApplicationCase):
         self.assertEqual(self.client.get(TRANSACTIONS).status_code, 403)
         self.assertEqual(self.client.post(CONNECTION + "synchroniser").status_code, 403)
 
+    def test_management_portal_returns_to_its_callback_url_verbatim(self):
+        self.connect()
+        callback = self.api.session["callback_url"]
+        other_browser = Client()
+        other_browser.force_login(self.user)
+        self.assertEqual(other_browser.get(callback).status_code, 403)
+        self.assertRedirects(self.client.get(callback), ACCOUNTS)
+        self.assertEqual(self.client.get(callback).status_code, 403)
+
     def test_standalone_statement_entry_survives_bridge_matching_and_correction(self):
         feed = self.connect()
         self.api.rows[10] = [movement(320, label="PAIE-0012")]
