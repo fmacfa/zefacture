@@ -28,7 +28,7 @@ from core.models import (
     PdpSyncState,
 )
 from core.security import scoped, scoped_get, ROLES, hidden_expense_documents
-from core.services import documents as service, files, pdp, supplier_archive
+from core.services import documents as service, files, pdp, supplier_archive, expense_payments
 from core.services.document_preview import preferred_file, preview_format
 from core.services.mail import queue
 from core.services.reports import document_status_cards
@@ -181,16 +181,24 @@ def documents(request, section, document_uid=None, action=None):
         and request.method == "POST"
     ):
         if action in {"accepter", "annuler", "payer", "refuser", "litige"}:
-            service.change_status(
-                document,
-                {
-                    "accepter": "accept",
-                    "annuler": "cancel",
-                    "payer": "pay",
-                    "refuser": "refuse",
-                    "litige": "dispute",
-                }[action],
-            )
+            with transaction.atomic():
+                if action == "payer" and request.POST.get("expense_payment_method"):
+                    if request.role not in ROLES["finance"]:
+                        raise BusinessError("Un accès financier est requis pour préciser le règlement.", 403)
+                    Company.objects.select_for_update().get(pk=request.company.pk)
+                    document = Document.objects.select_for_update().get(pk=document.pk)
+                    if document.status != "paid":
+                        expense_payments.save(document, {"expense_payment_method":request.POST["expense_payment_method"]}, purchase=document.direction=="incoming")
+                service.change_status(
+                    document,
+                    {
+                        "accepter": "accept",
+                        "annuler": "cancel",
+                        "payer": "pay",
+                        "refuser": "refuse",
+                        "litige": "dispute",
+                    }[action],
+                )
         elif action in {"facturer", "facture-avancement"}:
             result = service.bill_quote(
                 request.company,

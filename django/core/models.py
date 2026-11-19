@@ -8,6 +8,7 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from .common import uid, stamp, unpack
+from .payment_details import PaymentMethod, PaidBy
 
 
 class UserManager(BaseUserManager):
@@ -201,6 +202,9 @@ class Document(models.Model):
     buyer_reference = models.TextField(null=True, blank=True)
     payment_terms = models.TextField(null=True, blank=True)
     payment_method_code = models.TextField(null=True, blank=True)
+    expense_payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True, default="")
+    expense_paid_by = models.CharField(max_length=16, choices=PaidBy.choices, blank=True, default="")
+    expense_description = models.TextField(blank=True, default="")
     notes = models.TextField(null=True, blank=True)
     source_quote_uid = models.CharField(
         max_length=32, db_index=True, null=True, blank=True
@@ -395,6 +399,8 @@ class Ingestion(models.Model):
     document_uid = models.CharField(max_length=32, db_index=True, null=True, blank=True)
     source_kind = models.TextField(default="supplier_invoice")
     expense_date = models.TextField(null=True, blank=True)
+    expense_payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True, default="")
+    expense_paid_by = models.CharField(max_length=16, choices=PaidBy.choices, blank=True, default="")
     expense_category = models.TextField(null=True, blank=True)
     expense_description = models.TextField(null=True, blank=True)
     merchant_name = models.TextField(null=True, blank=True)

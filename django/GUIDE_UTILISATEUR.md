@@ -155,6 +155,14 @@ Pour une facture fournisseur, passer par **Imports → Facture fournisseur**. Ap
 
 Après transcription, **Analyser avec l’IA** propose les fournisseurs configurés sur le serveur. Ce bouton transmet le texte transcrit au fournisseur sélectionné. Le résultat peut suggérer les champs et les lignes lisibles. Les montants, la TVA et les dates doivent être relus avant enregistrement. Les informations déjà saisies dans la fiche de frais restent prioritaires. Voir la [configuration des fournisseurs](GUIDE_AUTOHEBERGEMENT.md#analyse-facultative-des-justificatifs).
 
+### Indiquer le règlement et le motif d’une dépense
+
+Dans **Achats → Notes de frais**, ouvrir le ticket ou la note puis **Règlement et motif de la dépense**. Choisir le moyen réellement utilisé, par exemple **Carte bancaire**, **Espèces** ou **Virement**. Préciser l’origine des fonds, par exemple **Fonds personnels** pour un repas avancé par un salarié. Dans **Motif de la dépense**, saisir le contexte professionnel, par exemple « Déjeuner avec le client pour préparer le chantier ». Cliquer sur **Enregistrer le suivi du règlement**. Ces champs sont facultatifs et se complètent même avant la saisie du montant. L’OCR peut signaler un moyen de paiement lisible sur le ticket. Le salarié précise lui-même l’origine des fonds et le motif.
+
+À l’import d’un lot, les détails de dépense s’appliquent aux achats et aux justificatifs sélectionnés. Chaque fiche permet de les ajuster. Les descriptions saisies dans les anciennes notes figurent sous **Motif de la dépense**. Le rapport **Notes de frais** reprend le motif, le moyen de paiement et l’origine des fonds dans les exports PDF, CSV et Excel.
+
+Sur une facture fournisseur, **Règlement et motif de la dépense** présente le même suivi que le justificatif d’origine. Sur une facture client, **Règlement reçu** permet de préciser le moyen d’encaissement. Pour solder une facture, sélectionner le **Moyen de paiement du solde** puis **Marquer payé**. L’enregistrement des renseignements seuls laisse le solde à régler disponible pour le rapprochement bancaire.
+
 Pour retirer une note de la liste active, ouvrir sa fiche et choisir **Archiver le justificatif**. Depuis **Notes de frais → Voir les archives**, ouvrir la note puis **Restaurer le justificatif**. L’original et la facture liée sont conservés. Les rapports de notes de frais portent sur les justificatifs actifs.
 
 Les administrateurs et comptables peuvent traiter les frais de l’entreprise. Les autres utilisateurs gardent la visibilité de leurs propres justificatifs. Enregistrer les champs du ticket conserve l’original et ne crée pas de facture ni de paiement.

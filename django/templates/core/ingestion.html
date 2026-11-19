@@ -56,7 +56,6 @@
           <legend>Classement</legend>
           <div class="stack">
             <label>Catégorie<input name="expense_category" value="{{ item.expense_category|default_if_none:'' }}" placeholder="Repas, transport…" maxlength="255"></label>
-            <label>Description<textarea name="expense_description" rows="2" maxlength="2000">{{ item.expense_description|default_if_none:'' }}</textarea></label>
           </div>
         </fieldset>
         <div class="form-actions end-actions"><button>Enregistrer le justificatif</button></div>
@@ -149,6 +148,7 @@
 {{ lines|json_script:"initial-lines" }}
 {{ inventory|json_script:"inventory-data" }}
 {% endif %}
+{% include "core/payment_tracking.html" %}
 {% if not item.archived_at and can_write %}
   <section class="card stack" aria-labelledby="archive-title">
     <h2 id="archive-title">Archiver le justificatif</h2>

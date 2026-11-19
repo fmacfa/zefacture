@@ -1,0 +1,20 @@
+<div class="form-field">
+  <label for="expense-method">Moyen de paiement utilisé</label>
+  <select id="expense-method" name="expense_payment_method">
+    <option value="">Non renseigné</option>
+    {% for value, label in payment_methods %}<option value="{{ value }}"{% if payment_record.expense_payment_method == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+</div>
+{% if is_purchase %}
+  <div class="form-field">
+    <label for="expense-payer">Origine des fonds</label>
+    <select id="expense-payer" name="expense_paid_by">
+      <option value="">Non renseignée</option>
+      {% for value, label in payment_payers %}<option value="{{ value }}"{% if payment_record.expense_paid_by == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-field full">
+    <label for="expense-purpose">Motif de la dépense</label>
+    <textarea id="expense-purpose" name="expense_description" maxlength="2000" rows="2" placeholder="Ex. Déjeuner avec un client pour préparer son projet">{{ payment_record.expense_description|default:"" }}</textarea>
+  </div>
+{% endif %}

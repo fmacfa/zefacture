@@ -15,6 +15,13 @@
 {% elif expense and expense.expense_amount is not None %}
   <dl class="reader-amounts" aria-label="Montant du justificatif"><div><dt>Total TTC enregistré</dt><dd>{{ expense.expense_amount|display_number:"2g" }} {{ expense.expense_currency }}</dd></div></dl>
 {% endif %}
+{% if expense.expense_payment_method or expense.expense_description or expense.expense_paid_by %}
+  <dl class="reader-amounts" aria-label="Règlement du justificatif">
+    {% if expense.expense_payment_method %}<div><dt>Moyen de paiement</dt><dd>{{ expense.get_expense_payment_method_display }}</dd></div>{% endif %}
+    {% if expense.expense_paid_by %}<div><dt>Origine des fonds</dt><dd>{{ expense.get_expense_paid_by_display }}</dd></div>{% endif %}
+    {% if expense.expense_description %}<div><dt>Motif de la dépense</dt><dd>{{ expense.expense_description|linebreaksbr }}</dd></div>{% endif %}
+  </dl>
+{% endif %}
 {% if preview_error %}
   <p class="notice error" role="alert">{{ preview_error }}</p>
 {% else %}

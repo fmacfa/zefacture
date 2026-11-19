@@ -1,0 +1,21 @@
+<section id="suivi-reglement" class="card stack" aria-labelledby="reglement-title">
+  <h2 id="reglement-title">{% if is_purchase %}Règlement et motif de la dépense{% else %}Règlement reçu{% endif %}</h2>
+  {% if payment_record.expense_payment_method or payment_record.expense_paid_by or payment_record.expense_description %}
+    <dl class="payment-summary">
+      {% if payment_record.expense_payment_method %}<div><dt>Moyen de paiement</dt><dd>{{ payment_record.get_expense_payment_method_display }}</dd></div>{% endif %}
+      {% if is_purchase and payment_record.expense_paid_by %}<div><dt>Origine des fonds</dt><dd>{{ payment_record.get_expense_paid_by_display }}</dd></div>{% endif %}
+      {% if is_purchase and payment_record.expense_description %}<div><dt>Motif de la dépense</dt><dd>{{ payment_record.expense_description|linebreaksbr }}</dd></div>{% endif %}
+    </dl>
+  {% else %}<p class="muted">Aucun renseignement de règlement enregistré.</p>{% endif %}
+  {% if edit_payment and not payment_record.archived_at %}
+    <details class="form-disclosure"{% if not payment_record.expense_payment_method and not payment_record.expense_description and not payment_record.expense_paid_by %} open{% endif %}>
+      <summary>{% if is_purchase %}Renseigner le paiement et le motif{% else %}Renseigner le paiement{% endif %}</summary>
+      <form class="stack" method="post" action="{{ payment_action }}">
+        {% csrf_token %}
+        {% if payment_suggestion %}<p class="form-help">Le justificatif mentionne « {{ payment_suggestion }} ». Vérifiez le moyen de paiement sur l’original.</p>{% endif %}
+        <div class="form-grid">{% include "core/payment_fields.html" %}</div>
+        <div class="form-actions"><button>Enregistrer le suivi du règlement</button></div>
+      </form>
+    </details>
+  {% endif %}
+</section>

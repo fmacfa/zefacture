@@ -123,7 +123,7 @@ urlpatterns = [
     path("app/imports", ingestions.ingestions),
     path("app/notes-de-frais", ingestions.ingestions, {"expenses": True}),
     re_path(
-        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>apercu|telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif|archiver|restaurer))?$",
+        r"^app/imports/(?P<ingestion_uid>[a-f0-9]{32})(?:/(?P<action>apercu|telecharger|transcrire|analyser|valider-facture|creer-facture|enregistrer|enregistrer-justificatif|reglement|archiver|restaurer))?$",
         ingestions.ingestions,
     ),
     path("app/finances", finance.finance),
@@ -192,7 +192,7 @@ urlpatterns = [
         documents.documents,
     ),
     re_path(
-        r"^app/documents/(?P<document_uid>[a-f0-9]{32})/suivi/(?P<action>lier-contact|creer-contact|modifier-contact|retirer-contact|note)$",
+        r"^app/documents/(?P<document_uid>[a-f0-9]{32})/suivi/(?P<action>lier-contact|creer-contact|modifier-contact|retirer-contact|reglement|note)$",
         document_followup.followup,
     ),
     re_path(

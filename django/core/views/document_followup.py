@@ -15,7 +15,7 @@ from core.models import (
     DocumentNote,
 )
 from core.security import ROLES, scoped, scoped_get
-from core.services import crm
+from core.services import crm, expense_payments
 from core.services.documents import save_customer
 
 
@@ -54,6 +54,12 @@ def followup_context(request, document):
         "crm_automatic": bool(link and link.automatic),
         "internal_notes": notes,
     }
+    if document.type in {"invoice", "progress_invoice"}:
+        context.update(
+            **expense_payments.context(expense_payments.for_document(document), purchase=document.direction=="incoming"),
+            edit_payment=request.role in ROLES["finance"],
+            payment_action=f"/app/documents/{document.document_uid}/suivi/reglement",
+        )
     if request.role in ROLES["write"]:
         customers = active_customers(request.company)
         context.update(
@@ -176,7 +182,12 @@ def assign_contact(request, document, action):
 def followup(request, document_uid, action):
     Company.objects.select_for_update().get(pk=request.company.pk)
     document = scoped_get(Document, request, document_uid=document_uid)
-    Document.objects.select_for_update().get(pk=document.pk)
+    document = Document.objects.select_for_update().get(pk=document.pk)
+    if action == "reglement":
+        if request.role not in ROLES["finance"]:
+            raise BusinessError("Un accès financier est requis pour modifier le règlement.", 403)
+        expense_payments.save(document, request.POST, purchase=document.direction=="incoming")
+        return redirect(document.url+"#suivi-reglement")
     if action == "note":
         key = request.POST.get("note_uid", "")
         body = request.POST.get("body", "").strip()
