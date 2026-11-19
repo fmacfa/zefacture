@@ -1,5 +1,6 @@
 from datetime import timedelta
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from core.models import BackgroundJob, Ingestion
 from core.common import BusinessError, stamp
@@ -45,6 +46,47 @@ def enqueue(item, operation, provider=""):
     item.last_error = None
     item.save(update_fields=[field, "last_error"])
     return job
+
+
+def awaiting_batch_ai(items, company_uid):
+    active = BackgroundJob.objects.filter(
+        company_uid=company_uid, status__in=["queued", "running"]
+    )
+    return (
+        items.filter(company_uid=company_uid, archived_at__isnull=True)
+        .filter(Q(document_uid__isnull=True) | Q(document_uid=""))
+        .filter(
+            Q(extraction_model__isnull=True)
+            | Q(extraction_model__in=["", "local"])
+            | ~Q(extraction_status="done")
+        )
+        .exclude(ingestion_uid__in=active.values("ingestion_uid"))
+    )
+
+
+@transaction.atomic
+def enqueue_batch_ai(items, company_uid, provider):
+    from core.models import Company
+
+    Company.objects.select_for_update().get(company_uid=company_uid)
+    extraction_ai.require_provider(provider, company_uid)
+    candidates = (
+        awaiting_batch_ai(items, company_uid).order_by("pk").select_for_update()
+    )
+    count = 0
+    for item in candidates.only("ingestion_uid", "transcription_text")[:50]:
+        try:
+            enqueue(
+                item,
+                "analyze" if (item.transcription_text or "").strip() else "pipeline",
+                provider,
+            )
+        except BusinessError as exc:
+            if exc.status != 409:
+                raise
+        else:
+            count += 1
+    return count
 
 
 def work_one():

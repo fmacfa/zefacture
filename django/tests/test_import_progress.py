@@ -275,3 +275,63 @@ class ImportProgressTests(ApplicationCase):
                 self.client.get("/app/notes-de-frais"),
                 '<option value="local" selected>',
             )
+
+    def test_existing_batch_only_sends_visible_outstanding_files_once(self):
+        lot = uid()
+
+        def note(**fields):
+            values = dict(
+                batch_uid=lot,
+                company_uid=self.company.company_uid,
+                source_kind="receipt",
+                uploaded_by_user_uid=self.user.user_uid,
+                transcription_text="Texte déjà lu",
+                transcription_status="done",
+                extraction_status="done",
+                extraction_model="local",
+                status="analyzed",
+            )
+            return Ingestion.objects.create(**(values | fields))
+
+        local = note()
+        unread = note(
+            transcription_text="",
+            transcription_status="pending",
+            extraction_status="pending",
+            status="uploaded",
+        )
+        note(extraction_model="google:test")
+        note(document_uid=uid())
+        note(uploaded_by_user_uid=uid())
+        note(company_uid=self.other.company_uid)
+        note(batch_uid=uid())
+        already_busy = note()
+        jobs.enqueue(already_busy, "transcribe")
+        CompanyMember.objects.filter(
+            company_uid=self.company.company_uid, user_uid=self.user.user_uid
+        ).update(role="member")
+        url = "/app/notes-de-frais?lot=" + lot
+        form = {"action": "analyser-lot", "provider": "google"}
+        with (
+            patch.object(
+                extraction_ai, "choices", return_value=[("google", "Google Gemini")]
+            ),
+            patch.object(extraction_ai, "require_provider"),
+        ):
+            self.assertContains(
+                self.client.get(url), "Analyser 2 fichiers avec Google Gemini"
+            )
+            self.assertEqual(
+                self.client.post("/app/notes-de-frais", form).status_code, 422
+            )
+            self.assertRedirects(self.client.post(url, form), url)
+            self.assertRedirects(self.client.post(url, form), url)
+            self.assertNotContains(self.client.get(url), "Analyser le lot avec l’IA")
+        self.assertEqual(
+            set(
+                BackgroundJob.objects.filter(provider="google").values_list(
+                    "ingestion_uid", "operation"
+                )
+            ),
+            {(local.ingestion_uid, "analyze"), (unread.ingestion_uid, "pipeline")},
+        )

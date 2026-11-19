@@ -9,6 +9,7 @@
   <div class="inline wrap">
     {% if can_preview %}<a class="button" href="/app/imports/{{ item.ingestion_uid }}/apercu">Aperçu</a>{% endif %}
     <a class="button secondary" data-download href="/app/imports/{{ item.ingestion_uid }}/telecharger">Télécharger l’original</a>
+    {% if item.batch_uid and not item.archived_at %}<a class="button secondary" href="{% if is_expense %}/app/notes-de-frais{% else %}/app/imports{% endif %}?lot={{ item.batch_uid }}">Voir le lot</a>{% endif %}
     <a class="button secondary" href="{% if is_expense %}/app/notes-de-frais{% else %}/app/imports{% endif %}{% if item.archived_at %}?archives=1{% endif %}">Retour à la liste</a>
   </div>
 </div>
@@ -44,7 +45,7 @@
   {% if item.progress.code == "failed" %}
     <p class="notice error">Le traitement a échoué. Vous pouvez le relancer dans « Lire le justificatif » ou remplir les champs à la main.</p>
   {% elif item.progress.code == "analyzed" or item.progress.code == "transcribed" %}
-    <p class="notice success" role="status"><strong>{{ item.progress.label }}</strong> · Comparez les champs préremplis avec l’original avant d’enregistrer.</p>
+    <p class="notice success" role="status"><strong>{{ item.progress.label }}</strong>{% if item.progress.code == "analyzed" and analysis_source %} ({{ analysis_source }}){% endif %} · Comparez les champs préremplis avec l’original avant d’enregistrer.</p>
   {% endif %}
   <div class="grid two">
     {% if is_expense %}
