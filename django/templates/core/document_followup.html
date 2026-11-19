@@ -3,32 +3,44 @@
     <h2>Contact CRM</h2>
     {% if crm_contact %}
       {% if crm_automatic %}<small class="form-help">Rattaché automatiquement à partir du tiers facturé.</small>{% endif %}
-      <p><a class="strong" href="/app/clients/{{ crm_contact.customer_uid }}">{{ crm_contact.name }}</a>{% if crm_contact.position %} · {{ crm_contact.position }}{% endif %}<br>{{ crm_contact.email }}</p>
-    {% else %}<p class="muted">Aucun contact lié.</p>{% endif %}
+      <p><a class="strong" href="/app/clients/{{ crm_contact.customer_uid }}">{{ crm_contact.name }}</a>{% if crm_contact.position %} · {{ crm_contact.position }}{% endif %}
+        {% if crm_contact.email %}<br>{{ crm_contact.email }}{% endif %}{% if crm_contact.phone %}<br>{{ crm_contact.phone }}{% endif %}</p>
+    {% else %}<p class="muted">Aucun contact lié. Choisissez un interlocuteur si la facture permet plusieurs correspondances.</p>{% endif %}
     {% if can_write %}
-      {% if crm_contacts %}
-        <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/lier-contact">
-          {% csrf_token %}
-          <label>Contact existant<select name="contact_uid" required>
-            <option value="">Choisir un contact</option>
-            {% for c in crm_contacts %}<option value="{{ c.contact_uid }}"{% if c.pk == crm_contact.pk %} selected{% endif %}>{{ c.name }} · {{ c.customer_name }}{% if c.email %} · {{ c.email }}{% endif %}</option>{% endfor %}
-          </select></label>
-          <button class="secondary">{% if crm_contact %}Mettre à jour le contact lié{% else %}Lier le contact{% endif %}</button>
+      <div class="inline wrap">
+        {% if crm_contact %}<a class="button secondary" href="{{ document.url }}?contact=modifier#contact-crm">Modifier le contact</a>{% endif %}
+        <a class="button{% if crm_contact %} secondary{% endif %}" href="{{ document.url }}?contact=nouveau#contact-crm">Créer un nouveau contact</a>
+      </div>
+      {% if contact_mode == "modifier" and crm_contact %}
+        <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/modifier-contact">
+          {% csrf_token %}<input type="hidden" name="contact_uid" value="{{ crm_contact.contact_uid }}"><input type="hidden" name="version" value="{{ contact_version }}">
+          <h3>Coordonnées du contact</h3>
+          <p class="form-help">Les modifications seront visibles sur sa fiche CRM et sur les autres factures liées à cette personne.</p>
+          {% include "core/invoice_contact_fields.html" with initial_contact=crm_contact only %}
+          <div class="inline wrap"><button>Enregistrer les coordonnées</button><a href="{{ document.url }}#contact-crm">Annuler</a></div>
         </form>
-      {% endif %}
-      <details class="form-disclosure">
-        <summary>Créer un contact CRM</summary>
+      {% elif contact_mode == "nouveau" %}
         <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/creer-contact">
           {% csrf_token %}
+          <h3>Nouveau contact pour cette facture</h3>
           <label>Fiche CRM<select name="customer_uid" required>
             <option value="new">Utiliser ou créer la fiche du tiers facturé</option>
             {% for c in crm_customers %}<option value="{{ c.customer_uid }}"{% if c.customer_uid == document.customer_uid %} selected{% endif %}>{{ c.legal_name }}</option>{% endfor %}
           </select></label>
-          <label>Nom du contact<input name="name" maxlength="200" autocomplete="off" required></label>
-          <label>Adresse email (facultatif)<input name="email" type="email"></label>
-          <button>Créer et lier le contact</button>
+          {% include "core/invoice_contact_fields.html" only %}
+          <div class="inline wrap"><button>Créer et lier le contact</button><a href="{{ document.url }}#contact-crm">Annuler</a></div>
         </form>
-      </details>
+      {% endif %}
+      {% if crm_contacts %}
+        <details class="form-disclosure"><summary>Lier un contact existant</summary>
+          <form class="stack" method="post" action="/app/documents/{{ document.document_uid }}/suivi/lier-contact">
+            {% csrf_token %}<label>Contact existant<select name="contact_uid" required>
+              <option value="">Choisir un contact</option>
+              {% for c in crm_contacts %}<option value="{{ c.contact_uid }}"{% if c.pk == crm_contact.pk %} selected{% endif %}>{{ c.name }} · {{ c.customer_name }}{% if c.email %} · {{ c.email }}{% endif %}</option>{% endfor %}
+            </select></label><div><button class="secondary">Lier le contact</button></div>
+          </form>
+        </details>
+      {% endif %}
       {% if crm_contact %}<form method="post" action="/app/documents/{{ document.document_uid }}/suivi/retirer-contact">{% csrf_token %}<button class="text-button">Retirer le lien</button></form>{% endif %}
     {% endif %}
   </section>

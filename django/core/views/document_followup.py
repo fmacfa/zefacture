@@ -5,7 +5,7 @@ from django.db.models import OuterRef
 from django.shortcuts import redirect
 from django.views.decorators.http import require_POST
 
-from core.common import BusinessError, uid
+from core.common import BusinessError, digest, json_text, uid
 from core.models import (
     Company,
     Customer,
@@ -21,6 +21,20 @@ from core.services.documents import save_customer
 
 def active_customers(company):
     return Customer.objects.filter(company_uid=company.company_uid, status="active")
+
+
+def contact_version(contact):
+    return digest(
+        json_text(
+            [
+                contact.contact_uid,
+                contact.name,
+                contact.position,
+                contact.email,
+                contact.phone,
+            ]
+        )
+    )
 
 
 def followup_context(request, document):
@@ -44,6 +58,8 @@ def followup_context(request, document):
         customers = active_customers(request.company)
         context.update(
             note_uid=uid(),
+            contact_mode=request.GET.get("contact", ""),
+            contact_version=contact_version(link.contact) if link else "",
             crm_customers=customers.order_by("legal_name"),
             crm_contacts=CustomerContact.objects.filter(
                 company_uid=document.company_uid,
@@ -67,6 +83,27 @@ def assign_contact(request, document, action):
         DocumentContact.objects.update_or_create(
             document=document, defaults={"contact": None, "automatic": False}
         )
+        return
+    if action == "modifier-contact":
+        contact = (
+            CustomerContact.objects.select_for_update()
+            .filter(
+                documentcontact__document=document,
+                company_uid=company.company_uid,
+                customer_uid__in=customers.values("customer_uid"),
+                contact_uid=request.POST.get("contact_uid", ""),
+            )
+            .first()
+        )
+        if not contact or contact_version(contact) != request.POST.get("version", ""):
+            raise BusinessError(
+                "Le contact a changé. Rouvrez sa fiche avant d’enregistrer.", 409
+            )
+        fields = crm.contact_fields(request.POST)
+        for key, value in fields.items():
+            setattr(contact, key, value)
+        contact.save(update_fields=list(fields))
+        links.update(automatic=False)
         return
     if action == "lier-contact":
         contact = CustomerContact.objects.filter(
