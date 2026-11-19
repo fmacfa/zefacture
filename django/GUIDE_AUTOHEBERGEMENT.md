@@ -325,7 +325,7 @@ Les PDF/Factur-X et l’OCR sont générés localement. L’analyse IA reste fac
 La configuration courante se fait dans **Réglages de l’entreprise → Intelligence artificielle**. Chaque entreprise peut enregistrer et tester ses propres clés et modèles dans le navigateur. Sa configuration prime sur la valeur de l’instance. Conserver la clé de chiffrement de ZeFacture avec la sauvegarde privée pour pouvoir restaurer les connexions. **Désactiver et retirer la clé** coupe le fournisseur pour cette entreprise. **Revenir au réglage de l’instance** rétablit les valeurs par défaut de l’exploitant.
 
 
-La transcription locale suggère les champs courants des tickets, même sans fournisseur externe. Pour partager une configuration par défaut entre entreprises, l’exploitant peut définir ces variables dans la configuration privée de l’instance. Une clé saisie dans le formulaire prend effet immédiatement pour les futures analyses de l’entreprise.
+Dès qu’un fournisseur est configuré et actif, les nouveaux imports proposent automatiquement l’OCR puis le préremplissage IA pour chaque fichier du lot. Si plusieurs fournisseurs sont disponibles, l’administrateur peut enregistrer le fournisseur par défaut dans **Intelligence artificielle**. L’utilisateur peut sélectionner **OCR et extraction locale** ou **Importer seulement** avant l’envoi. La transcription locale suggère les champs courants des tickets. Pour partager une configuration par défaut entre entreprises, l’exploitant peut définir ces variables dans la configuration privée de l’instance. Une clé saisie dans le formulaire prend effet immédiatement pour les futures analyses de l’entreprise.
 
 | Fournisseur | Clé API | Identifiant du modèle |
 | --- | --- | --- |

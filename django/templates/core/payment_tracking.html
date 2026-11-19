@@ -12,7 +12,7 @@
       <summary>{% if is_purchase %}Renseigner le paiement et le motif{% else %}Renseigner le paiement{% endif %}</summary>
       <form class="stack" method="post" action="{{ payment_action }}">
         {% csrf_token %}
-        {% if payment_suggestion %}<p class="form-help">Le justificatif mentionne « {{ payment_suggestion }} ». Vérifiez le moyen de paiement sur l’original.</p>{% endif %}
+        {% if payment_suggestion %}<p class="form-help">Le justificatif mentionne « {{ payment_suggestion }} ». Vérifiez le moyen de paiement sur l’original avant d’enregistrer.</p>{% endif %}
         <div class="form-grid">{% include "core/payment_fields.html" %}</div>
         <div class="form-actions"><button>Enregistrer le suivi du règlement</button></div>
       </form>

@@ -2,6 +2,17 @@
 <header class="page-head"><h1>Intelligence artificielle</h1><a class="button secondary" href="/app/imports">Ouvrir les imports</a></header>
 <p>Les connexions ci-dessous s’appliquent à {{ company.legal_name }}. Lors d’une analyse avec IA, le fournisseur sélectionné reçoit le texte transcrit.</p>
 {% if services_disabled %}<p class="notice">Les appels aux services externes sont désactivés sur cette instance.</p>{% endif %}
+{% if choices %}
+  <section class="card stack">
+    <h2>Analyse automatique des imports</h2>
+    {% if choices|length > 1 %}
+      <form method="post" class="stack">{% csrf_token %}
+        <label>Fournisseur par défaut<select name="provider">{% for key, label in choices %}<option value="{{ key }}"{% if forloop.first %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <button name="action" value="default">Enregistrer le fournisseur par défaut</button>
+      </form>
+    {% else %}<p>{{ choices.0.1 }} analysera le texte OCR de chaque nouveau fichier importé.</p>{% endif %}
+  </section>
+{% endif %}
 <div class="grid two">
 {% for p in providers %}<section class="card stack" id="{{ p.id }}">
   <h2>{{ p.label }}</h2>

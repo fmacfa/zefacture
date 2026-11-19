@@ -5,7 +5,7 @@
   <a class="button secondary" href="{% if archives %}{% if expenses %}/app/notes-de-frais{% else %}/app/imports{% endif %}{% else %}?archives=1{% endif %}">{% if archives %}Revenir à la liste active{% else %}Voir les archives{% endif %}</a>
 </div>
 
-{% if not archives and can_write %}
+{% if not archives and not batch and can_write %}
   <form method="post" class="card stack" enctype="multipart/form-data" data-batch-upload>
     {% csrf_token %}
     <h2>Importer des documents</h2>
@@ -26,13 +26,12 @@
         </div>
       </div>
     </fieldset>
-    <label>Analyse après import<select name="pipeline"><option value="local">OCR et extraction locale</option>
-      {% for key, label in ai_choices %}<option value="{{ key }}">OCR puis analyse avec {{ label }}</option>{% endfor %}
+    <label>Analyse après import<select name="pipeline" aria-describedby="import-pipeline-help">
+      {% for key, label in ai_choices %}<option value="{{ key }}" data-provider="{{ label }}"{% if forloop.first %} selected{% endif %}>OCR puis analyse avec {{ label }}</option>{% endfor %}
+      <option value="local"{% if not ai_choices %} selected{% endif %}>OCR et extraction locale</option>
       <option value="none">Importer seulement</option></select></label>
     {% if can_admin %}<a href="/app/entreprise/ia">Gérer les clés IA de l’entreprise</a>{% endif %}
-    {% if ai_choices %}<small>Avec une IA, le texte de chaque document est envoyé au fournisseur choisi.</small>{% endif %}
-    <ul class="batch-files clean-list" data-batch-files></ul><p role="status" data-batch-progress></p>
-    <a data-batch-link hidden>Voir les documents de ce lot</a>
+    <small id="import-pipeline-help">{% if ai_choices %}Dès l’import, {{ ai_choices.0.1 }} reçoit le texte OCR de chaque fichier pour préremplir les champs.{% else %}Chaque fichier est lu sur ce serveur pour préremplir les champs.{% endif %}</small>
     <details class="form-disclosure">
       <summary>Détails de la dépense (facultatif)</summary>
       <p class="form-help">Ces valeurs s’appliquent aux achats et justificatifs sélectionnés. Vous pouvez les modifier sur chaque fiche.</p>
@@ -45,29 +44,32 @@
         {% include "core/payment_fields.html" %}
       </div>
     </details>
-    <div class="form-actions end-actions"><button>Importer</button></div>
+    <div class="import-submit">
+      <button data-loading-label="Envoi des fichiers…">Importer</button>
+      <span role="status" data-batch-progress></span>
+      <a data-batch-link hidden>Voir les documents de ce lot</a>
+    </div>
+    <p role="status" data-import-summary="upload" hidden></p>
+    <ul class="batch-files clean-list" data-batch-files></ul>
   </form>
 {% endif %}
 
-{% if batch %}<p><strong>Documents de ce lot</strong> · <a href="?lot={{ batch }}">Actualiser les analyses</a> · <a href="/app/imports">Voir tous les imports</a></p>{% endif %}
-<section class="card table-wrap">
+{% if batch %}<p><strong>Documents de ce lot</strong> · <a href="{{ request.path }}">{% if expenses %}Voir toutes les notes de frais{% else %}Voir tous les imports{% endif %}</a></p>{% endif %}
+<p data-import-connection role="status" hidden></p>
+<section class="card table-wrap" aria-label="Documents importés">
+  <h2>Documents importés</h2>
+  <p role="status" data-import-summary="table" hidden></p>
   <table>
     <thead><tr><th>Fichier</th><th>Type</th><th>Date du document</th><th>Total TTC</th>{% if expenses %}<th>Règlement et motif</th>{% endif %}<th>État</th></tr></thead>
-    <tbody>
+    <tbody data-import-rows>
       {% for i in items %}
-        <tr>
-          <td><a href="/app/imports/{{ i.ingestion_uid }}">{{ i.original_filename }}</a>{% if can_write and i.can_preview %}<small><a href="/app/imports/{{ i.ingestion_uid }}/apercu">Aperçu</a></small>{% endif %}</td>
-          <td>{{ i.source_label }}</td>
-          <td>{{ i.list_date|default:"—" }}</td>
-          <td>{% if i.list_amount is not None %}{{ i.list_amount|display_number:2 }} {{ i.list_currency|default:"" }}{% else %}—{% endif %}</td>
-          {% if expenses %}<td>{{ i.get_expense_payment_method_display|default:"Non renseigné" }}{% if i.expense_paid_by %}<small>{{ i.get_expense_paid_by_display }}</small>{% endif %}{% if i.expense_description %}<small>{{ i.expense_description|truncatechars:100 }}</small>{% endif %}</td>{% endif %}
-          <td><span class="badge">{% if archives %}Archivé{% else %}{{ i.state_label }}{% endif %}</span>{% if i.transcription_status == "queued" %} · Analyse en file{% endif %}{% if i.duplicate %}<br><a class="badge duplicate-badge" href="/app/imports/{{ i.ingestion_uid }}#doublons">Doublon possible · vérifier</a>{% endif %}</td>
-        </tr>
+        {% include "core/ingestion_row.html" %}
       {% empty %}
-        <tr><td colspan="{% if expenses %}6{% else %}5{% endif %}" class="empty">{% if archives %}Aucun justificatif archivé.{% else %}Aucun justificatif.{% endif %}</td></tr>
+        <tr data-import-empty><td colspan="{% if expenses %}6{% else %}5{% endif %}" class="empty">{% if archives %}Aucun justificatif archivé.{% else %}Aucun justificatif.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </section>
+<script src="{% static 'import-progress.js' %}" defer></script>
 <script src="{% static 'batch-imports.js' %}" defer></script>
 {% endblock %}

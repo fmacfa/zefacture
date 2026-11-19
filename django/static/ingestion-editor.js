@@ -14,7 +14,7 @@
   const fields=form.querySelectorAll('[data-extract]');
   for(const input of fields) {
     const [group,key]=input.dataset.extract.split('.');
-    input.value=extracted[group]?.[key]||'';
+    input.value=extracted[group]?.[key]??'';
   }
   function serialize() {
     for(const input of fields) {

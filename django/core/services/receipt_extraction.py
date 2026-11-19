@@ -157,7 +157,7 @@ def expense_suggestion(item):
     }
 
 
-def suggested_payment(text):
+def suggested_payment_method(text, extracted=None):
     """Only suggest an explicitly stated, unambiguous form of settlement."""
     methods = {
         "carte bancaire": PaymentMethod.CARD,
@@ -186,7 +186,16 @@ def suggested_payment(text):
         )
         if match and (method := methods.get(match[1].strip())):
             found.add(method)
-    return next(iter(found)).label if len(found) == 1 else ""
+    payment = (extracted or {}).get("payment")
+    method = payment.get("method") if isinstance(payment, dict) else None
+    if method in PaymentMethod.values:
+        found.add(PaymentMethod(method))
+    return next(iter(found)) if len(found) == 1 else None
+
+
+def suggested_payment(text):
+    method = suggested_payment_method(text)
+    return method.label if method else ""
 
 
 def expense_values(data, require_complete=False):

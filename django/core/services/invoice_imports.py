@@ -45,6 +45,92 @@ def local_invoice(item):
     return data
 
 
+def _field_values(data):
+    """Editable scalar facts and the complete set of invoice lines."""
+    if not isinstance(data, dict):
+        return {}
+    facts = {}
+    for group in ("supplier", "buyer", "invoice", "totals"):
+        fields = data.get(group)
+        if isinstance(fields, dict):
+            for name, value in fields.items():
+                if (
+                    isinstance(name, str)
+                    and "." not in name
+                    and isinstance(value, (str, int, float))
+                ):
+                    facts[f"{group}.{name}"] = value
+    lines = data.get("lines")
+    if isinstance(lines, list) and any(
+        isinstance(row, dict) and row.get("description") for row in lines
+    ):
+        facts["lines"] = lines
+    return facts
+
+
+def reviewed_fields(data):
+    if not isinstance(data, dict):
+        return set()
+    if isinstance(data.get("_reviewed"), list):
+        return {name for name in data["_reviewed"] if isinstance(name, str)}
+    # Older saved review forms contain the editor's reference field, even when empty.
+    invoice = data.get("invoice")
+    if isinstance(invoice, dict) and "reference" in invoice:
+        return {name for name, value in _field_values(data).items() if value != ""}
+    return set()
+
+
+def mark_reviewed(item, data):
+    before = _field_values(review_data(item))
+    fields = _field_values(data)
+    confirmed = {
+        name
+        for name, value in fields.items()
+        if value != "" or before.get(name) not in ("", None)
+    }
+    if "lines" in before and "lines" in data:
+        confirmed.add("lines")
+    data["_reviewed"] = sorted(
+        confirmed | reviewed_fields(unpack(item.extraction_json))
+    )
+
+
+def keep_reviewed(item, suggestions):
+    previous = unpack(getattr(item, "extraction_json", None))
+    confirmed = reviewed_fields(previous)
+    for name in confirmed:
+        if name == "lines":
+            suggestions["lines"] = previous.get("lines", [])
+        elif "." in name:
+            group, key = name.split(".", 1)
+            source = previous.get(group)
+            if isinstance(source, dict) and group in {
+                "supplier",
+                "buyer",
+                "invoice",
+                "totals",
+            }:
+                suggestions.setdefault(group, {})[key] = source.get(key, "")
+    suggestions["_reviewed"] = sorted(confirmed)
+    return suggestions
+
+
+def review_data(item):
+    """Fill missing structured fields from local OCR, preserving explicit corrections."""
+    parsed = unpack(item.extraction_json)
+    if not isinstance(parsed, dict):
+        parsed = {}
+    confirmed = reviewed_fields(parsed)
+    for group, fallback in local_invoice(item).items():
+        fields = parsed.get(group)
+        if not isinstance(fields, dict):
+            parsed[group] = fields = {}
+        for key, value in fallback.items():
+            if fields.get(key) in (None, "") and f"{group}.{key}" not in confirmed:
+                fields[key] = value
+    return parsed
+
+
 def inspect_duplicates(item, visible_items, documents, data=None):
     if item.document_uid or item.source_kind not in {
         "sales_invoice",
@@ -152,6 +238,8 @@ def upload_one(
                 enqueue(item, "pipeline", pipeline)
             return {
                 "state": "imported",
+                "ingestion_uid": item.ingestion_uid,
+                "queued": pipeline != "none",
                 "label": "Analyse en file" if pipeline != "none" else "Importé",
                 "url": "/app/imports/" + item.ingestion_uid,
             }

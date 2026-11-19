@@ -7,7 +7,11 @@ import re
 import requests
 from django.conf import settings
 
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+
 from core.common import BusinessError, json_text
+from core.payment_details import PaymentMethod
 from .receipt_extraction import CURRENCIES, amount_string, as_date
 
 PROVIDERS = {
@@ -19,6 +23,7 @@ PROVIDERS = {
 FIELD_LENGTHS = {
     "supplier": {
         "legal_name": 255,
+        "email": 254,
         "siren": 9,
         "siret": 14,
         "vat_number": 32,
@@ -27,10 +32,11 @@ FIELD_LENGTHS = {
         "city": 120,
         "country_code": 2,
     },
-    "invoice": {"number": 120, "issue_date": 10, "due_date": 10, "currency_code": 3},
+    "invoice": {"number": 120, "issue_date": 10, "due_date": 10, "currency_code": 3, "reference": 140},
     "totals": {"total_including_tax": 20, "total_vat": 20},
     "line": {
         "description": 500,
+        "item_reference": 120,
         "quantity": 20,
         "unit_price_excluding_tax": 20,
         "vat_rate": 20,
@@ -44,6 +50,8 @@ INSTRUCTIONS = (
     "N'invente ni numéro de facture, ni échéance, ni date, ni devise, ni TVA. "
     "Emploie AAAA-MM-JJ pour les dates et le point pour les séparateurs décimaux. "
     "Utilise les montants TTC pour total_including_tax et la TVA totale pour total_vat. "
+    "Le moyen de paiement doit être explicitement utilisé sur le ticket, jamais une simple liste "
+    "de moyens acceptés. Emploie card, cash, transfer, direct_debit, cheque, wallet, mixed ou other, sinon une chaîne vide. "
     "N'inclus une ligne que si la description, la quantité, le prix unitaire hors taxe "
     "et le taux de TVA sont établis. Ne confonds pas le prix TTC avec le prix HT. "
     "Rends uniquement un objet JSON conforme à ce schéma : "
@@ -68,6 +76,7 @@ SCHEMA = object_schema(
         "supplier": SCHEMAS["supplier"],
         "invoice": SCHEMAS["invoice"],
         "totals": SCHEMAS["totals"],
+        "payment": object_schema({"method": {"type": "string", "enum": ["", *PaymentMethod.values]}}),
         "lines": {"type": "array", "items": SCHEMAS["line"]},
     }
 )
@@ -122,8 +131,13 @@ def choices(company_uid=None):
         for label, key, model in [configuration(provider, profiles, reveal=False)]
         if key and model
     ]
-    preferred = os.getenv("INGESTION_AI_PROVIDER", "").strip()
-    return sorted(available, key=lambda item: item[0] != preferred)
+    preferred = profiles.get("preferred")
+    instance_preference = os.getenv("INGESTION_AI_PROVIDER", "").strip()
+    return sorted(available, key=lambda item: (
+        item[0] != preferred,
+        not profiles.get(item[0], {}).get("secret"),
+        item[0] != instance_preference,
+    ))
 
 
 def require_provider(provider, company_uid=None):
@@ -266,6 +280,11 @@ def normalize_extraction(data, *, sale=False):
         raise ValueError("Expected an object")
     party = "buyer" if sale else "supplier"
     supplier = clean_group(data.get(party), "supplier")
+    if "email" in supplier:
+        try:
+            validate_email(supplier["email"])
+        except ValidationError:
+            supplier.pop("email")
     invoice = clean_group(data.get("invoice"), "invoice")
     for field in ("issue_date", "due_date"):
         invoice[field] = as_date(invoice.get(field, ""))
@@ -300,7 +319,10 @@ def normalize_extraction(data, *, sale=False):
             lines.append(line)
     result = {party: supplier, "invoice": invoice, "lines": lines}
     result["totals"] = {name: value for name, value in totals.items() if value}
-    if not (supplier or any(invoice.values()) or result["totals"] or lines):
+    payment = data.get("payment")
+    if isinstance(payment, dict) and payment.get("method") in PaymentMethod.values:
+        result["payment"] = {"method": payment["method"]}
+    if not (supplier or any(invoice.values()) or result["totals"] or lines or result.get("payment")):
         raise ValueError("No usable values")
     return result
 

@@ -159,3 +159,13 @@ form [hidden] {
 
 .stock-quantities { grid-template-columns: repeat(auto-fit,minmax(min(14rem,100%),1fr)); }
 .stock-quantities strong { font-size: 1.5rem; }
+
+.import-submit, .import-state { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; }
+.import-submit { gap: .75rem 1rem; }
+.import-state { display: inline-flex; flex-wrap: nowrap; font-weight: 600; }
+.import-state .request-spinner[hidden] { display: none; }
+.import-state[data-pending] { color: var(--action); }
+.import-state[data-code="failed"] { color: var(--danger, #a32f30); }
+.import-wait .import-state { font-size: 1.1rem; }
+.import-wait .request-spinner { width: 1.25em; height: 1.25em; }
+.batch-files li > span { display: grid; gap: .3rem; }

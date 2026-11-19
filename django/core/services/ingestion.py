@@ -105,9 +105,10 @@ def analyze(item, provider="openrouter"):
     data, model = extraction_ai.extract(
         provider, getattr(item, "transcription_text", None), **options
     )
-    item.extraction_json = json_text(data)
-    from .invoice_imports import index_extraction
+    from .invoice_imports import index_extraction, keep_reviewed
 
+    data = keep_reviewed(item, data)
+    item.extraction_json = json_text(data)
     index_extraction(item, data)
     item.extraction_model = model
     item.extraction_status, item.status, item.last_error = "done", "analyzed", None
