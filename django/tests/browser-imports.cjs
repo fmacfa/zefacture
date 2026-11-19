@@ -24,6 +24,9 @@ const output=path.resolve('test-results/browser');
   await page.locator('input[name=file]').setInputFiles(process.env.TEST_IMPORT_FILE||path.join(output,'factur-x.pdf'));
   await Promise.all([page.waitForURL(/\/app\/imports\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Importer',exact:true}).click()]);
   const ingestion=page.url();
+  const aiGuide=page.getByRole('link',{name:'Configurer une clé API pour l’IA',exact:true});
+  assert.equal(await aiGuide.getAttribute('target'),'_blank');
+  assert.equal(await aiGuide.getAttribute('rel'),'noopener noreferrer');
   await page.getByRole('button',{name:'Transcrire',exact:true}).click();
   for(let attempt=0;attempt<30;attempt++){
     await page.goto(ingestion);

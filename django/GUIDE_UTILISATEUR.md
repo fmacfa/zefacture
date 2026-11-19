@@ -98,6 +98,8 @@ Les brouillons restent modifiables. Les documents émis conservent leurs montant
 
 L’action **Marquer payé** correspond à un règlement intégral. Pour un paiement partiel traçable, enregistrer la transaction bancaire et la rapprocher de la facture dans **Finances → Transactions**. Une facture échue avec reste dû peut faire l’objet d’une relance manuelle depuis sa fiche.
 
+Un site de vente peut créer le brouillon, émettre la facture et télécharger son PDF avec une clé **API métier**. Le site associe ensuite le PDF à la commande pour le remettre au client. [Émettre et télécharger après une vente](GUIDE_API_WEBHOOKS.md#émettre-et-télécharger-après-une-vente).
+
 ## 6. Achats, imports et notes de frais
 
 **Factures fournisseurs** centralise les documents reçus : saisie du numéro fournisseur, dates, lignes et original joint, ou réception synchronisée depuis SUPERPDP. Les actions disponibles permettent acceptation, refus, litige et règlement selon le statut. Le téléchargement restitue l’original fourni ; il ne fabrique pas une facture à la place du fournisseur.

@@ -382,14 +382,7 @@ def send(document, channel="email", processing_rule=""):
             document.number,
             body,
         )
-        document.status, document.sent_at = "sent", stamp()
-        document.save()
-        service.event(
-            document,
-            "sent",
-            "Document émis ; email préparé",
-            {"file_uid": file.file_uid},
-        )
+        service.record_issuance(document, file, "Document émis ; email préparé")
     else:
         raise BusinessError("Canal d'envoi inconnu.")
     return document
