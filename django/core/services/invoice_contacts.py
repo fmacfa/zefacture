@@ -45,7 +45,8 @@ def contact_info(document, party):
         or party.get("phone")
         or ""
     ).strip()[:80]
-    return name[:200], address if len(address) <= 254 else "", phone
+    personal_email = bool(details.get("email_address") or party.get("contact_email"))
+    return name[:200], address if len(address) <= 254 else "", phone, personal_email
 
 
 def unique_match(query):
@@ -91,6 +92,12 @@ def historical_customer(document, party, address):
                 address_line1__iexact=party["address_line1"],
                 postal_code=party["postal_code"],
             )
+        if (
+            not evidence
+            and not identifiers
+            and party.get("type", "business") != "individual"
+        ):
+            evidence = Q(country_code__iexact=party.get("country_code") or "FR")
         if evidence:
             card, _ = unique_match(same_name.filter(evidence))
             if (
@@ -103,12 +110,6 @@ def historical_customer(document, party, address):
                 )
             ):
                 return card
-        return None
-    if not (
-        identifiers
-        or address
-        or (party.get("address_line1") and party.get("postal_code"))
-    ):
         return None
     card = cards.create(
         company_uid=document.company_uid,
@@ -145,7 +146,8 @@ def assign_automatically(document):
     if link and not link.automatic:
         return False
     party = document.seller if document.direction == "incoming" else document.buyer
-    name, address, phone = contact_info(document, party)
+    party = party if isinstance(party, dict) else {}
+    name, address, phone, personal_email = contact_info(document, party)
     customer = Customer.objects.filter(
         company_uid=document.company_uid,
         customer_uid=document.customer_uid,
@@ -164,7 +166,11 @@ def assign_automatically(document):
     ambiguous = False
     if address:
         contact, ambiguous = unique_match(contacts.filter(email__iexact=address))
-        if name and contact and contact.name.casefold() != name.casefold():
+        if (
+            name
+            and ambiguous
+            and (not contact or contact.name.casefold() != name.casefold())
+        ):
             contact, ambiguous = unique_match(
                 contacts.filter(email__iexact=address, name__iexact=name)
             )
@@ -178,7 +184,12 @@ def assign_automatically(document):
             and contact.email.casefold() != address.casefold()
         ):
             contact, ambiguous = None, True
-    if not name and not address:
+    if (
+        not name
+        and not contact
+        and not ambiguous
+        and (not address or not personal_email)
+    ):
         contact, ambiguous = unique_match(contacts)
     if not contact and not ambiguous:
         # A legal entity can have a billing contact in its own name.

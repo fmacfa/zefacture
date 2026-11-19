@@ -62,14 +62,20 @@ def save_profile(customer, data):
     )[0]
 
 
+def contact_fields(data):
+    return {
+        "name": text(data, "name", required=True),
+        "position": text(data, "position"),
+        "email": email(data.get("email"), optional=True),
+        "phone": text(data, "phone", 80),
+    }
+
+
 def add_contact(customer, data):
     return CustomerContact.objects.create(
         customer_uid=customer.customer_uid,
         company_uid=customer.company_uid,
-        name=text(data, "name", required=True),
-        position=text(data, "position"),
-        email=email(data.get("email"), optional=True),
-        phone=text(data, "phone", 80),
+        **contact_fields(data),
     )
 
 

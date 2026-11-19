@@ -192,7 +192,7 @@ urlpatterns = [
         documents.documents,
     ),
     re_path(
-        r"^app/documents/(?P<document_uid>[a-f0-9]{32})/suivi/(?P<action>lier-contact|creer-contact|retirer-contact|note)$",
+        r"^app/documents/(?P<document_uid>[a-f0-9]{32})/suivi/(?P<action>lier-contact|creer-contact|modifier-contact|retirer-contact|note)$",
         document_followup.followup,
     ),
     re_path(

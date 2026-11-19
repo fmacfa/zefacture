@@ -106,7 +106,9 @@ Dans la liste, le client ou fournisseur et le numéro identifient la facture. **
 
 ZeFacture rattache les factures clients et fournisseurs au contact de facturation de leur fiche CRM. Il utilise le nom ou l’adresse email figurant sur la facture. Quand une fiche ne possède aucun interlocuteur identifiable, il peut créer un contact de facturation au nom du tiers. Plusieurs correspondances possibles laissent la décision à l’équipe. Un contact choisi ou retiré manuellement conserve ce choix lors des synchronisations suivantes.
 
-Pour corriger un rattachement, dans **Contact CRM**, sélectionner un **Contact existant** puis **Lier le contact**, ou ouvrir **Créer un contact CRM**. Choisir sa fiche client ou fournisseur, renseigner le nom et cliquer sur **Créer et lier le contact**. La facture apparaît également dans les documents de cette fiche CRM. Le contact peut être remplacé et **Retirer le lien** le détache de cette facture.
+Dans **Contact CRM**, **Modifier le contact** ouvre le nom, la fonction, l’email et le téléphone préremplis. **Enregistrer les coordonnées** actualise la fiche CRM et les autres factures qui affichent cette personne. Les coordonnées inscrites dans le PDF ou le XML d’origine sont conservées.
+
+**Créer un nouveau contact** permet de saisir une autre personne et de la lier à cette facture. Pour utiliser un contact déjà dans le CRM, ouvrir **Lier un contact existant**, le sélectionner puis cliquer sur **Lier le contact**. **Retirer le lien** détache le contact de cette facture.
 
 Dans **Notes internes**, saisir une note et cliquer sur **Ajouter la note**. Elle apparaît avec son auteur et sa date et reste dans ZeFacture. L’auteur ou un administrateur peut la modifier. Les membres en lecture seule peuvent consulter le suivi des factures auxquelles ils ont accès.
 

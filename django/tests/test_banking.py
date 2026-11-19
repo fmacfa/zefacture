@@ -600,3 +600,85 @@ class InvoiceContactsTests(ApplicationCase):
         Document.objects.filter(pk=target.pk).update(buyer_snapshot="{}")
         self.assertFalse(assign_automatically(target))
         self.assertFalse(DocumentContact.objects.filter(document=target).exists())
+
+    def test_edit_prefilled_contact_and_create_another_from_supplier_invoice(self):
+        doc = self.invoice_for_supplier("F-2026-10")
+        other = self.invoice_for_supplier("F-2026-11")
+        original = Document.objects.filter(pk=doc.pk).values().get()
+        contact = doc.crm_link.contact
+        page = self.client.get(doc.url, {"contact": "modifier"})
+        self.assertContains(page, "Enregistrer les coordonnées")
+        self.assertContains(page, contact.email)
+        destination = f"/app/documents/{doc.document_uid}/suivi/"
+        data = {
+            "contact_uid": contact.contact_uid,
+            "version": page.context["contact_version"],
+            "name": "Lou Facturation",
+            "email": "lou.facturation@example.test",
+            "position": "Comptabilité",
+            "phone": "0100000000",
+        }
+        self.assertEqual(
+            self.client.post(
+                destination + "modifier-contact", data | {"contact_uid": "unrelated"}
+            ).status_code,
+            409,
+        )
+        self.assertRedirects(
+            self.client.post(destination + "modifier-contact", data),
+            doc.url + "#contact-crm",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(DocumentContact.objects.get(document=doc).automatic)
+        self.assertContains(self.client.get(other.url), "Lou Facturation")
+        self.assertEqual(
+            self.client.post(
+                destination + "modifier-contact", data | {"name": "Page ancienne"}
+            ).status_code,
+            409,
+        )
+        self.assertEqual(
+            self.invoice_for_supplier("F-2026-12").crm_link.contact_id, contact.pk
+        )
+        create = self.client.get(doc.url, {"contact": "nouveau"})
+        self.assertContains(create, "Créer et lier le contact")
+        for _ in range(2):
+            self.client.post(
+                destination + "creer-contact",
+                {
+                    "customer_uid": self.customer.customer_uid,
+                    "name": "Autre personne",
+                    "email": "autre@example.test",
+                },
+            )
+        self.assertEqual(
+            DocumentContact.objects.get(document=doc).contact.name, "Autre personne"
+        )
+        self.assertEqual(
+            CustomerContact.objects.filter(
+                customer_uid=self.customer.customer_uid
+            ).count(),
+            2,
+        )
+        self.assertEqual(original, Document.objects.filter(pk=doc.pk).values().get())
+        CompanyMember.objects.filter(company_uid=self.company.company_uid).update(
+            role="viewer"
+        )
+        self.assertNotContains(
+            self.client.get(doc.url, {"contact": "modifier"}),
+            "Enregistrer les coordonnées",
+        )
+        self.assertEqual(
+            self.client.post(destination + "modifier-contact", data).status_code, 403
+        )
+
+    def invoice_for_supplier(self, number):
+        from core.services.documents import save_document
+
+        return save_document(
+            self.company,
+            self.user,
+            "invoice",
+            self.data(number=number),
+            direction="incoming",
+        )
