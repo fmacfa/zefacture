@@ -88,6 +88,8 @@ Chaque facture conserve ses données structurées originales. Les totaux provien
 
 Une facture existante peut être rapprochée par son identifiant PDP. Un document importé manuellement n’est rapproché automatiquement qu’avec le même original, la même empreinte et des métadonnées cohérentes. Un numéro fournisseur seul ne suffit pas. Si deux fournisseurs utilisent le même numéro, une référence locale distincte est créée ; le numéro original reste visible dans **Suivi SUPERPDP** et dans l’original. Les compteurs locaux de numérotation ne sont pas consommés par l’import.
 
+Le **Contact CRM** de la facture est rattaché automatiquement au fournisseur pour un achat et au client pour une vente. ZeFacture exploite le nom et l’email du contact structuré transmis par SUPERPDP. Une correspondance ambiguë peut être tranchée depuis la fiche de la facture. Une nouvelle synchronisation conserve les choix manuels.
+
 ### PDF et XML
 
 **Aperçu** ouvre le PDF directement dans ZeFacture. Si l’original est un XML, le lecteur utilise le PDF de lecture récupéré auprès de SUPERPDP lorsqu’il est disponible. Les flèches changent de page et les contrôles de zoom agrandissent le document. Le HT, la TVA et le TTC de la facture figurent au-dessus du lecteur.

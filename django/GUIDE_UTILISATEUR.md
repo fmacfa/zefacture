@@ -104,7 +104,9 @@ Un site de vente peut créer le brouillon, émettre la facture et télécharger 
 
 Dans la liste, le client ou fournisseur et le numéro identifient la facture. **Voir la facture** ouvre les montants, les fichiers et le suivi. **Modifier** permet de corriger un brouillon. Pour une facture déjà émise ou reçue, **Modifier le suivi** donne accès aux informations internes et l’original reste conservé.
 
-Dans **Contact CRM**, sélectionner un **Contact existant** puis **Lier le contact**, ou ouvrir **Créer un contact CRM**. Choisir sa fiche client ou fournisseur, renseigner le nom et cliquer sur **Créer et lier le contact**. La facture apparaît également dans les documents de cette fiche CRM. Le contact peut être remplacé et **Retirer le lien** le détache de cette facture.
+ZeFacture rattache les factures clients et fournisseurs au contact de facturation de leur fiche CRM. Il utilise le nom ou l’adresse email figurant sur la facture. Quand une fiche ne possède aucun interlocuteur identifiable, il peut créer un contact de facturation au nom du tiers. Plusieurs correspondances possibles laissent la décision à l’équipe. Un contact choisi ou retiré manuellement conserve ce choix lors des synchronisations suivantes.
+
+Pour corriger un rattachement, dans **Contact CRM**, sélectionner un **Contact existant** puis **Lier le contact**, ou ouvrir **Créer un contact CRM**. Choisir sa fiche client ou fournisseur, renseigner le nom et cliquer sur **Créer et lier le contact**. La facture apparaît également dans les documents de cette fiche CRM. Le contact peut être remplacé et **Retirer le lien** le détache de cette facture.
 
 Dans **Notes internes**, saisir une note et cliquer sur **Ajouter la note**. Elle apparaît avec son auteur et sa date et reste dans ZeFacture. L’auteur ou un administrateur peut la modifier. Les membres en lecture seule peuvent consulter le suivi des factures auxquelles ils ont accès.
 
@@ -136,19 +138,24 @@ Les administrateurs et comptables peuvent traiter les frais de l’entreprise. L
 
 ## 7. Finances et rapprochement
 
-Les propriétaires, administrateurs et comptables disposent de **Finances** :
+### Relier une ou plusieurs banques
 
-- **Comptes** : compte, devise et solde d’ouverture.
-- **Transactions** : saisie, import CSV, contrôle des doublons et rapprochement avec un document de la même entreprise.
-- **Trésorerie** : prévisions et échéances.
-- **TVA** : état par période.
-- **Export comptable** : journal de facturation exportable.
+1. Un propriétaire ou un administrateur ouvre **Finances → Comptes bancaires → Configurer Bridge**, renseigne les identifiants de son application Bridge et enregistre. Le guide d’auto-hébergement décrit l’activation du service d’agrégation. [Configuration de Bridge](GUIDE_AUTOHEBERGEMENT.md#connexion-bancaire-bridge).
+2. Cliquer sur **Relier ma banque**, puis sur **Continuer vers Bridge**. Choisir l’établissement et les comptes de paiement à partager. Valider la demande auprès de la banque, puis revenir dans ZeFacture.
+3. Pour ajouter une deuxième banque, renouveler un accès ou retirer un compte, le même administrateur choisit **Relier ou gérer mes banques**. Chaque compte partagé dispose de son propre solde et d’un lien **Transactions de ce compte**. La période d’historique disponible dépend de l’établissement.
+4. **Synchroniser maintenant** demande une actualisation au serveur. Le worker récupère ensuite les nouvelles opérations et les corrections toutes les quatre heures. La date de dernière réussite et les éventuelles erreurs apparaissent dans **Comptes bancaires**.
 
-Pour suivre plusieurs comptes, ouvrir **Finances → Comptes bancaires → Ajouter un compte** pour chacun. Saisir le solde juste avant le premier mouvement à importer. Télécharger le relevé CSV depuis la banque, puis ouvrir **Transactions → Importer un relevé CSV** et sélectionner le compte correspondant. Prévoir les colonnes `date`, `libellé` et `montant`, ou `débit` et `crédit`, avec un maximum de 1 000 lignes par fichier. Une fois les mouvements enregistrés, sélectionner la facture sur la ligne et cliquer sur **Rapprocher**. La version actuelle utilise l’import de relevés pour alimenter les comptes.
+### Rapprocher les règlements
 
-Après un import, lire le nombre de lignes importées, ignorées et rejetées. Vérifier le compte choisi et les devises avant rapprochement. Les devises ne sont pas converties automatiquement ni additionnées dans un solde unique.
+Dans **Transactions**, rechercher un libellé ou filtrer par compte. L’option **Rapprocher automatiquement** associe un mouvement comptabilisé à une seule facture ouverte si le libellé contient son numéro complet et si la devise, le sens du paiement et le reste dû concordent. Un encaissement règle une facture client et un décaissement règle une facture fournisseur. L’historique de la facture conserve le paiement.
 
-L’état de TVA suit les dates d’émission ; il ne calcule pas une déclaration sur encaissements. Le journal exporté n’est pas un FEC. Faire valider l’utilisation de ces états pour les démarches comptables de l’entreprise.
+Pour un paiement partiel ou un libellé sans référence exploitable, sélectionner la facture sur la ligne et cliquer sur **Rapprocher**. Dans **Opérations à vérifier**, choisir l’écriture existante si elle correspond au même mouvement, ou **Créer une opération distincte** si deux paiements sont réellement différents. Si la banque annule ou modifie un paiement déjà rapproché, vérifier le mouvement puis confirmer la correction. La facture retrouve alors le montant dû correspondant.
+
+### Comptes manuels et exports
+
+**Ajouter un compte manuel** permet de suivre un autre compte avec sa devise et son solde d’ouverture. Dans **Transactions → Importer un relevé CSV**, choisir le compte et un fichier de 1 000 lignes au maximum, avec les colonnes `date`, `libellé` et `montant`, ou `débit` et `crédit`. **Exporter le CSV** reprend les filtres de la liste. Les menus **Trésorerie**, **État de TVA** et **Export comptable** restent accessibles aux propriétaires, administrateurs et comptables.
+
+Les soldes sont présentés par devise. L’état de TVA utilise la date d’émission des factures. Le journal exporté sert au suivi de la facturation. Pour le régime des encaissements ou la production du fichier des écritures comptables (FEC), faire valider les traitements complémentaires par le comptable de l’entreprise.
 
 ## 8. Dashboard, périodes et comparatifs
 

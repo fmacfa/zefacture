@@ -1038,6 +1038,9 @@ def ingest_invoice(company, session, state, overview):
             if not document.pdp_invoice_id:
                 document.pdp_invoice_id = remote_id
                 document.save(update_fields=["pdp_invoice_id"])
+        from .invoice_contacts import assign_automatically
+
+        assign_automatically(document)
         return link
 
 

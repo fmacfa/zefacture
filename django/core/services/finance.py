@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
 from django.db import transaction
+from django.db.models import Q
 from core.common import (
     BusinessError,
     money,
@@ -15,12 +16,26 @@ from core.common import (
     digest,
     json_text,
 )
-from core.models import BankAccount, BankTransaction, Document, DocumentLine, Forecast
+from core.models import (
+    BankAccount,
+    BankFeedEntry,
+    BankTransaction,
+    Document,
+    DocumentLine,
+    Forecast,
+)
 from .documents import event
 
 
 @transaction.atomic
-def reconcile(company, bank_transaction, document_uid):
+def reconcile(company, bank_transaction, document_uid, *, exact=False):
+    feed_entry = (
+        BankFeedEntry.objects.select_for_update()
+        .filter(transaction=bank_transaction)
+        .first()
+    )
+    if feed_entry and feed_entry.review:
+        raise BusinessError("Vérifiez d’abord la correction bancaire.", 409)
     bank_transaction = BankTransaction.objects.select_for_update().get(
         pk=bank_transaction.pk, company_uid=company.company_uid
     )
@@ -29,6 +44,10 @@ def reconcile(company, bank_transaction, document_uid):
         .filter(company_uid=company.company_uid, document_uid=document_uid)
         .first()
     )
+    if bank_transaction.status != "booked":
+        raise BusinessError(
+            "Seule une opération comptabilisée peut être rapprochée.", 409
+        )
     if bank_transaction.document_uid:
         raise BusinessError("Transaction déjà rapprochée.", 409)
     expected = (
@@ -43,13 +62,21 @@ def reconcile(company, bank_transaction, document_uid):
     if (
         bank_transaction.direction != expected
         or not 0 < bank_transaction.amount <= document.amount_due
+        or exact
+        and (
+            bank_transaction.amount != document.amount_due
+            or document.status not in {"sent", "received", "accepted"}
+        )
     ):
         raise BusinessError("Sens incompatible ou paiement supérieur au solde.", 409)
     account = BankAccount.objects.filter(
-        account_uid=bank_transaction.account_uid
+        account_uid=bank_transaction.account_uid, company_uid=company.company_uid
     ).first()
     if document.currency_code != (account.currency_code if account else "EUR"):
         raise BusinessError("Les devises du compte et de la facture diffèrent.")
+    if feed_entry:
+        feed_entry.previous_invoice_status = document.status
+        feed_entry.save(update_fields=["previous_invoice_status"])
     document.amount_due = money(document.amount_due - bank_transaction.amount)
     if not document.amount_due:
         document.status, document.paid_at = "paid", stamp()
@@ -102,7 +129,7 @@ def create_transaction(company, data):
         import_hash=data.get("import_hash"),
         imported_at=stamp() if data.get("import_hash") else None,
     )
-    if account:
+    if account and not hasattr(account, "bank_feed"):
         account.current_balance += amount if direction == "incoming" else -amount
         account.updated_at = stamp()
         account.save()
@@ -152,6 +179,7 @@ def import_csv(company, account_uid, raw):
         )
     result = {"imported": 0, "skipped": 0, "rejected": 0}
     occurrences = defaultdict(int)
+    linked_rows_seen = set()
     # Account lock serializes concurrent imports before deduplication.
     if (
         not BankAccount.objects.select_for_update()
@@ -210,9 +238,40 @@ def import_csv(company, account_uid, raw):
             )
             occurrences[signature] += 1
             data["import_hash"] = digest(signature + ":" + str(occurrences[signature]))
-            if BankTransaction.objects.filter(
-                company_uid=company.company_uid, import_hash=data["import_hash"]
-            ).exists():
+            existing_pk = (
+                BankTransaction.objects.filter(
+                    company_uid=company.company_uid, import_hash=data["import_hash"]
+                )
+                .values_list("pk", flat=True)
+                .first()
+            )
+            if existing_pk:
+                linked_rows_seen.add(existing_pk)
+                result["skipped"] += 1
+                continue
+            matching = Q(label__iexact=data["label"])
+            if data.get("external_id"):
+                matching |= Q(bank_feed__bank_reference=data["external_id"])
+            linked = (
+                BankTransaction.objects.filter(
+                    matching,
+                    company_uid=company.company_uid,
+                    account_uid=account_uid,
+                    bank_feed__isnull=False,
+                    transaction_date=data["transaction_date"],
+                    amount=abs(amount),
+                    direction=direction,
+                    status="booked",
+                )
+                .exclude(pk__in=linked_rows_seen)
+                .order_by("pk")
+                .first()
+            )
+            if linked:
+                linked_rows_seen.add(linked.pk)
+                if not linked.import_hash:
+                    linked.import_hash = data["import_hash"]
+                    linked.save(update_fields=["import_hash"])
                 result["skipped"] += 1
                 continue
             create_transaction(company, data)

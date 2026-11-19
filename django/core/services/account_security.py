@@ -37,8 +37,8 @@ def recent(request):
     return 0 <= age < 900
 
 
-def verification_url(request):
-    return "/app/verification?" + urlencode({"next": request.path})
+def verification_url(request, return_path=None):
+    return "/app/verification?" + urlencode({"next": return_path or request.path})
 
 
 def new_recovery_codes():
@@ -153,9 +153,9 @@ def invalidate_other_sessions(request):
     request.session["verified_at"] = time.time()
 
 
-def admin_security_redirect(request, recent_required=True):
+def admin_security_redirect(request, recent_required=True, return_path=None):
     if settings.MFA_REQUIRED_FOR_ADMINS and not enabled(request.user):
         return "/app/compte/securite"
     if recent_required and settings.SENSITIVE_REAUTH_REQUIRED and not recent(request):
-        return verification_url(request)
+        return verification_url(request, return_path)
     return ""

@@ -527,6 +527,56 @@ class BankTransaction(models.Model):
         ]
 
 
+class BankFeed(models.Model):
+    company_uid = models.CharField(max_length=32, unique=True)
+    external_uid = models.CharField(max_length=32, unique=True, default=uid)
+    client_id = models.CharField(max_length=180)
+    secret_encrypted = models.TextField()
+    remote_user = models.CharField(max_length=36, blank=True)
+    owner_uid = models.CharField(max_length=32, blank=True)
+    enabled = models.BooleanField(default=False)
+    auto_reconcile = models.BooleanField(default=True)
+    next_sync_at = models.DateTimeField(null=True, db_index=True)
+    last_success_at = models.DateTimeField(null=True)
+    last_error = models.TextField(blank=True)
+    lease = models.CharField(max_length=32, blank=True)
+    lease_until = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "django_bank_feeds"
+
+
+class BankFeedAccount(models.Model):
+    feed = models.ForeignKey(BankFeed, on_delete=models.CASCADE)
+    remote_id = models.CharField(max_length=40)
+    account = models.OneToOneField(BankAccount, on_delete=models.PROTECT, related_name="bank_feed")
+    shared = models.BooleanField(default=True)
+    cursor = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "django_bank_feed_accounts"
+        constraints = [models.UniqueConstraint(fields=["feed", "remote_id"], name="uniq_feed_account")]
+
+
+class BankFeedEntry(models.Model):
+    feed_account = models.ForeignKey(BankFeedAccount, on_delete=models.CASCADE)
+    remote_id = models.CharField(max_length=40)
+    transaction = models.OneToOneField(BankTransaction, null=True, on_delete=models.PROTECT, related_name="bank_feed")
+    changed_at = models.DateTimeField()
+    day = models.DateField()
+    amount = models.DecimalField(max_digits=30, decimal_places=8)
+    label = models.TextField()
+    bank_reference = models.CharField(max_length=256, blank=True)
+    status = models.CharField(max_length=16)
+    review = models.CharField(max_length=16, blank=True)
+    previous_invoice_status = models.CharField(max_length=32, blank=True)
+    retired_identity = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "django_bank_feed_entries"
+        constraints = [models.UniqueConstraint(fields=["feed_account", "remote_id"], name="uniq_feed_entry")]
+
+
 class Forecast(models.Model):
     forecast_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, default="")
@@ -632,7 +682,8 @@ class CustomerContact(models.Model):
 
 class DocumentContact(models.Model):
     document = models.OneToOneField(Document, on_delete=models.CASCADE, related_name="crm_link")
-    contact = models.ForeignKey(CustomerContact, on_delete=models.CASCADE)
+    contact = models.ForeignKey(CustomerContact, on_delete=models.SET_NULL, null=True)
+    automatic = models.BooleanField(default=False)
 
     class Meta:
         db_table = "django_document_contacts"

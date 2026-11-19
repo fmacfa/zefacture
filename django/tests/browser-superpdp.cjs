@@ -87,10 +87,21 @@ const output = path.resolve('test-results/browser-superpdp');
     await page.goto(base + '/app?preset=all');
     await page.getByRole('navigation', {name: 'Factures fournisseurs par statut'}).getByRole('link', {name: /^Payées/}).click();
     assert.equal(new URL(page.url()).searchParams.get('status'), 'paid');
+    await page.goto(base + '/app/finances/comptes');
+    await page.getByLabel('Client ID', {exact: true}).fill('browser-demo');
+    await page.getByLabel('Client Secret', {exact: true}).fill('test-bank-credential');
+    await page.getByRole('button', {name: 'Enregistrer les paramètres'}).click();
+    await page.getByRole('button', {name: 'Relier ma banque', exact: true}).waitFor();
+    await page.getByText('Modifier les paramètres Bridge', {exact: true}).click();
+    assert.equal(await page.locator('[name="client_secret"]').inputValue(), '');
+    await page.getByRole('link', {name: 'Voir les transactions'}).click();
+    await page.getByLabel('Rechercher une opération').fill('Virement test');
+    await page.getByRole('button', {name: 'Filtrer', exact: true}).click();
+    assert.equal(new URL(page.url()).searchParams.get('q'), 'Virement test');
     const checks = [];
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({width, height: width < 700 ? 844 : 1000});
-      for (const [name, route] of [['dashboard', '/app?preset=all'], ['connection', '/app/entreprise/pdp'], ['inbox', '/app/reception'], ['reader', new URL(readerUrl).pathname], ['incoming', '/app/reception/' + fixture.incoming_uid], ['outgoing', '/app/factures/' + fixture.outgoing_uid]]) {
+      for (const [name, route] of [['bank-accounts', '/app/finances/comptes'], ['bank-transactions', '/app/finances/transactions'], ['dashboard', '/app?preset=all'], ['connection', '/app/entreprise/pdp'], ['inbox', '/app/reception'], ['reader', new URL(readerUrl).pathname], ['incoming', '/app/reception/' + fixture.incoming_uid], ['outgoing', '/app/factures/' + fixture.outgoing_uid]]) {
         await page.goto(base + route);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Overflow ${route} at ${width}`);
         checks.push({width, route, ok: true});
@@ -112,7 +123,7 @@ const output = path.resolve('test-results/browser-superpdp');
     await page.getByRole('button', {name: 'Synchroniser maintenant', exact: true}).click();
     await page.getByText('Une synchronisation attend le worker.', {exact: true}).waitFor();
     assert.equal(errors.length, 0, errors.join('\n'));
-    await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ok: true, synthetic_data_only: true, flows: ['incoming_invoice', 'provider_statuses', 'original_xml_sha256', 'readable_pdf_download', 'outgoing_invoice', 'uncertain_submission_display', 'manual_sync_request', 'inbox_refresh_preserves_filters', 'pdf_zoom', 'multipage_scan', 'invoice_contact', 'internal_note', 'dashboard_status_filter'], responsive: checks, javascript_and_csp_errors: errors}, null, 2));
+    await fs.writeFile(path.join(output, 'report.json'), JSON.stringify({ok: true, synthetic_data_only: true, flows: ['incoming_invoice', 'provider_statuses', 'original_xml_sha256', 'readable_pdf_download', 'outgoing_invoice', 'uncertain_submission_display', 'manual_sync_request', 'inbox_refresh_preserves_filters', 'pdf_zoom', 'multipage_scan', 'invoice_contact', 'internal_note', 'dashboard_status_filter', 'bank_settings', 'bank_transactions_filter'], responsive: checks, javascript_and_csp_errors: errors}, null, 2));
   } finally { await browser.close(); }
   console.log('SUPERPDP : originaux, statuts, reprise et responsive OK.');
 })().catch(error => { console.error(error); process.exit(1); });

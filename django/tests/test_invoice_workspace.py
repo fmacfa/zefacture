@@ -245,7 +245,7 @@ class InvoiceWorkspaceTests(ApplicationCase):
             self.client.get("/app/clients/" + extra.customer_uid), doc.url
         )
         self.client.post(base + "retirer-contact")
-        self.assertEqual(DocumentContact.objects.count(), 0)
+        self.assertIsNone(DocumentContact.objects.get(document=doc).contact_id)
         self.assertRedirects(
             self.client.post(
                 base + "lier-contact", {"contact_uid": contact.contact_uid}

@@ -35,7 +35,11 @@ def followup_context(request, document):
     notes = document.internal_notes.select_related("author").order_by(
         "-created_at", "-pk"
     )
-    context = {"crm_contact": link.contact if link else None, "internal_notes": notes}
+    context = {
+        "crm_contact": link.contact if link else None,
+        "crm_automatic": bool(link and link.automatic),
+        "internal_notes": notes,
+    }
     if request.role in ROLES["write"]:
         customers = active_customers(request.company)
         context.update(
@@ -60,7 +64,9 @@ def assign_contact(request, document, action):
     customers = active_customers(company)
     links = DocumentContact.objects.filter(document=document)
     if action == "retirer-contact":
-        links.delete()
+        DocumentContact.objects.update_or_create(
+            document=document, defaults={"contact": None, "automatic": False}
+        )
         return
     if action == "lier-contact":
         contact = CustomerContact.objects.filter(
@@ -123,7 +129,7 @@ def assign_contact(request, document, action):
         if not contact:
             contact = crm.add_contact(customer, request.POST)
     DocumentContact.objects.update_or_create(
-        document=document, defaults={"contact": contact}
+        document=document, defaults={"contact": contact, "automatic": False}
     )
 
 

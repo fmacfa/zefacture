@@ -143,6 +143,15 @@ def convert(company, user, item, data):
     if not customer:
         customer = save_customer(company, supplier)
     invoice = dict(data.get("invoice") or data)
+    details = supplier.get("contact") or {}
+    if isinstance(details, dict):
+        for field, source in (
+            ("contact_name", "contact_point"),
+            ("contact_email", "email_address"),
+            ("contact_phone", "phone_number"),
+        ):
+            if supplier.get(field) or details.get(source):
+                invoice[field] = supplier.get(field) or details[source]
     invoice.update(
         customer_uid=customer.customer_uid,
         lines=data.get("lines") or data.get("line_items") or data.get("items") or [],

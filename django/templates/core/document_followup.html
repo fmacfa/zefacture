@@ -2,6 +2,7 @@
   <section id="contact-crm" class="card stack">
     <h2>Contact CRM</h2>
     {% if crm_contact %}
+      {% if crm_automatic %}<small class="form-help">Rattaché automatiquement à partir du tiers facturé.</small>{% endif %}
       <p><a class="strong" href="/app/clients/{{ crm_contact.customer_uid }}">{{ crm_contact.name }}</a>{% if crm_contact.position %} · {{ crm_contact.position }}{% endif %}<br>{{ crm_contact.email }}</p>
     {% else %}<p class="muted">Aucun contact lié.</p>{% endif %}
     {% if can_write %}
