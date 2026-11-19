@@ -15,6 +15,8 @@ document.querySelectorAll('.sidebar nav a').forEach(link => {
   }
 });
 if (active) {
+  const section = active.closest('details');
+  if (section) section.open = true;
   active.classList.add('active');
   active.setAttribute('aria-current', 'page');
 }

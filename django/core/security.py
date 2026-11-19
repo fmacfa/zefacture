@@ -145,7 +145,9 @@ def scoped(permission="read", *, verification_return=None):
                 from core.services.account_security import admin_security_redirect
 
                 destination = admin_security_redirect(
-                    request, recent_required=kwargs.get("action") != "retour", return_path=verification_return,
+                    request,
+                    recent_required=kwargs.get("action") != "retour",
+                    return_path=verification_return,
                 )
                 if destination:
                     return redirect(destination)
@@ -172,13 +174,32 @@ def navigation(request):
         "can_admin": getattr(request, "role", "") in ROLES["admin"],
         "csp_nonce": getattr(request, "csp_nonce", ""),
     }
+    route = "/" + "/".join(request.path.strip("/").split("/")[:2])
+    context["settings_open"] = route in {
+        "/app/entreprise",
+        "/app/collaborateurs",
+        "/app/emails",
+        "/app/developpeurs",
+    }
+    for nested in (
+        "/app/finances/transactions",
+        "/app/finances/comptes",
+        "/app/entreprise/personnalisation",
+        "/app/entreprise/journal",
+    ):
+        if request.path == nested or request.path.startswith(nested + "/"):
+            route = nested
+            break
+    context["active_route"] = route
     if request.user.is_authenticated:
         from .models import UserPreferences
         from .services.branding import for_company, palette
 
-        context["preferences"] = UserPreferences.objects.filter(
-            user_uid=request.user.user_uid
-        ).first()
+        context["preferences"] = (
+            request.display_preferences
+            if hasattr(request, "display_preferences")
+            else UserPreferences.objects.filter(user_uid=request.user.user_uid).first()
+        )
         if getattr(request, "company", None):
             brand = for_company(request.company)
             context["branding"] = brand
@@ -200,7 +221,11 @@ def throttle(request, scope, limit=10, seconds=900, by_ip=True):
     now = int(time.time())
     attempts = [t for t in json.loads(row.attempts or "[]") if t > now - seconds]
     if len(attempts) >= limit:
-        raise BusinessError("Trop de tentatives. Réessayez plus tard.", 429)
+        wait = max(1, min(attempts) + seconds - now)
+        minutes = (wait + 59) // 60
+        error = BusinessError(f"Trop de tentatives. Réessayez dans {minutes} min.", 429)
+        error.retry_after = wait
+        raise error
     row.attempts = json.dumps(attempts + [now])
     row.expires_at = now + seconds
     row.save()

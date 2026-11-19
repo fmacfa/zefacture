@@ -1,11 +1,13 @@
 import csv
 import io
+import re
 import unicodedata
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
 from django.db import transaction
 from django.db.models import Q
+from core.numbers import current_style
 from core.common import (
     BusinessError,
     money,
@@ -210,12 +212,15 @@ def import_csv(company, account_uid, raw):
             iso_date(data["transaction_date"])
 
             def num(key):
-                return decimal(
-                    data.get(key, "")
-                    .replace(" ", "")
-                    .replace("\u00a0", "")
-                    .replace("€", "")
-                )
+                value = data.get(key, "").replace("€", "").strip()
+                if value and current_style().customized:
+                    try:
+                        value=current_style().parse(value)
+                    except ValueError:
+                        # Also accept the ungrouped canonical dot used by banks.
+                        if not re.fullmatch(r"[+-]?[0-9]+(?:\.[0-9]+)?",value):
+                            raise BusinessError("Format numérique invalide.")
+                return decimal(value.replace(" ","").replace("\u00a0","").replace("\u202f",""))
 
             amount = (
                 num("amount") if data.get("amount") else num("credit") - num("debit")
@@ -286,6 +291,8 @@ def csv_text(headers, rows):
     writer = csv.writer(stream, delimiter=";", lineterminator="\r\n")
 
     def safe(value):
+        if current_style().customized and type(value) in (Decimal, int, float):
+            return current_style().format(value)
         text = str(value if value is not None else "")
         return (
             "'" + text

@@ -22,7 +22,7 @@ ZeFacture réunit devis, factures Factur-X, clients professionnels et particulie
 | Entreprises et équipe | Plusieurs entreprises, invitations, propriétaire, administrateur, comptable, membre et lecteur |
 | Pilotage | Dashboard, tableaux, périodes libres, comparatifs et évolution mensuelle |
 | Exports | PDF, CSV et Excel sur toutes les lignes sélectionnées, selon les droits |
-| Achats | Factures fournisseurs, notes de frais, justificatifs, OCR local et lecture assistée facultative |
+| Achats | Import par lot des factures de vente et d’achat avec repérage des doublons, factures fournisseurs, notes de frais, justificatifs, OCR local et lecture assistée facultative |
 | Finances | Comptes bancaires multiples via Bridge, synchronisation des transactions, rapprochement automatique, paiements partiels, CSV, prévisions et état de TVA |
 | Messagerie | SMTP, Gmail/Google Workspace et Outlook/Microsoft 365, avec signature et modèles par entreprise |
 | Automatisation | Clés API, émission de factures et téléchargement du PDF, webhooks signés et connecteur MCP en lecture seule |

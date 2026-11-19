@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{% static 'identity.css' %}">
   <link rel="stylesheet" href="{% static 'first-connection.css' %}">
   <script src="{% static 'first-connection.js' %}" defer></script>
+<script src="{% static 'password-strength.js' %}" defer></script>
 </head>
 <body class="setup-page">
   <a class="setup-skip" href="#main">Aller au formulaire</a>
@@ -49,6 +50,7 @@
             {% if field.help_text %}<small id="{{ field.auto_id }}_helptext">{{ field.help_text }}</small>{% endif %}
             {{ field.errors }}
           </div>
+            {% if field.name == "password" %}{% include "core/password_strength.html" %}{% endif %}
           {% endfor %}
           <p class="setup-status" data-setup-status data-state="{{ authorized|yesno:'ready,hint' }}"
              role="status" tabindex="-1">

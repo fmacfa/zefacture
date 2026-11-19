@@ -7,6 +7,7 @@ from io import BytesIO
 from types import SimpleNamespace
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.db import transaction
+from core.numbers import document_amount
 from core.common import BusinessError, uid, email
 from core.models import CompanyBranding, Document, EmailEnvelope
 from . import files
@@ -272,7 +273,7 @@ def apply_mail(item):
                 "company": company.legal_name,
                 "customer": document.buyer.get("name", ""),
                 "document_number": document.number,
-                "total": f"{document.total_including_tax:.2f}",
+                "total": document_amount(document,document.total_including_tax),
                 "currency": document.currency_code,
                 "due_date": document.due_date or "",
                 "document_link": link,

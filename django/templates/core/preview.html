@@ -8,12 +8,12 @@
 </div>
 {% if invoice %}
   <dl class="reader-amounts" aria-label="Montants du document">
-    <div><dt>Total HT</dt><dd>{{ invoice.total_excluding_tax|floatformat:"2g" }} {{ invoice.currency_code }}</dd></div>
-    <div><dt>TVA</dt><dd>{{ invoice.total_vat|floatformat:"2g" }} {{ invoice.currency_code }}</dd></div>
-    <div><dt>Total TTC</dt><dd>{{ invoice.total_including_tax|floatformat:"2g" }} {{ invoice.currency_code }}</dd></div>
+    <div><dt>Total HT</dt><dd>{{ invoice.total_excluding_tax|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
+    <div><dt>TVA</dt><dd>{{ invoice.total_vat|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
+    <div><dt>Total TTC</dt><dd>{{ invoice.total_including_tax|display_number:"2g" }} {{ invoice.currency_code }}</dd></div>
   </dl>
 {% elif expense and expense.expense_amount is not None %}
-  <dl class="reader-amounts" aria-label="Montant du justificatif"><div><dt>Total TTC enregistré</dt><dd>{{ expense.expense_amount|floatformat:"2g" }} {{ expense.expense_currency }}</dd></div></dl>
+  <dl class="reader-amounts" aria-label="Montant du justificatif"><div><dt>Total TTC enregistré</dt><dd>{{ expense.expense_amount|display_number:"2g" }} {{ expense.expense_currency }}</dd></div></dl>
 {% endif %}
 {% if preview_error %}
   <p class="notice error" role="alert">{{ preview_error }}</p>
@@ -22,7 +22,7 @@
     <div class="reader-tools" id="commandes">
       <nav aria-label="Pages du document" class="reader-pages">
         {% if page > 1 %}<a class="button secondary" href="?page={{ page|add:'-1' }}#commandes" rel="prev" aria-label="Page précédente">←</a>{% endif %}
-        <strong>Page {{ page }} sur {{ page_count }}</strong>
+        <strong>Page {{ page }} sur {{ page_count|display_number }}</strong>
         {% if page < page_count %}<a class="button secondary" href="?page={{ page|add:'1' }}#commandes" rel="next" aria-label="Page suivante">→</a>{% endif %}
       </nav>
       <div class="reader-zoom" aria-label="Zoom" role="group" hidden>
@@ -34,7 +34,7 @@
     </div>
     <p class="notice error" role="alert" data-render-error hidden>Impossible d’afficher cette page. Vous pouvez réessayer ou télécharger le fichier.</p>
     <div class="reader-stage" tabindex="0" role="region" aria-label="Page du document, zone de défilement" data-zoom="100">
-      <img src="?page={{ page }}&amp;image=1" alt="Page {{ page }} sur {{ page_count }} de {{ title }}">
+      <img src="?page={{ page }}&amp;image=1" alt="Page {{ page }} sur {{ page_count|display_number }} de {{ title }}">
     </div>
   </section>
 {% endif %}

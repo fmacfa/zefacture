@@ -1,14 +1,15 @@
 import json
+import re
 from django.db import transaction
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from core.common import BusinessError, stamp, unpack
-from core.models import Document, Ingestion
+from core.common import BusinessError, decimal, stamp, unpack, uid
+from core.models import Company, Document, Ingestion
 from core.security import hidden_expense_documents, scoped, ROLES
-from core.services import extraction_ai, ingestion, files, jobs
+from core.services import extraction_ai, ingestion, files, jobs, invoice_imports
 from core.services.account_security import audit
 from core.services.document_preview import preview_format
 from .preview import preview_response
@@ -16,11 +17,11 @@ from core.services.receipt_extraction import (
     EXPENSE_KINDS,
     expense_suggestion,
     expense_values,
-    local_suggestion,
 )
 
 SOURCE_LABELS = {
     "supplier_invoice": "Facture fournisseur",
+    "sales_invoice": "Facture de vente",
     "expense_note": "Note de frais",
     "expense": "Note de frais",
     "expense_receipt": "Ticket de caisse",
@@ -36,7 +37,8 @@ STATUS_LABELS = {
 
 
 @transaction.atomic
-def review(request, item, action):
+def review(request, item, action, query, documents):
+    Company.objects.select_for_update().get(pk=request.company.pk)
     item = Ingestion.objects.select_for_update().get(pk=item.pk)
     if item.archived_at:
         raise BusinessError("Restaurez cet import pour le modifier.", 409)
@@ -68,6 +70,8 @@ def review(request, item, action):
                     raise ValueError()
             except (ValueError, RecursionError):
                 raise BusinessError("Extraction JSON invalide.")
+            invoice_imports.index_extraction(item, data)
+            fields.extend(["source_invoice_ref", "source_invoice_match"])
             item.extraction_json = raw
             item.extraction_status = "done"
             fields += ["extraction_json", "extraction_status"]
@@ -88,6 +92,14 @@ def review(request, item, action):
         )
     except (ValueError, RecursionError):
         raise BusinessError("Extraction JSON invalide.")
+    if not isinstance(data, dict):
+        raise BusinessError("Extraction JSON invalide.")
+    matches, others = invoice_imports.inspect_duplicates(item, query, documents, data)
+    if (matches or others) and request.POST.get("distinct") != "1":
+        raise BusinessError(
+            "Doublon possible. Enregistrez vos corrections, comparez les pièces puis confirmez si les factures sont distinctes.",
+            409,
+        )
     return ingestion.convert(request.company, request.user, item, data)
 
 
@@ -104,6 +116,9 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             Q(uploaded_by_user_uid=request.user.user_uid)
             | ~Q(source_kind__in=EXPENSE_KINDS)
         )
+    documents = Document.objects.filter(
+        company_uid=request.company.company_uid
+    ).exclude(document_uid__in=hidden_expense_documents(request))
     if expenses:
         query = query.filter(source_kind__in=EXPENSE_KINDS)
     item = query.filter(ingestion_uid=ingestion_uid).first() if ingestion_uid else None
@@ -115,12 +130,22 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         base = f"/app/imports/{ingestion_uid}"
         document = None
         if item.document_uid:
-            document = Document.objects.filter(
-                company_uid=request.company.company_uid, document_uid=item.document_uid,
-            ).exclude(document_uid__in=hidden_expense_documents(request)).first()
+            document = (
+                Document.objects.filter(
+                    company_uid=request.company.company_uid,
+                    document_uid=item.document_uid,
+                )
+                .exclude(document_uid__in=hidden_expense_documents(request))
+                .first()
+            )
         return preview_response(
-            request, item, title=item.original_filename or "Justificatif",
-            back_url=base, download_url=base + "/telecharger", document=document, expense=item,
+            request,
+            item,
+            title=item.original_filename or "Justificatif",
+            back_url=base,
+            download_url=base + "/telecharger",
+            document=document,
+            expense=item,
         )
     if action == "telecharger" and request.method == "GET":
         response = HttpResponse(
@@ -146,10 +171,20 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 item.archived_at = timezone.now() if archived else None
                 item.updated_at = stamp()
                 item.save(update_fields=["archived_at", "updated_at"])
-                audit(request, "ingestion.archived" if archived else "ingestion.restored", item.ingestion_uid)
+                audit(
+                    request,
+                    "ingestion.archived" if archived else "ingestion.restored",
+                    item.ingestion_uid,
+                )
         if archived:
-            messages.success(request, "Le justificatif est disponible dans les archives.")
-            return redirect("/app/notes-de-frais" if item.source_kind in EXPENSE_KINDS else "/app/imports")
+            messages.success(
+                request, "Le justificatif est disponible dans les archives."
+            )
+            return redirect(
+                "/app/notes-de-frais"
+                if item.source_kind in EXPENSE_KINDS
+                else "/app/imports"
+            )
         messages.success(request, "Justificatif restauré.")
         return redirect("/app/imports/" + item.ingestion_uid)
     if request.method == "POST":
@@ -157,20 +192,51 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             kind = request.POST.get(
                 "source_kind", "expense_note" if expenses else "supplier_invoice"
             )
-            if kind not in EXPENSE_KINDS | {"supplier_invoice"}:
+            if kind not in EXPENSE_KINDS | {"supplier_invoice", "sales_invoice"}:
                 raise BusinessError("Type d'import invalide.")
             if expenses and kind not in EXPENSE_KINDS:
                 raise BusinessError("Choisissez un type de justificatif de frais.")
             details = expense_values(request.POST)
-            uploaded = request.FILES.get("file") or request.FILES.get("source_file")
-            metadata = files.upload(uploaded, "uploads/" + request.company.company_uid)
-            item = Ingestion.objects.create(
-                company_uid=request.company.company_uid,
-                uploaded_by_user_uid=request.user.user_uid,
-                original_filename=uploaded.name[:255],
-                source_kind=kind,
-                **metadata,
-                **details,
+            uploads = request.FILES.getlist("file") or request.FILES.getlist(
+                "source_file"
+            )
+            if not 1 <= len(uploads) <= 50:
+                raise BusinessError("Sélectionnez de 1 à 50 fichiers.")
+            batch = request.POST.get("batch_uid") or uid()
+            if not re.fullmatch("[a-f0-9]{32}", batch):
+                raise BusinessError("Lot invalide.")
+            pipeline = request.POST.get("pipeline", "none")
+            if pipeline not in {"local", "none"}:
+                extraction_ai.require_provider(pipeline)
+            results = []
+            for uploaded in uploads:
+                try:
+                    result = invoice_imports.upload_one(
+                        request.company,
+                        request.user,
+                        query,
+                        documents,
+                        uploaded,
+                        kind,
+                        batch,
+                        details,
+                        pipeline,
+                    )
+                except BusinessError as exc:
+                    if len(uploads) == 1:
+                        raise
+                    result = {"state": "failed", "label": str(exc), "url": ""}
+                results.append({"filename": uploaded.name[:255], **result})
+            if request.headers.get("Accept") == "application/json":
+                return JsonResponse({"files": results, "batch": batch})
+            if len(results) == 1:
+                if results[0]["state"] == "duplicate":
+                    messages.warning(request, results[0]["label"])
+                return redirect(results[0]["url"])
+            return render(
+                request,
+                "core/import_results.html",
+                {"title": "Résultat du lot", "results": results, "batch": batch},
             )
         elif action in {"transcrire", "analyser"}:
             jobs.enqueue(
@@ -188,20 +254,24 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             "enregistrer",
             "enregistrer-justificatif",
         }:
-            document = review(request, item, action)
+            document = review(request, item, action, query, documents)
             if document:
                 return redirect(document.url)
         return redirect("/app/imports/" + item.ingestion_uid)
     if item:
         parsed = unpack(item.extraction_json)
         if not isinstance(parsed, dict) or not parsed:
-            parsed = local_suggestion(item.transcription_text)
+            parsed = invoice_imports.local_invoice(item)
         extracted_lines = (
             parsed.get("lines")
             or parsed.get("line_items")
             or parsed.get("items")
             or [{"description": "", "quantity": 1, "vat_rate": 20}]
         )
+        if not isinstance(extracted_lines, list) or not all(
+            isinstance(line, dict) for line in extracted_lines
+        ):
+            extracted_lines = [{"description": "", "quantity": 1, "vat_rate": 20}]
         is_expense = item.source_kind in EXPENSE_KINDS
         expense = {}
         suggested = {}
@@ -217,6 +287,9 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                     else suggested["amount"]
                 ),
             }
+        duplicate_documents, duplicate_imports = invoice_imports.inspect_duplicates(
+            item, query, documents, parsed
+        )
         return render(
             request,
             "core/ingestion.html",
@@ -228,6 +301,9 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 "lines": extracted_lines,
                 "inventory": [],
                 "is_expense": is_expense,
+                "is_sale": item.source_kind == "sales_invoice",
+                "duplicate_documents": duplicate_documents,
+                "duplicate_imports": duplicate_imports,
                 "expense": expense,
                 "suggested": suggested,
                 "ai_choices": extraction_ai.choices(),
@@ -236,8 +312,44 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             },
         )
     archived = request.GET.get("archives") == "1"
-    rows = list(query.filter(archived_at__isnull=not archived).order_by("-id")[:200])
+    batch = request.GET.get("lot", "")
+    selection = query.filter(archived_at__isnull=not archived)
+    if batch:
+        if not re.fullmatch("[a-f0-9]{32}", batch):
+            raise BusinessError("Lot invalide.")
+        selection = selection.filter(batch_uid=batch)
+    rows = list(selection.order_by("-id")[:200])
     for row in rows:
+        extracted = unpack(row.extraction_json)
+        if not isinstance(extracted, dict) or not extracted:
+            extracted = (
+                invoice_imports.local_invoice(row) if row.transcription_text else {}
+            )
+        row.duplicate = (
+            any(invoice_imports.inspect_duplicates(row, query, documents, extracted))
+            if extracted
+            else False
+        )
+        invoice = extracted.get("invoice")
+        totals = extracted.get("totals")
+        row.list_date, row.list_amount, row.list_currency = (
+            row.expense_date,
+            row.expense_amount,
+            row.expense_currency,
+        )
+        if isinstance(invoice, dict):
+            row.list_date = row.list_date or invoice.get("issue_date")
+            if row.source_kind not in EXPENSE_KINDS or not row.list_currency:
+                row.list_currency = invoice.get("currency_code")
+        if (
+            row.list_amount is None
+            and isinstance(totals, dict)
+            and totals.get("total_including_tax") not in (None, "")
+        ):
+            try:
+                row.list_amount = decimal(totals["total_including_tax"])
+            except BusinessError:
+                pass
         row.source_label = SOURCE_LABELS.get(row.source_kind, "Justificatif")
         row.state_label = STATUS_LABELS.get(row.status, "À vérifier")
         row.can_preview = preview_format(row)
@@ -249,5 +361,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             "items": rows,
             "expenses": expenses,
             "archives": archived,
+            "batch": batch,
+            "ai_choices": extraction_ai.choices(),
         },
     )

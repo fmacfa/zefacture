@@ -1,7 +1,7 @@
 <nav class="invoice-states" aria-label="{{ state_label|default:'Filtrer par statut' }}">
   {% for card in cards %}
     <a href="{{ card.url }}" class="invoice-state state-{{ card.status|default:'all' }}"{% if card.active and not overview %} aria-current="true"{% endif %}>
-      <span>{{ card.label }}</span><strong>{{ card.count }}</strong>
+      <span>{{ card.label }}</span><strong>{{ card.count|display_number }}</strong>
     </a>
   {% endfor %}
 </nav>

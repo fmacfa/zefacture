@@ -48,6 +48,20 @@
   display: none;
 }
 
+.sidebar > nav { gap: .7rem; }
+.sidebar-group + .sidebar-group { padding-top: .65rem; border-top: 1px solid #ffffff24; }
+.sidebar-group-label { color: #c1d6c6; padding-inline: .75rem; font-weight: 700; }
+.sidebar nav a { border-radius: .45rem; padding: .4rem .65rem; gap: .65rem; }
+.sidebar nav a.active { background: #e7efe6; color: #163c32; box-shadow: inset 3px 0 #d97136; }
+.sidebar nav a.active .sidebar-icon { color: #285f49; }
+.sidebar-settings { border-block: 1px solid #ffffff2e; padding-block: .35rem; }
+.sidebar-settings summary { cursor: pointer; padding: .55rem .65rem; font-weight: 650; color: #e4eee4; }
+.sidebar-settings summary:focus-visible { outline: 2px solid var(--zf-orange); outline-offset: 1px; }
+.sidebar-settings[open] summary { margin-bottom: .25rem; }
+.sidebar-group-label, .sidebar-settings summary { line-height: 1.35; }
+@media (min-width: 701px) {
+  .sidebar { max-height: 100dvh; overflow-y: auto; scrollbar-width: thin; }
+}
 @media (max-width: 700px) {
   .sidebar-heading .brand {
     min-width: 0;
@@ -90,3 +104,5 @@
     white-space: normal;
   }
 }
+
+@media (max-width: 700px) { .sidebar-settings, .sidebar-account { grid-column: 1 / -1; } .sidebar nav a { min-height:44px; } }

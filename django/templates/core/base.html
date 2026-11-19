@@ -1,7 +1,7 @@
 {% load static %}
 <!doctype html>
 <html lang="fr" data-theme="{% if user.is_authenticated %}{{ preferences.theme|default:'system' }}{% else %}light{% endif %}"
-      data-density="{{ preferences.density|default:'comfortable' }}">
+      data-density="{{ preferences.density|default:'comfortable' }}" data-number-group="{{ preferences.number_grouping }}" data-number-decimal="{{ preferences.number_decimal }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,9 @@
   <link rel="stylesheet" href="{% static 'sidebar.css' %}">
   <link rel="stylesheet" href="{% static 'document-list.css' %}">
   {% block styles %}{% endblock %}
+  <script src="{% static 'number-display.js' %}" defer></script>
   <script src="{% static 'app.js' %}" defer></script>
+  {% if title == "Mon compte" or mode == "register" or mode == "reset" %}<script src="{% static 'password-strength.js' %}" defer></script>{% endif %}
   <script src="{% static 'form-draft.js' %}" defer></script>
   {% if palette %}
     <style nonce="{{ csp_nonce }}">

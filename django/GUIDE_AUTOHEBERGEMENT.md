@@ -373,6 +373,12 @@ Si la recette échoue, garder l’instance hors des écritures publiques et rest
 
 Mettre également à jour le système hôte et les images PostgreSQL/Caddy selon leurs versions compatibles. Conserver un historique des versions, sauvegardes, tests et renouvellements de secrets. Après modification d’une application OAuth ou de ses identifiants, vérifier les connexions et les files avant de reprendre les envois.
 
+### Imports par lot et limites de connexion
+
+Le navigateur transmet chaque original séparément pour respecter la limite de taille de l’instance. Le worker exécute l’OCR local, puis l’extraction locale ou le fournisseur IA choisi pour le lot. Vérifier un fichier fictif de vente et un d’achat avant l’usage réel. Une facture de vente importée conserve son original et sa référence.
+
+Pour la connexion par mot de passe, la limitation glissante utilise PostgreSQL en production. Après dix tentatives d’une IP ou vingt pour une adresse email en quinze minutes, la réponse HTTP 429 indique le délai restant dans `Retry-After`. Configurer le proxy de confiance selon le guide pour distinguer les clients réseau.
+
 ## 12. Recette avant ouverture
 
 Le diagnostic est en lecture seule, sans appel aux fournisseurs ni affichage de secrets :

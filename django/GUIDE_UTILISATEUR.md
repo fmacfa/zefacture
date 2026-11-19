@@ -16,6 +16,20 @@ Sur une nouvelle installation, ouvrez **Créer le premier compte** pour renseign
 
 En cas d’oubli du mot de passe, utiliser **Mot de passe oublié**. La réception du lien nécessite que l’exploitant ait activé la messagerie du serveur. Réinitialiser le mot de passe ne supprime pas le second facteur.
 
+### Se déplacer dans l’application
+
+La barre latérale regroupe le tableau de bord et les rapports sous **Pilotage**, les documents clients et les contacts sous **Ventes et CRM**, et les factures fournisseurs, les frais et les imports sous **Achats**. **Banque et finances** donne un accès direct aux comptes et aux transactions. Ouvrir **Réglages de l’entreprise** pour la personnalisation ou les intégrations. Sur téléphone, **Menu** ouvre la navigation.
+
+### Choisir le format des nombres
+
+Dans **Mon compte → Préférences d’affichage et format des nombres**, choisir les milliers (aucun séparateur, espace, point ou virgule) et les décimales (virgule ou point). L’aperçu permet par exemple de choisir `1.234.567,89`, `1,234,567.89` ou `1234567,89`. Les deux signes doivent être distincts. Enregistrer pour appliquer ce choix à toutes les entreprises du compte, aux montants, quantités, taux et champs numériques de gestion.
+
+Les rapports PDF et les CSV utilisent ce format. Avec une préférence personnalisée, le classeur Excel ouvre la feuille **Affichage** avec les séparateurs choisis. La feuille **Données** conserve les cellules numériques pour les calculs et Excel y utilise les paramètres régionaux du poste. L’adresse postale, les identifiants et les numéros de facture conservent leur écriture. Les nouveaux documents enregistrent le format de leur auteur pour le PDF. Un PDF déjà émis garde son contenu d’origine.
+
+### Modifier son mot de passe
+
+Dans **Mon compte**, saisir le mot de passe actuel puis le nouveau. L’indicateur en estime la robustesse pendant la saisie sur l’appareil. Le serveur applique un minimum de dix caractères et contrôle sa liste de mots de passe courants à l’enregistrement. Pour la connexion, la fenêtre glissante de quinze minutes autorise dix tentatives par IP et vingt par adresse email, toutes IP confondues. La tentative suivante reçoit le délai restant. Une connexion redevient possible quand les tentatives précédentes sortent de la fenêtre.
+
 ## 2. Entreprises, équipe et droits
 
 **Mes entreprises**, accessible par le sélecteur supérieur, permet de créer ou sélectionner une entreprise. Un même compte peut travailler dans plusieurs entreprises avec des rôles différents.
@@ -113,6 +127,13 @@ Dans **Contact CRM**, **Modifier le contact** ouvre le nom, la fonction, l’ema
 Dans **Notes internes**, saisir une note et cliquer sur **Ajouter la note**. Elle apparaît avec son auteur et sa date et reste dans ZeFacture. L’auteur ou un administrateur peut la modifier. Les membres en lecture seule peuvent consulter le suivi des factures auxquelles ils ont accès.
 
 ## 6. Achats, imports et notes de frais
+
+### Importer plusieurs factures de vente ou d’achat
+
+1. Dans **Achats → Imports**, sélectionner les PDF ou images. Un lot accepte jusqu’à 50 fichiers, avec 15 Mo maximum par fichier. Sur le navigateur, choisir le type par fichier si le lot mélange des achats et des ventes.
+2. Choisir **OCR et extraction locale** ou l’un des fournisseurs IA configurés. L’analyse IA reçoit le texte extrait de chaque pièce sélectionnée. **Importer seulement** reporte le traitement. Cliquer sur **Importer** puis **Voir les documents de ce lot** pour suivre les résultats. Un fichier refusé peut être repris indépendamment.
+3. Un **Doublon exact** renvoie vers l’original déjà enregistré. Un **Doublon possible** invite à comparer le numéro, le tiers, la date et le montant sur la fiche. Deux scans peuvent être signalés avant validation s’ils partagent une référence, ou si le tiers, la date, le total TTC et la devise concordent. Deux fournisseurs peuvent utiliser le même numéro. Après comparaison, la case de confirmation permet de conserver les deux factures.
+4. Vérifier les champs et les lignes avec l’original. Pour un achat, **Valider et créer la facture reçue** la classe dans les factures fournisseurs. Pour une vente, **Enregistrer la facture de vente déjà émise** conserve le numéro, la date et le fichier émis ailleurs. L’import ne déclenche aucun envoi au client ou à SUPERPDP. Après contrôle, les opérations bancaires peuvent être rapprochées des deux types de facture.
 
 **Factures fournisseurs** centralise les documents reçus : saisie du numéro fournisseur, dates, lignes et original joint, ou réception synchronisée depuis SUPERPDP. Les actions disponibles permettent acceptation, refus, litige et règlement selon le statut. Le téléchargement restitue l’original fourni ; il ne fabrique pas une facture à la place du fournisseur.
 

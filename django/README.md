@@ -53,7 +53,7 @@ Une installation neuve peut générer directement sa configuration avec `python3
 | Achats | Factures reçues, acceptation, refus, litige, règlement, justificatifs |
 | Inventaire | Catalogue produits/services, images, entrées/sorties de stock, seuils |
 | Dépenses | Notes de frais et tickets, visibilité par utilisateur et par rôle |
-| Imports | PDF/images, transcription/OCR local, correction manuelle, extraction IA optionnelle, conversion contrôlée |
+| Imports | Lots de factures de vente ou d’achat en PDF ou image, OCR et extraction par fichier, IA facultative, comparaison des doublons et validation des factures |
 | Finances | Comptes bancaires multiples via Bridge, synchronisation des transactions, rapprochement automatique, paiements partiels, CSV, prévisions et état de TVA |
 | Intégrations | Boîte d'envoi, SMTP/Resend, clés API, OAuth SUPERPDP, émission et récepteur d'événements |
 

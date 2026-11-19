@@ -150,7 +150,7 @@ def number(company, kind):
         result = f"{prefix}-{today()[:4]}-{next_value:04d}"
         next_value += 1
         if not Document.objects.filter(
-            company_uid=company.company_uid, number=result
+            company_uid=company.company_uid, direction="outgoing", number__iexact=result
         ).exists():
             break
     setattr(company, counter_field, next_value)
@@ -159,7 +159,16 @@ def number(company, kind):
 
 
 @transaction.atomic
-def save_document(company, user, kind, data, document=None, direction="outgoing"):
+def save_document(
+    company,
+    user,
+    kind,
+    data,
+    document=None,
+    direction="outgoing",
+    *,
+    imported_sale=False,
+):
     if kind not in {"quote", "invoice", "progress_invoice", "credit_note"}:
         raise BusinessError("Type de document invalide.")
     company = Company.objects.select_for_update().get(pk=company.pk)
@@ -198,18 +207,33 @@ def save_document(company, user, kind, data, document=None, direction="outgoing"
             raise BusinessError("Numéro fournisseur requis.")
         if (
             Document.objects.filter(
-                company_uid=company.company_uid, number=document.number
+                company_uid=company.company_uid, direction="incoming", customer_uid=customer.customer_uid, number__iexact=document.number
             )
             .exclude(pk=document.pk)
             .exists()
         ):
-            raise BusinessError("Ce numéro existe déjà dans l'entreprise.", 409)
+            raise BusinessError("Une facture porte déjà ce numéro pour ce fournisseur.", 409)
         document.seller_snapshot = snapshot(customer)
         document.buyer_snapshot = snapshot(company, seller=True)
         document.status = "received"
         document.received_at = stamp()
     else:
-        document.number = document.number or number(company, kind)
+        if imported_sale:
+            reference = str(data.get("number") or "").strip()
+            if not reference or kind != "invoice" or document.pk:
+                raise BusinessError(
+                    "Le numéro de la facture de vente originale est requis."
+                )
+            if Document.objects.filter(
+                company_uid=company.company_uid, direction="outgoing", number__iexact=reference
+            ).exists():
+                raise BusinessError(
+                    "Une facture porte déjà ce numéro. Vérifiez le doublon dans les imports.",
+                    409,
+                )
+            document.number, document.status = reference, "sent"
+        else:
+            document.number = document.number or number(company, kind)
         document.seller_snapshot = snapshot(company, seller=True)
         document.buyer_snapshot = snapshot(customer) if customer else "{}"
     if customer and any(
@@ -224,6 +248,17 @@ def save_document(company, user, kind, data, document=None, direction="outgoing"
         if data.get("contact_phone"):
             party["contact_phone"] = str(data["contact_phone"]).strip()[:80]
         setattr(document, side, json_text(party))
+    from core.numbers import current_style
+
+    style = current_style()
+    if style.customized:
+        side = "seller_snapshot" if direction == "outgoing" else "buyer_snapshot"
+        snapshot_data = json.loads(getattr(document, side))
+        snapshot_data["number_display"] = {
+            "group": style.grouping,
+            "decimal": style.decimal,
+        }
+        setattr(document, side, json_text(snapshot_data))
     document.issue_date = iso_date(data.get("issue_date") or today())
     from .branding import for_company
 

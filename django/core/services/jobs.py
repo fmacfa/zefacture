@@ -20,7 +20,7 @@ def enqueue(item, operation, provider=""):
         raise BusinessError("Restaurez cet import pour reprendre le traitement.", 409)
     if item.document_uid:
         raise BusinessError("Import déjà converti.", 409)
-    if operation not in {"transcribe", "analyze"}:
+    if operation not in {"transcribe", "analyze", "pipeline"}:
         raise BusinessError("Opération inconnue.")
     require_idle(item)
     if operation == "analyze":
@@ -28,13 +28,19 @@ def enqueue(item, operation, provider=""):
             raise BusinessError("Transcrivez d'abord le document.")
         provider = provider or "openrouter"
         extraction_ai.require_provider(provider)
+    if operation == "pipeline" and provider != "local":
+        extraction_ai.require_provider(provider)
     job = BackgroundJob.objects.create(
         company_uid=item.company_uid,
         ingestion_uid=item.ingestion_uid,
         operation=operation,
         provider=provider,
     )
-    field = "transcription_status" if operation == "transcribe" else "extraction_status"
+    field = (
+        "transcription_status"
+        if operation in {"transcribe", "pipeline"}
+        else "extraction_status"
+    )
     setattr(item, field, "queued")
     item.last_error = None
     item.save(update_fields=[field, "last_error"])
@@ -68,8 +74,30 @@ def work_one():
     try:
         if item.document_uid:
             raise BusinessError("Import déjà converti.")
-        if job.operation == "transcribe":
+        if job.operation in {"transcribe", "pipeline"}:
             ingestion.transcribe(item)
+            if job.operation == "pipeline":
+                from .invoice_imports import local_invoice, index_extraction
+                from core.common import json_text
+
+                if job.provider == "local":
+                    data = local_invoice(item)
+                    item.extraction_json = json_text(data)
+                    index_extraction(item, data)
+                    item.extraction_model = "local"
+                    item.extraction_status, item.status = "done", "analyzed"
+                    item.save(
+                        update_fields=[
+                            "extraction_json",
+                            "source_invoice_ref",
+                            "source_invoice_match",
+                            "extraction_model",
+                            "extraction_status",
+                            "status",
+                        ]
+                    )
+                else:
+                    ingestion.analyze(item, job.provider)
         else:
             ingestion.analyze(item, job.provider or "openrouter")
         job.status = "done"
@@ -81,6 +109,7 @@ def work_one():
         field = (
             "transcription_status"
             if job.operation == "transcribe"
+            or (job.operation == "pipeline" and item.transcription_status != "done")
             else "extraction_status"
         )
         setattr(item, field, "failed")

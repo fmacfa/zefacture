@@ -1,4 +1,4 @@
-{% extends "core/base.html" %}
+{% extends "core/base.html" %}{% load static %}
 {% block content %}
 <div class="page-head">
   <h1>{% if archives %}Archives — {{ title }}{% else %}{{ title }}{% endif %}</h1>
@@ -6,26 +6,32 @@
 </div>
 
 {% if not archives and can_write %}
-  <form method="post" class="card stack" enctype="multipart/form-data" data-form-draft>
+  <form method="post" class="card stack" enctype="multipart/form-data" data-batch-upload>
     {% csrf_token %}
-    <h2>Importer un justificatif</h2>
+    <h2>Importer des documents</h2>
     <fieldset class="form-section">
       <legend>Document à importer</legend>
       <div class="form-grid">
         <label>Type
           <select name="source_kind">
-            {% if not expenses %}<option value="supplier_invoice">Facture fournisseur</option>{% endif %}
+            {% if not expenses %}<option value="supplier_invoice">Achats · Facture fournisseur</option><option value="sales_invoice">Ventes · Facture client déjà émise</option>{% endif %}
             <option value="expense_note">Note de frais</option>
             <option value="receipt">Ticket de caisse</option>
           </select>
         </label>
         <div class="form-field">
-          <label for="receipt-file">Fichier</label>
-          <input id="receipt-file" name="file" type="file" required accept=".pdf,.png,.jpg,.jpeg,.webp,.tiff,.bmp" aria-describedby="receipt-file-help">
-          <small id="receipt-file-help">PDF ou image, 15 Mo maximum.</small>
+          <label for="receipt-file">Fichiers</label>
+          <input id="receipt-file" name="file" type="file" multiple required accept=".pdf,.png,.jpg,.jpeg,.webp,.tif,.tiff,.bmp" aria-describedby="receipt-file-help">
+          <small id="receipt-file-help">PDF ou images, jusqu’à 50 fichiers de 15 Mo chacun.</small>
         </div>
       </div>
     </fieldset>
+    <label>Analyse après import<select name="pipeline"><option value="local">OCR et extraction locale</option>
+      {% for key, label in ai_choices %}<option value="{{ key }}">OCR puis analyse avec {{ label }}</option>{% endfor %}
+      <option value="none">Importer seulement</option></select></label>
+    {% if ai_choices %}<small>Avec une IA, le texte de chaque document est envoyé au fournisseur choisi.</small>{% endif %}
+    <ul class="batch-files clean-list" data-batch-files></ul><p role="status" data-batch-progress></p>
+    <a data-batch-link hidden>Voir les documents de ce lot</a>
     <details class="form-disclosure">
       <summary>Détails de la dépense (facultatif)</summary>
       <p class="form-help">Vous pouvez aussi compléter ces champs après transcription.</p>
@@ -42,17 +48,18 @@
   </form>
 {% endif %}
 
+{% if batch %}<p><strong>Documents de ce lot</strong> · <a href="?lot={{ batch }}">Actualiser les analyses</a> · <a href="/app/imports">Voir tous les imports</a></p>{% endif %}
 <section class="card table-wrap">
   <table>
-    <thead><tr><th>Fichier</th><th>Type</th><th>Date</th><th>Montant</th><th>État</th></tr></thead>
+    <thead><tr><th>Fichier</th><th>Type</th><th>Date du document</th><th>Total TTC</th><th>État</th></tr></thead>
     <tbody>
       {% for i in items %}
         <tr>
           <td><a href="/app/imports/{{ i.ingestion_uid }}">{{ i.original_filename }}</a>{% if can_write and i.can_preview %}<small><a href="/app/imports/{{ i.ingestion_uid }}/apercu">Aperçu</a></small>{% endif %}</td>
           <td>{{ i.source_label }}</td>
-          <td>{{ i.expense_date|default:i.created_at }}</td>
-          <td>{% if i.expense_amount is not None %}{{ i.expense_amount|floatformat:2 }} {{ i.expense_currency }}{% else %}—{% endif %}</td>
-          <td><span class="badge">{% if archives %}Archivé{% else %}{{ i.state_label }}{% endif %}</span></td>
+          <td>{{ i.list_date|default:"—" }}</td>
+          <td>{% if i.list_amount is not None %}{{ i.list_amount|display_number:2 }} {{ i.list_currency|default:"" }}{% else %}—{% endif %}</td>
+          <td><span class="badge">{% if archives %}Archivé{% else %}{{ i.state_label }}{% endif %}</span>{% if i.transcription_status == "queued" %} · Analyse en file{% endif %}{% if i.duplicate %}<br><a class="badge duplicate-badge" href="/app/imports/{{ i.ingestion_uid }}#doublons">Doublon possible · vérifier</a>{% endif %}</td>
         </tr>
       {% empty %}
         <tr><td colspan="5" class="empty">{% if archives %}Aucun justificatif archivé.{% else %}Aucun justificatif.{% endif %}</td></tr>
@@ -60,4 +67,5 @@
     </tbody>
   </table>
 </section>
+<script src="{% static 'batch-imports.js' %}" defer></script>
 {% endblock %}

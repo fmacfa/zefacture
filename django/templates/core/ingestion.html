@@ -13,6 +13,12 @@
   </div>
 </div>
 
+{% if duplicate_documents or duplicate_imports %}
+<section class="card notice duplicate-notice" id="doublons" aria-labelledby="duplicate-title"><h2 id="duplicate-title">Doublon possible</h2>
+<p>Comparez la référence, le tiers, la date et le total avec ces pièces avant de valider.</p>
+<ul>{% for d in duplicate_documents %}<li><a href="{{ d.url }}">{{ d.number }}</a> · {{ d.issue_date }} · {{ d.total_including_tax|display_number:2 }} {{ d.currency_code }}</li>{% endfor %}
+{% for other in duplicate_imports %}<li><a href="/app/imports/{{ other.ingestion_uid }}">{{ other.original_filename }}</a></li>{% endfor %}</ul></section>
+{% endif %}
 {% if item.archived_at %}
   <section class="card stack">
     <h2>Justificatif archivé</h2>
@@ -20,10 +26,10 @@
     <form method="post" action="/app/imports/{{ item.ingestion_uid }}/restaurer">
       {% csrf_token %}<button>Restaurer le justificatif</button>
     </form>
-    {% if item.document_uid %}<a href="/app/reception/{{ item.document_uid }}">Ouvrir la facture liée</a>{% endif %}
+    {% if item.document_uid %}<a href="/app/{% if is_sale %}factures{% else %}reception{% endif %}/{{ item.document_uid }}">Ouvrir la facture liée</a>{% endif %}
   </section>
 {% elif item.document_uid %}
-  <div class="notice success">Facture reçue créée. <a href="/app/reception/{{ item.document_uid }}">Ouvrir la facture</a></div>
+  <div class="notice success">{% if is_sale %}Facture de vente enregistrée.{% else %}Facture reçue créée.{% endif %} <a href="/app/{% if is_sale %}factures{% else %}reception{% endif %}/{{ item.document_uid }}">Ouvrir la facture</a></div>
 {% else %}
   {% if item.last_error %}<p class="notice error" role="alert">{{ item.last_error }}</p>{% endif %}
   {% if item.transcription_status == "queued" or item.extraction_status == "queued" %}
@@ -95,17 +101,17 @@
   <section class="card">
     <h2>Vérifier les informations de facturation</h2>
     <fieldset class="form-section">
-      <legend>Fournisseur</legend>
+      <legend>{% if is_sale %}Client facturé{% else %}Fournisseur{% endif %}</legend>
       <div class="form-grid">
-      <label>Nom du fournisseur<input data-extract="supplier.legal_name" required></label>
-      <label>Pays<input data-extract="supplier.country_code" maxlength="2" required></label>
-      <label>Adresse<input data-extract="supplier.address_line1"></label>
-      <label>Code postal<input data-extract="supplier.postal_code"></label>
-      <label>Ville<input data-extract="supplier.city"></label>
-      <label>Email<input data-extract="supplier.email" type="email"></label>
-      <label>SIREN<input data-extract="supplier.siren"></label>
-      <label>SIRET<input data-extract="supplier.siret"></label>
-      <label>Numéro de TVA<input data-extract="supplier.vat_number"></label>
+      <label>{% if is_sale %}Nom du client{% else %}Nom du fournisseur{% endif %}<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.legal_name" required></label>
+      <label>Pays<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.country_code" maxlength="2" required></label>
+      <label>Adresse<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.address_line1"></label>
+      <label>Code postal<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.postal_code"></label>
+      <label>Ville<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.city"></label>
+      <label>Email<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.email" type="email"></label>
+      <label>SIREN<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.siren"></label>
+      <label>SIRET<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.siret"></label>
+      <label>Numéro de TVA<input data-extract="{% if is_sale %}buyer{% else %}supplier{% endif %}.vat_number"></label>
       </div>
     </fieldset>
     <fieldset class="form-section">
@@ -135,7 +141,7 @@
   </details></section>
   <div class="form-actions">
     <button formnovalidate>Enregistrer les corrections</button>
-    {% if can_finance %}<button class="secondary" formaction="/app/imports/{{ item.ingestion_uid }}/creer-facture">Valider et créer la facture reçue</button>{% endif %}
+    {% if can_finance %}{% if duplicate_documents or duplicate_imports %}<label class="check"><input type="checkbox" name="distinct" value="1"> J’ai comparé les originaux et il s’agit de factures distinctes.</label>{% endif %}<button class="secondary" formaction="/app/imports/{{ item.ingestion_uid }}/creer-facture">{% if is_sale %}Enregistrer la facture de vente déjà émise{% else %}Valider et créer la facture reçue{% endif %}</button>{% endif %}
   </div>
 </form>
 {% if is_expense %}</details>{% endif %}
@@ -146,7 +152,7 @@
 {% if not item.archived_at and can_write %}
   <section class="card stack" aria-labelledby="archive-title">
     <h2 id="archive-title">Archiver le justificatif</h2>
-    <p class="form-help">Retirez-le de la liste active. Vous pourrez retrouver l’original et restaurer le justificatif dans les archives.{% if item.document_uid %} La facture liée reste accessible dans les factures fournisseurs.{% endif %}</p>
+    <p class="form-help">Retirez-le de la liste active. Vous pourrez retrouver l’original et restaurer le justificatif dans les archives.{% if item.document_uid %} La facture liée reste accessible dans {% if is_sale %}les factures de vente{% else %}les factures fournisseurs{% endif %}.{% endif %}</p>
     <form method="post" action="/app/imports/{{ item.ingestion_uid }}/archiver" data-confirm="Archiver ce justificatif ?">
       {% csrf_token %}<button class="secondary">Archiver le justificatif</button>
     </form>

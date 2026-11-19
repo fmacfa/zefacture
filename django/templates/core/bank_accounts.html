@@ -40,7 +40,7 @@
 <div class="grid two">{% for a in accounts %}
   <section class="card stack"><h2>{{ a.name }}</h2>
     {% if a.iban or a.bank_name %}<p class="break">{{ a.bank_name }} {{ a.iban }}</p>{% endif %}
-    <strong class="big-number">{{ a.current_balance|floatformat:"2g" }} {{ a.currency_code }}</strong>
+    <strong class="big-number">{{ a.current_balance|display_number:"2g" }} {{ a.currency_code }}</strong>
     <p>{% if a.status == "archived" %}Archivé{% elif a.bank_feed %}{% if a.bank_feed.shared %}Connecté via Bridge{% else %}Accès bancaire interrompu{% endif %}{% else %}Compte manuel{% endif %}</p>
     <div class="inline wrap"><a href="/app/finances/transactions?compte={{ a.account_uid }}">Transactions de ce compte</a>
     {% if a.status == "active" %}<form method="post" action="/app/finances/comptes/{{ a.account_uid }}/archiver">{% csrf_token %}<button class="text-button">Archiver</button></form>{% endif %}</div>

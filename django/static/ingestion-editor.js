@@ -4,9 +4,12 @@
   const source=document.getElementById('extraction-data');
   if(!form||!source)return;
   const extracted=JSON.parse(source.textContent);
-  const supplier=extracted.supplier||extracted.seller||{};
-  extracted.supplier={...supplier,legal_name:supplier.legal_name||supplier.name||'',country_code:supplier.country_code||'FR'};
-  extracted.invoice=extracted.invoice||{};
+  const side=form.querySelector('[data-extract="buyer.legal_name"]') ? 'buyer' : 'supplier';
+  const party=extracted[side]||(side==='buyer'?extracted.customer:extracted.seller)||{};
+  extracted[side]={...party,legal_name:party.legal_name||party.name||'',country_code:party.country_code||'FR'};
+  for(const group of ['invoice','totals']) {
+    if (!extracted[group] || typeof extracted[group] !== 'object' || Array.isArray(extracted[group])) extracted[group]={};
+  }
   extracted.invoice.currency_code=extracted.invoice.currency_code||'EUR';
   const fields=form.querySelectorAll('[data-extract]');
   for(const input of fields) {

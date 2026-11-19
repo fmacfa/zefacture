@@ -106,8 +106,21 @@ def require_provider(provider):
     return label, key, model
 
 
-def request_data(provider, key, model, source):
-    instructions = INSTRUCTIONS + json_text(SCHEMA)
+def request_data(provider, key, model, source, *, sale=False):
+    schema = SCHEMA
+    instruction = INSTRUCTIONS
+    if sale:
+        schema = object_schema(
+            {
+                "buyer": SCHEMAS["supplier"],
+                **{k: v for k, v in SCHEMA["properties"].items() if k != "supplier"},
+            }
+        )
+        instruction = (
+            "Facture de vente déjà émise. Extrais le destinataire/client dans buyer. "
+            + instruction
+        )
+    instructions = instruction + json_text(schema)
     bearer = {"Authorization": "Bearer " + key}
     if provider == "openrouter":
         return (
@@ -138,7 +151,7 @@ def request_data(provider, key, model, source):
                         "type": "json_schema",
                         "name": "receipt",
                         "strict": True,
-                        "schema": SCHEMA,
+                        "schema": schema,
                     }
                 },
             },
@@ -156,7 +169,7 @@ def request_data(provider, key, model, source):
                 "generationConfig": {
                     "maxOutputTokens": 4096,
                     "responseMimeType": "application/json",
-                    "responseJsonSchema": SCHEMA,
+                    "responseJsonSchema": schema,
                 },
             },
         )
@@ -171,7 +184,7 @@ def request_data(provider, key, model, source):
             "max_tokens": 4096,
             "system": instructions,
             "messages": [{"role": "user", "content": source}],
-            "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
+            "output_config": {"format": {"type": "json_schema", "schema": schema}},
         },
     )
 
@@ -218,10 +231,11 @@ def clean_group(data, group):
     return cleaned
 
 
-def normalize_extraction(data):
+def normalize_extraction(data, *, sale=False):
     if not isinstance(data, dict):
         raise ValueError("Expected an object")
-    supplier = clean_group(data.get("supplier"), "supplier")
+    party = "buyer" if sale else "supplier"
+    supplier = clean_group(data.get(party), "supplier")
     invoice = clean_group(data.get("invoice"), "invoice")
     for field in ("issue_date", "due_date"):
         invoice[field] = as_date(invoice.get(field, ""))
@@ -254,18 +268,20 @@ def normalize_extraction(data):
             if not line["discount_percent"]:
                 line.pop("discount_percent")
             lines.append(line)
-    result = {"supplier": supplier, "invoice": invoice, "lines": lines}
+    result = {party: supplier, "invoice": invoice, "lines": lines}
     result["totals"] = {name: value for name, value in totals.items() if value}
     if not (supplier or any(invoice.values()) or result["totals"] or lines):
         raise ValueError("No usable values")
     return result
 
 
-def extract(provider, transcription):
+def extract(provider, transcription, *, sale=False):
     label, key, model = require_provider(provider)
     if not transcription or not transcription.strip():
         raise BusinessError("Transcrivez d’abord le document.")
-    url, headers, payload = request_data(provider, key, model, transcription[:80000])
+    url, headers, payload = request_data(
+        provider, key, model, transcription[:80000], sale=sale
+    )
     try:
         with requests.Session() as session:
             session.trust_env = False
@@ -290,7 +306,9 @@ def extract(provider, transcription):
                             "La réponse de l’IA est trop volumineuse.", 502
                         )
         output = response_text(provider, json.loads(raw))
-        return normalize_extraction(json.loads(output)), f"{provider}:{model}"
+        return normalize_extraction(
+            json.loads(output), sale=sale
+        ), f"{provider}:{model}"
     except requests.RequestException as exc:
         raise BusinessError(
             f"Impossible de joindre {label} pour l’analyse.", 502

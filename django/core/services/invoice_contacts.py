@@ -54,12 +54,12 @@ def unique_match(query):
     return (matches[0] if len(matches) == 1 else None), bool(matches)
 
 
-def historical_customer(document, party, address):
-    """Identify older invoices without a CRM id, without editing their legal snapshots."""
-    name = str(party.get("name") or "").strip()
+def existing_customer(company_uid, party, address):
+    """Resolve one active CRM card, and distinguish ambiguous matches from new parties."""
+    name = str(party.get("name") or party.get("legal_name") or "").strip()
     if not name:
-        return None
-    cards = Customer.objects.filter(company_uid=document.company_uid)
+        return None, False
+    cards = Customer.objects.filter(company_uid=company_uid)
     identifiers = {
         k: party[k]
         for k in ("siren", "siret", "vat_number", "electronic_address")
@@ -80,8 +80,8 @@ def historical_customer(document, party, address):
                     for k, v in identifiers.items()
                 )
             ):
-                return card
-            return None
+                return card, True
+            return None, True
     same_name = cards.filter(legal_name__iexact=name)
     if same_name.exists():
         evidence = Q()
@@ -109,9 +109,20 @@ def historical_customer(document, party, address):
                     for k, v in identifiers.items()
                 )
             ):
-                return card
+                return card, True
+        return None, True
+    return None, False
+
+
+def historical_customer(document, party, address):
+    """Identify older invoices without a CRM id, without editing their legal snapshots."""
+    name = str(party.get("name") or "").strip()
+    if not name:
         return None
-    card = cards.create(
+    card, found = existing_customer(document.company_uid, party, address)
+    if found:
+        return card
+    card = Customer.objects.create(
         company_uid=document.company_uid,
         legal_name=name,
         type="individual" if party.get("type") == "individual" else "business",
@@ -119,7 +130,15 @@ def historical_customer(document, party, address):
         country_code=party.get("country_code") or "FR",
         **{
             k: party[k]
-            for k in ("address_line1", "postal_code", "city", *identifiers)
+            for k in (
+                "address_line1",
+                "postal_code",
+                "city",
+                "siren",
+                "siret",
+                "vat_number",
+                "electronic_address",
+            )
             if party.get(k)
         },
     )

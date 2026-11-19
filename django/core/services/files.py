@@ -96,7 +96,7 @@ def upload(uploaded, directory):
             OSError,
             Image.DecompressionBombError,
         ) as exc:
-            raise BusinessError("Formats acceptés : PDF, PNG, JPEG et WebP.") from exc
+            raise BusinessError("Formats acceptés : PDF, PNG, JPEG, WebP, TIFF et BMP.") from exc
     relative = f"{directory}/{uid()}{extension}"
     return dict(
         storage_path=put(relative, raw),
@@ -283,6 +283,17 @@ def issued_invoice_pdf(document):
         file = document.files.filter(kind="facturx").first()
         if not file:
             file = document.files.filter(kind="pdf").first()
+        if not file:
+            from core.models import Ingestion
+
+            if Ingestion.objects.filter(
+                company_uid=document.company_uid,
+                document_uid=document.document_uid,
+                source_kind="sales_invoice",
+            ).exists():
+                file = document.files.filter(
+                    kind="source", mime_type="application/pdf"
+                ).first()
     if not file:
         raise BusinessError("Aucun PDF conservé pour cette facture émise.", 409)
 
@@ -303,18 +314,39 @@ def generate_document(document):
     from core.models import PdpInvoice
 
     links = PdpInvoice.objects.filter(
-        document_uid=document.document_uid, company_uid=document.company_uid,
+        document_uid=document.document_uid,
+        company_uid=document.company_uid,
         direction="in" if document.direction == "incoming" else "out",
     )
-    link = (links if document.direction == "incoming" else links.filter(imported=True)).first()
+    link = (
+        links if document.direction == "incoming" else links.filter(imported=True)
+    ).first()
     if link:
         original = document.files.filter(file_uid=link.original_file_uid).first()
         if not original:
-            raise BusinessError("L’original SUPERPDP est absent. Restaurez-le depuis une sauvegarde.", 409)
+            raise BusinessError(
+                "L’original SUPERPDP est absent. Restaurez-le depuis une sauvegarde.",
+                409,
+            )
         read_verified(original)
         return original
     kind = "pdf" if document.type == "quote" else "facturx"
     existing = document.files.filter(kind=kind).first()
+    from core.models import Ingestion
+
+    if (
+        document.direction == "outgoing"
+        and Ingestion.objects.filter(
+            company_uid=document.company_uid,
+            document_uid=document.document_uid,
+            source_kind="sales_invoice",
+        ).exists()
+    ):
+        original = document.files.filter(kind="source").first()
+        if not original:
+            raise BusinessError("L’original de vente importé est introuvable.", 409)
+        read_verified(original)
+        return original
     if document.direction == "incoming":
         original = document.files.filter(
             kind__in=["facturx", "pdf", "source", "attachment"]
@@ -393,19 +425,24 @@ def generate_document(document):
             return URLFetcherResponse(url, BytesIO(logo), headers, 200)
         return no_resources(url, *args, **kwargs)
 
-    html = render_to_string(
-        "core/document_pdf.html",
-        {
-            "document": document,
-            "lines": computed["lines"],
-            "taxes": computed["taxes"],
-            "is_quote": kind == "pdf",
-            "source_invoice_number": source_number,
-            "branding": branding,
-            "brand_color": palette(branding.get("accent_color", "#176568"))["primary"],
-            "logo_uri": logo_uri,
-        },
-    )
+    from core.numbers import document_style, number_context
+
+    with number_context(document_style(document)):
+        html = render_to_string(
+            "core/document_pdf.html",
+            {
+                "document": document,
+                "lines": computed["lines"],
+                "taxes": computed["taxes"],
+                "is_quote": kind == "pdf",
+                "source_invoice_number": source_number,
+                "branding": branding,
+                "brand_color": palette(branding.get("accent_color", "#176568"))[
+                    "primary"
+                ],
+                "logo_uri": logo_uri,
+            },
+        )
     pdf = HTML(string=html, url_fetcher=document_resources).write_pdf(
         pdf_variant="pdf/a-3b"
     )
