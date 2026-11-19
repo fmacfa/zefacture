@@ -5,7 +5,7 @@
     {% if text %}<p>{{ text|linebreaksbr }}</p>{% endif %}
     {% if source %}
       <p>Cette instance utilise ZeFacture sous licence GNU AGPL version 3. Vous pouvez télécharger le code de la version déployée.</p>
-      <a class="button" href="/source/archive">Télécharger le code source</a>
+      <a class="button" data-download href="/source/archive">Télécharger le code source</a>
     {% else %}
       <a class="button" href="/connexion">Ouvrir mon espace</a>
     {% endif %}

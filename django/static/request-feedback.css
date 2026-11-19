@@ -1,0 +1,21 @@
+.request-status {
+  position: fixed; z-index: 9999; inset-inline-end: max(1rem,env(safe-area-inset-right));
+  inset-block-end: max(1rem,env(safe-area-inset-bottom)); max-width: calc(100vw - 2rem);
+  box-sizing: border-box; display: flex; align-items: center; gap: .65rem;
+  padding: .8rem 1rem; border: 1px solid var(--line,#cbdacf); border-radius: .65rem;
+  background: var(--white,#fff); color: var(--ink,#173c30); box-shadow: 0 3px 16px #10281b26;
+  font-size: .95rem; font-weight: 600; pointer-events: none;
+}
+.request-status[hidden] { display: none; }
+.request-spinner, :is(button,.button).request-pending::after, .request-inline-busy::before {
+  content: ""; display: inline-block; flex: none; box-sizing: border-box;
+  width: 1em; height: 1em; border: .15em solid currentColor; border-inline-end-color: transparent;
+  border-radius: 50%; vertical-align: -.1em; animation: zf-request-spin .8s linear infinite;
+}
+:is(button,.button).request-pending::after { margin-inline-start: .45em; }
+.request-inline-busy::before { margin-inline-end: .45em; }
+.request-pending { cursor: progress; }
+@keyframes zf-request-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .request-spinner, :is(button,.button).request-pending::after, .request-inline-busy::before { animation: none; }
+}

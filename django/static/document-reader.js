@@ -20,7 +20,13 @@ if (reader) {
   controls.querySelector('[data-fit]').addEventListener('click', () => zoom(1));
   controls.hidden = false;
   const image = stage.querySelector('img');
-  const failed = () => { reader.querySelector('[data-render-error]').hidden = false; };
-  image.addEventListener('error', failed);
-  if (image.complete && !image.naturalWidth) failed();
+  const loading = reader.querySelector('[data-reader-loading]');
+  function complete() {
+    loading.hidden = true;
+    if (!image.naturalWidth) reader.querySelector('[data-render-error]').hidden = false;
+  }
+  image.addEventListener('load', complete, {once:true});
+  image.addEventListener('error', complete, {once:true});
+  if (image.complete) complete();
+  else loading.hidden = false;
 }

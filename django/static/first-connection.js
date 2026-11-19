@@ -42,6 +42,7 @@ form.addEventListener("submit", async event => {
   if (checkingSubmission) return;
 
   checkingSubmission = true;
+  const pending = window.ZeRequests.start(form, event.submitter, "Vérification de l’autorisation d’installation…");
   try {
     await linkVerification;
     showStatus("Vérification de l’autorisation d’installation…");
@@ -50,6 +51,7 @@ form.addEventListener("submit", async event => {
     if (response.status === 204) {
       form.dataset.setupAuthorized = "true";
       showStatus("Lien privé vérifié. Création du compte…", "ready");
+      pending.finish();
       confirmedSubmission = true;
       form.requestSubmit(event.submitter ?? undefined);
     } else if (response.status === 403) {
@@ -64,12 +66,14 @@ form.addEventListener("submit", async event => {
     showStatus("Vérification indisponible. Réessayez dans quelques instants.", "error");
     status.focus();
   } finally {
+    pending.finish();
     confirmedSubmission = false;
     checkingSubmission = false;
   }
 });
 
 async function authorizeInstallation(token) {
+  status.classList.add("request-inline-busy");
   showStatus("Vérification du lien privé…");
 
   try {
@@ -90,6 +94,8 @@ async function authorizeInstallation(token) {
       : "Lien d’installation invalide ou expiré. Demandez un nouveau lien à l’exploitant.", "error");
   } catch {
     showStatus("Vérification indisponible. Rouvrez le lien pour réessayer.", "error");
+  } finally {
+    status.classList.remove("request-inline-busy");
   }
 }
 

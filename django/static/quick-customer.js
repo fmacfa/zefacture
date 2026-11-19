@@ -8,6 +8,7 @@
   form.addEventListener('submit',async event=>{
     event.preventDefault();
     const button=form.querySelector('[type=submit]');button.disabled=true;
+    const pending=window.ZeRequests.start(form,button,"Création du client…");
     const error=dialog.querySelector('[role=alert]');error.hidden=true;
     try {
       const response=await fetch('/app/devis/nouveau/client',{method:'POST',body:new FormData(form),headers:{Accept:'application/json'}});
@@ -15,6 +16,6 @@
       const select=document.querySelector('#document-form select[name=customer_uid]');
       const option=new Option(data.legal_name,data.customer_uid,true,true);select.add(option);
       select.dispatchEvent(new Event('input',{bubbles:true}));dialog.close();form.reset();
-    }catch(problem){error.textContent=problem.message;error.hidden=false;}finally{button.disabled=false;}
+    }catch(problem){error.textContent=problem.message;error.hidden=false;}finally{pending.finish();button.disabled=false;}
   });
 })();
