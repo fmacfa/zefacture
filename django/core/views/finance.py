@@ -159,7 +159,7 @@ def finance(request, section="overview", item_uid=None, action=None):
         totals = {}
         for group in rows.filter(status="booked").order_by().values("account_uid", "direction").annotate(amount=Sum("amount")):
             account = by_uid.get(group["account_uid"])
-            currency = account.currency_code if account else ""
+            currency = account.currency_code if account else "EUR"
             balance = totals.setdefault(currency, {"incoming": Decimal(0), "outgoing": Decimal(0)})
             balance[group["direction"]] += group["amount"]
         for balance in totals.values():
