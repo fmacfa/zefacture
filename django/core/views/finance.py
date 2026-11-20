@@ -229,30 +229,9 @@ def finance(request, section="overview", item_uid=None, action=None):
                 d.type,
                 (d.buyer if d.direction == "outgoing" else d.seller).get("name", ""),
                 d.currency_code,
-                money(
-                    d.total_excluding_tax
-                    * (
-                        -1
-                        if d.direction == "incoming" or d.type == "credit_note"
-                        else 1
-                    )
-                ),
-                money(
-                    d.total_vat
-                    * (
-                        -1
-                        if d.direction == "incoming" or d.type == "credit_note"
-                        else 1
-                    )
-                ),
-                money(
-                    d.total_including_tax
-                    * (
-                        -1
-                        if d.direction == "incoming" or d.type == "credit_note"
-                        else 1
-                    )
-                ),
+                money(d.total_excluding_tax * d.journal_sign),
+                money(d.total_vat * d.journal_sign),
+                money(d.total_including_tax * d.journal_sign),
                 money(d.amount_due),
                 d.status,
             ]

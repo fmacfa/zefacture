@@ -396,45 +396,71 @@ def webhook(request):
                 return value
         return ""
 
-    invoice_id = pick(["pdp_invoice_id", "invoice_id", "invoiceId"])
-    external = pick(["external_id", "externalId"])
-    document_uid = pick(["document_uid", "documentUid"])
-    query = (
-        Document.objects.filter(pdp_invoice_id=invoice_id)
-        if invoice_id
-        else Document.objects.none()
-    )
-    document = query.first()
-    if not document and external:
-        document = Document.objects.filter(
-            Q(pdp_external_id=external) | Q(document_uid=external)
-        ).first()
-    if not document and document_uid:
-        document = Document.objects.filter(document_uid=document_uid).first()
-    if not document:
-        remote_company = pick(["company_id", "pdp_company_id"])
-        companies = (
-            list(
-                PdpSession.objects.filter(
-                    provider="superpdp", pdp_company_id=remote_company, status="active"
-                ).values_list("company_uid", flat=True)
-            )
-            if remote_company
-            else []
-        )
-        if len(companies) == 1:
-            pdp_sync.request_sync(Company.objects.get(company_uid=companies[0]))
-        return JsonResponse({"ok": True, "stored": False}, status=202)
-    # If both identifiers are supplied they must agree; never relink an invoice.
-    if (
-        invoice_id
-        and document.pdp_invoice_id
-        and invoice_id != document.pdp_invoice_id
-        or external
-        and external not in {document.document_uid, document.pdp_external_id}
-    ):
-        return JsonResponse({"error": "Identifiants incohérents"}, status=409)
-    pdp_sync.request_sync(Company.objects.get(company_uid=document.company_uid))
+    def identifier(keys):
+        values = set()
+        pending = [data]
+        while pending:
+            node = pending.pop()
+            for key, value in node.items():
+                if isinstance(value, dict):
+                    pending.append(value)
+                elif key in keys and isinstance(value, (str, int)) and str(value):
+                    values.add(str(value))
+        if len(values) > 1:
+            raise BusinessError("Identifiants SUPERPDP contradictoires.", 409)
+        return next(iter(values), "")
+
+    try:
+        invoice_id = identifier({"pdp_invoice_id", "invoice_id", "invoiceId"})
+        external = identifier({"external_id", "externalId"})
+        local_uid = identifier({"document_uid", "documentUid"})
+        remote_company = identifier({"company_id", "pdp_company_id", "companyId"})
+        environment = identifier({"environment", "pdp_company_env", "company_environment"})
+    except BusinessError as exc:
+        return JsonResponse({"error": str(exc)}, status=exc.status)
+
+    ignored = JsonResponse({"ok": True, "stored": False}, status=202)
+    conflict = JsonResponse({"error": "Identifiants SUPERPDP incohérents ou ambigus."}, status=409)
+    if remote_company or environment:
+        if not remote_company or environment and environment not in {"production", "sandbox"}:
+            return conflict
+        bindings = PdpSyncState.objects.filter(remote_company_id=remote_company)
+        if environment:
+            bindings = bindings.filter(remote_environment=environment)
+        tenants = list(bindings.values_list("company_uid", flat=True)[:2])
+        if not tenants:
+            return ignored
+        if len(tenants) > 1:
+            return conflict
+        company = Company.objects.get(company_uid=tenants[0])
+        link = PdpInvoice.objects.filter(
+            company_uid=company.company_uid, remote_company_id=remote_company,
+            remote_environment=environment, remote_id=invoice_id,
+        ).first() if environment and invoice_id else None
+        if not link or not link.document_uid:
+            pdp_sync.request_sync(company)
+            return ignored
+        document = Document.objects.filter(company_uid=company.company_uid, document_uid=link.document_uid).first()
+        if not document:
+            return ignored
+        if local_uid and local_uid != document.document_uid or external and external not in {
+            document.document_uid, document.pdp_external_id, (link.payload or {}).get("external_id")
+        }:
+            return conflict
+    else:
+        # Older relays supplied the local document UID as their external ID.
+        # Keep that exact pair for legacy records that predate the official binding.
+        anchor = local_uid or external
+        if not anchor or not invoice_id:
+            return ignored
+        document = Document.objects.filter(document_uid=anchor, pdp_invoice_id=invoice_id).first()
+        if not document or external and external not in {document.document_uid, document.pdp_external_id}:
+            return conflict
+        company = Company.objects.get(company_uid=document.company_uid)
+        if PdpInvoice.objects.filter(company_uid=company.company_uid, document_uid=document.document_uid).exists():
+            pdp_sync.request_sync(company)
+            return ignored
+    pdp_sync.request_sync(company)
     event_id = pick(["pdp_event_id", "invoice_event_id", "event_id", "eventId"])
     receipt = digest(
         "superpdp:" + document.document_uid + ":" + (event_id or json_text(data))

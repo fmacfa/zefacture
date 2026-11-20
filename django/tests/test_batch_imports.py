@@ -27,6 +27,7 @@ class BatchImportTests(ApplicationCase):
         response = self.client.post(
             "/app/imports",
             {
+                "company_uid": self.company.company_uid,
                 "source_kind": "supplier_invoice",
                 "file": [
                     photo("a.png", "red"),
@@ -76,6 +77,7 @@ class BatchImportTests(ApplicationCase):
         replay = self.client.post(
             "/app/imports",
             {
+                "company_uid": self.company.company_uid,
                 "source_kind": "supplier_invoice",
                 "file": photo("copie.png", "red"),
                 "pipeline": "local",
@@ -85,7 +87,7 @@ class BatchImportTests(ApplicationCase):
         self.assertEqual(replay.json()["files"][0]["state"], "duplicate")
         expense_replay = self.client.post(
             "/app/notes-de-frais",
-            {"file": photo("achat.png", "red")},
+            {"company_uid": self.company.company_uid, "file": photo("achat.png", "red")},
             HTTP_ACCEPT="application/json",
         )
         self.assertEqual(expense_replay.json()["files"][0]["state"], "duplicate")
@@ -95,6 +97,7 @@ class BatchImportTests(ApplicationCase):
         link = self.client.post(
             "/app/imports",
             {
+                "company_uid": self.company.company_uid,
                 "source_kind": "sales_invoice",
                 "file": SimpleUploadedFile("sale.pdf", b"%PDF-synthetic-archived-sale"),
                 "pipeline": "none",
@@ -130,6 +133,7 @@ class BatchImportTests(ApplicationCase):
         duplicate = self.client.post(
             "/app/imports",
             {
+                "company_uid": self.company.company_uid,
                 "source_kind": "sales_invoice",
                 "file": SimpleUploadedFile("scan.pdf", b"%PDF-new-scan"),
             },
@@ -161,6 +165,7 @@ class BatchImportTests(ApplicationCase):
         self.client.post(
             "/app/imports",
             {
+                "company_uid": self.company.company_uid,
                 "file": [photo("un.png", "red"), photo("deux.png", "blue")],
                 "batch_uid": lot,
                 "source_kind": "supplier_invoice",
@@ -216,6 +221,7 @@ class BatchImportTests(ApplicationCase):
             response = self.client.post(
                 "/app/imports",
                 {
+                    "company_uid": self.company.company_uid,
                     "source_kind": kind,
                     "file": SimpleUploadedFile(
                         "scan.pdf", f"%PDF-synthetic-{index}".encode()
@@ -284,6 +290,7 @@ class BatchImportTests(ApplicationCase):
             self.client.post(
                 "/app/imports",
                 {
+                    "company_uid": self.company.company_uid,
                     "source_kind": "sales_invoice",
                     "pipeline": "openai",
                     "file": photo("c.png", "green"),
@@ -326,7 +333,7 @@ class BatchImportTests(ApplicationCase):
             original_filename="autre.png",
         )
         response = self.client.post(
-            "/app/imports", {"file": f}, HTTP_ACCEPT="application/json"
+            "/app/imports", {"company_uid": self.company.company_uid, "file": f}, HTTP_ACCEPT="application/json"
         )
         self.assertEqual(response.json()["files"][0]["state"], "imported")
         self.assertNotContains(response, hidden.ingestion_uid)

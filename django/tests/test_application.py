@@ -576,7 +576,7 @@ class AccessTests(ApplicationCase):
         )
         response = Client().post(
             "/api/v1/invoices",
-            json.dumps(self.data()),
+            json.dumps(self.data(reference="TEST-VENTE")),
             content_type="application/json",
             HTTP_AUTHORIZATION="Bearer " + raw,
         )

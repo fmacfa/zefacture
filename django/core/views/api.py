@@ -6,8 +6,9 @@ from django.utils.http import content_disposition_header
 from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from core.common import BusinessError
-from core.models import ApiKey, User, Customer, Document
+from django.db.models import Q
+from core.common import BusinessError, digest
+from core.models import ApiKey, Company, User, Customer, Document, InvoiceApiCreation
 from core.services import documents, files
 from core.services.api_access import api_company
 
@@ -47,6 +48,57 @@ def invoice_pdf(request, company, document_uid):
             "Content-Length": str(len(content)),
         },
     )
+
+
+def create_invoice(company, user, data, key, *, quote=None):
+    """Request ledger and draft commit together under the company numbering lock."""
+    reference = str(data.get("reference") or "").strip()
+    if not key and not reference:
+        raise BusinessError("Une référence de vente ou l’en-tête Idempotency-Key est requis pour créer une facture.", 400)
+    if key is not None and (not key.strip() or len(key) > 200 or not key.isascii() or not key.isprintable()):
+        raise BusinessError("La clé d’idempotence doit contenir entre 1 et 200 caractères ASCII imprimables.", 400)
+    company = Company.objects.select_for_update().get(pk=company.pk)
+    key_hash = digest(key) if key else None
+    ref_hash = digest(reference) if reference else None
+    payload = [quote.document_uid if quote else None, data]
+    fingerprint = digest(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
+    match = Q()
+    if key_hash:
+        match |= Q(request_key=key_hash)
+    if ref_hash:
+        match |= Q(reference_hash=ref_hash)
+    records = list(InvoiceApiCreation.objects.select_related("document").filter(
+        match, company_uid=company.company_uid,
+    )[:2])
+    if records:
+        prior = records[0]
+        if len(records) != 1 or prior.payload_hash != fingerprint or (
+            key_hash and prior.request_key and prior.request_key != key_hash
+        ):
+            raise BusinessError("Cette clé ou référence de vente correspond à une autre demande.", 409)
+        if key_hash and not prior.request_key:
+            prior.request_key = key_hash
+            prior.save(update_fields=["request_key"])
+        return prior.document, False
+    if not quote and reference and Document.objects.filter(
+        company_uid=company.company_uid, type__in=documents.INVOICE_TYPES,
+        direction="outgoing", reference=reference,
+    ).exists():
+        raise BusinessError("Une facture existante porte déjà cette référence. Retrouvez-la avant de poursuivre.", 409)
+    if quote:
+        percent = data.get("percent", data.get("progress_percent"))
+        if percent is None:
+            raise BusinessError("Le pourcentage d’avancement est requis.")
+        document = documents.bill_quote(company, user, quote, percent)
+    else:
+        document = documents.save_document(company, user, "invoice", data)
+        if data.get("generate_facturx"):
+            files.generate_document(document)
+    InvoiceApiCreation.objects.create(
+        company_uid=company.company_uid, document=document,
+        request_key=key_hash, reference_hash=ref_hash, payload_hash=fingerprint,
+    )
+    return document, True
 
 
 @csrf_exempt
@@ -107,12 +159,12 @@ def api(request, resource, document_uid=None, action=None):
                 document = documents.change_status(document, "accept")
             elif action in {"invoice", "progress-invoices"}:
                 user = User.objects.get(user_uid=company.owner_user_uid)
-                percent = (
-                    data.get("percent", data.get("progress_percent"))
-                    if action == "progress-invoices"
-                    else None
-                )
-                document = documents.bill_quote(company, user, document, percent)
+                if action == "progress-invoices":
+                    document, created = create_invoice(
+                        company, user, data, request.headers.get("Idempotency-Key"), quote=document,
+                    )
+                    return JsonResponse({"data": numbers(documents.payload(document))}, status=201 if created else 200)
+                document = documents.bill_quote(company, user, document)
             elif action == "facturx":
                 files.generate_document(document)
             else:
@@ -131,11 +183,10 @@ def api(request, resource, document_uid=None, action=None):
             )
         else:
             user = User.objects.get(user_uid=company.owner_user_uid)
-            document = documents.save_document(
-                company, user, "quote" if resource == "quotes" else "invoice", data
-            )
-            if data.get("generate_facturx") and resource == "invoices":
-                files.generate_document(document)
+            if resource == "invoices":
+                document, created = create_invoice(company, user, data, request.headers.get("Idempotency-Key"))
+                return JsonResponse({"data": numbers(documents.payload(document))}, status=201 if created else 200)
+            document = documents.save_document(company, user, "quote", data)
         return JsonResponse(
             {"data": numbers(documents.payload(document))},
             status=200 if action in {"accept", "facturx"} else 201,

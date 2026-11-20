@@ -111,7 +111,7 @@ def issue_invoice(document):
     from .files import generate_document, issued_invoice_pdf
 
     # Match the lock order used by invoice editing and SUPERPDP.
-    Company.objects.select_for_update().get(company_uid=document.company_uid)
+    company = Company.objects.select_for_update().get(company_uid=document.company_uid)
     invoice = (
         Document.objects.select_for_update()
         .filter(pk=document.pk, company_uid=document.company_uid)
@@ -129,16 +129,24 @@ def issue_invoice(document):
     if (
         invoice.status != "draft"
         or not invoice.customer_uid
-        or not invoice.number
         or invoice.pdp_invoice_id
     ):
         raise BusinessError("Seul un brouillon complet peut être émis par l’API.", 409)
+    finalize_number(company, invoice)
     file = generate_document(invoice)
     record_issuance(invoice, file, "Facture émise par l’API")
     return invoice
 
 
-def number(company, kind):
+def finalize_number(company, document):
+    """Called inside the issuing transaction, under company and document locks."""
+    if document.number not in (None, "", document.draft_reference):
+        return
+    document.number = number(company, document.type, issue_date=document.issue_date)
+    document.save(update_fields=["number"])
+
+
+def number(company, kind, *, issue_date=None):
     prefix_kind = {"quote": "quote", "credit_note": "credit_note"}.get(kind, "invoice")
     counter_field = "next_" + prefix_kind + "_number"
     next_value = getattr(company, counter_field)
@@ -146,8 +154,21 @@ def number(company, kind):
         "quote": "DE",
         "credit_note": "AV",
     }.get(kind, "FA")
+    if issue_date:
+        kinds = (kind,) if kind in {"credit_note", "quote"} else INVOICE_TYPES
+        newer = Document.objects.filter(
+            company_uid=company.company_uid, direction="outgoing", type__in=kinds,
+            number__regex=rf"^{re.escape(prefix)}-[0-9]{{4}}-[0-9]+$",
+            issue_date__gt=issue_date,
+        ).exclude(status__in=["draft", "cancelled", "simulated"])
+        if newer.exists():
+            raise BusinessError(
+                "Une facture a déjà été émise dans cette série avec une date ultérieure. "
+                "Vérifiez la date d’émission du brouillon.", 409,
+            )
+    year = (issue_date or today())[:4]
     while True:
-        result = f"{prefix}-{today()[:4]}-{next_value:04d}"
+        result = f"{prefix}-{year}-{next_value:04d}"
         next_value += 1
         if not Document.objects.filter(
             company_uid=company.company_uid, direction="outgoing", number__iexact=result
@@ -233,7 +254,8 @@ def save_document(
                 )
             document.number, document.status = reference, "sent"
         else:
-            document.number = document.number or number(company, kind)
+            if not document.number:
+                document.number = document.draft_reference
         document.seller_snapshot = snapshot(company, seller=True)
         document.buyer_snapshot = snapshot(customer) if customer else "{}"
     if customer and any(
@@ -443,6 +465,9 @@ def bill_quote(company, user, quote, percent=None):
 
 @transaction.atomic
 def change_status(document, action):
+    company = None
+    if action == "accept" and document.type == "quote":
+        company = Company.objects.select_for_update().get(company_uid=document.company_uid)
     document = Document.objects.select_for_update().get(pk=document.pk)
     if action == "accept" and document.type == "quote":
         if (
@@ -454,6 +479,7 @@ def change_status(document, action):
             return document
         from .files import generate_document
 
+        finalize_number(company, document)
         generate_document(document)
         document.status, document.accepted_at = "accepted", stamp()
     elif action == "cancel":

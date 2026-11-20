@@ -1,5 +1,12 @@
 # Changements
 
+## Correctifs du 20 novembre 2026
+
+- Correction des avoirs fournisseurs dans le journal exporté.
+- Création de facture et d’avancement par API avec référence de commande ou clé d’idempotence obligatoire. Les répétitions retrouvent le document créé.
+- Numéro définitif à l’émission des nouveaux brouillons et sélection cohérente de l’original fournisseur.
+- Renforcement des accès d’équipe, des liens de récupération, des imports multi-entreprises, des journaux HTTP et de l’attribution des notifications SUPERPDP.
+
 ## 0.1.0-rc.1 — 6 novembre 2026
 
 Première version candidate publique de l’édition Django auto-hébergée, sous AGPL-3.0-only.

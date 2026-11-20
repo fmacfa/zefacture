@@ -221,6 +221,7 @@ class ReceiptFlowTests(ApplicationCase):
         upload = self.client.post(
             "/app/notes-de-frais",
             {
+                "company_uid": self.company.company_uid,
                 "source_kind": "receipt",
                 "file": SimpleUploadedFile("ticket.png", raw, "image/png"),
             },

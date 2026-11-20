@@ -1,5 +1,6 @@
   <form method="post" action="{{ request.path }}" class="card stack" enctype="multipart/form-data" data-batch-upload>
     {% csrf_token %}
+    <input type="hidden" name="company_uid" value="{{ request.company.company_uid }}">
     {% if not expenses %}<h2>Importer des documents</h2>{% endif %}
     <fieldset class="form-section">
       <legend>Document à importer</legend>

@@ -63,6 +63,7 @@ class WorkflowTests(ApplicationCase):
             user_uid=self.user.user_uid,
             email=self.user.email,
             token_hash=digest(token),
+            account_version=self.user.session_version,
             expires_at="2099-01-01 00:00:00",
         )
         session = self.client.session
@@ -116,7 +117,7 @@ class WorkflowTests(ApplicationCase):
         ):
             response = Client().post(
                 "/api/v1/invoices",
-                json.dumps(self.data(generate_facturx=True)),
+                json.dumps(self.data(generate_facturx=True, reference="TEST-ROLLBACK")),
                 content_type="application/json",
                 HTTP_AUTHORIZATION="Bearer " + raw,
             )
@@ -352,6 +353,18 @@ class ConcurrencyTests(TransactionTestCase):
         )
         self.assertEqual(len(set(ids)), 2)
         self.assertNotIn("rejected", ids)
+
+    def test_two_creations_of_one_sale_commit_one_invoice(self):
+        token = secrets.token_urlsafe(24)
+        ApiKey.objects.create(company_uid=self.company.company_uid, key_hash=digest(token))
+        data = self.data | {"reference": "BOUTIQUE-EXEMPLE-1"}
+        order_key = secrets.token_urlsafe(18)
+        responses = self.parallel(lambda: Client().post("/api/v1/invoices", data,
+            content_type="application/json", HTTP_AUTHORIZATION="Bearer " + token,
+            HTTP_IDEMPOTENCY_KEY=order_key))
+        self.assertCountEqual([response.status_code for response in responses], [200, 201])
+        self.assertEqual(responses[0].json(), responses[1].json())
+        self.assertEqual(Document.objects.count(), 1)
 
     def test_concurrent_api_issuance_keeps_one_facturx_and_one_event(self):
         self.company.siren, self.company.vat_number = "123456789", "FR32123456789"

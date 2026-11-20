@@ -65,10 +65,10 @@ Les routes sont sans slash final. `{uid}` désigne l’identifiant du document r
 | GET | `/api/v1/quotes` | Liste des devis sortants |
 | POST | `/api/v1/quotes` | Crée un devis brouillon, réponse 201 |
 | GET | `/api/v1/invoices` | Liste des factures et factures d’avancement sortantes |
-| POST | `/api/v1/invoices` | Crée une facture brouillon, réponse 201 |
+| POST | `/api/v1/invoices` | Crée une facture brouillon (201) ou retrouve la même création (200) |
 | POST | `/api/v1/quotes/{uid}/accept` | Accepte le devis si son état et ses données le permettent, réponse 200 |
 | POST | `/api/v1/quotes/{uid}/invoice` | Crée ou retrouve la facture de solde du devis accepté, réponse 201 |
-| POST | `/api/v1/quotes/{uid}/progress-invoices` | Crée une facture d’avancement du devis accepté, réponse 201 |
+| POST | `/api/v1/quotes/{uid}/progress-invoices` | Crée un avancement (201) ou retrouve le même avancement (200) |
 | POST | `/api/v1/invoices/{uid}/facturx` | Génère ou vérifie le fichier Factur-X, réponse 200 |
 | POST | `/api/v1/invoices/{uid}/issue` | Émet la facture et fige le PDF. Renvoie 200 avec le chemin de téléchargement |
 | GET, HEAD | `/api/v1/invoices/{uid}/pdf` | Renvoie le PDF conservé de la facture émise, ou ses en-têtes avec HEAD |
@@ -151,7 +151,7 @@ Il faut de 1 à 1 000 lignes ; quantité positive, prix non négatif, TVA et rem
 
 Pour générer un Factur-X à la création d’un brouillon, ajouter `"generate_facturx": true`. Les coordonnées nécessaires à la validation doivent être complètes. Un échec de cette génération annule la création dans la transaction. Pour un parcours de vente, créez le brouillon puis appelez `/issue`, qui génère le Factur-X et fige la facture en une seule opération.
 
-Pour accepter un devis ou créer le solde, envoyer `{}` à l’action correspondante. Pour un avancement :
+Pour accepter un devis ou créer le solde, envoyer `{}` à l’action correspondante. Pour un avancement, transmettre une clé propre à l’étape dans l’en-tête `Idempotency-Key`, par exemple `chantier-demo-etape-1`, et le pourcentage dans le corps de la demande.
 
 ```json
 {"percent": "30"}
@@ -191,7 +191,11 @@ Pour suivre le passage au statut émis, abonnez votre intégration à `document.
 
 ### Reprises et volume
 
-Le rapprochement des créations se fait côté intégration. Conservez une référence de commande unique ainsi que les `customer_uid` et `document_uid` renvoyés. Après un résultat incertain à la création, retrouvez la référence avant de créer un nouveau brouillon. La déduplication de `/issue` s’applique par identifiant de facture.
+À chaque commande, conserver durablement une référence unique dans la boutique, par exemple `boutique-demo-commande-42`. Transmettre cette valeur dans le champ JSON `reference` ou l’en-tête HTTP `Idempotency-Key` (1 à 200 caractères ASCII imprimables). ZeFacture exige au moins un des deux pour créer une facture ou un avancement. Les références et les clés sont propres à l’entreprise et restent reconnues après une rotation de la clé API. Préfixer les commandes si plusieurs boutiques utilisent la même entreprise.
+
+Après une coupure réseau, renvoyer la même demande avec le même identifiant et le même contenu. La première création renvoie **201**, une répétition **200** avec le même `document_uid`, y compris après l’émission. Une demande sans identifiant renvoie **400**. Un contenu différent avec un identifiant déjà utilisé, ou une référence déjà présente sur une facture historique dont la demande originale est inconnue, renvoie **409**. Retrouver alors la facture et vérifier la commande avant toute action. Enregistrer le `document_uid` puis appeler `/issue` sur cet identifiant pour obtenir le numéro définitif. Un aperçu de brouillon porte une référence provisoire.
+
+Pour deux avancements légitimes de même montant, attribuer un identifiant différent à chaque étape. Le solde d’un devis accepté et l’émission d’une facture disposent également d’une protection par identifiant de document.
 
 Il n’existe pas de quota applicatif par clé dans cette version. Éviter les rafales et les extractions complètes fréquentes ; prévoir les limites adaptées dans le reverse proxy avant un usage public soutenu. La pagination, les permissions fines, l’idempotence générale et une spécification OpenAPI ne sont pas encore livrées.
 

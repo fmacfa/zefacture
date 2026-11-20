@@ -47,7 +47,7 @@ from core.security import (
 from core.services.documents import save_customer
 from core.services import files
 from core.services.mail import queue
-from core.services.account_security import audit, admin_security_redirect
+from core.services.account_security import audit, admin_security_redirect, lock_pending_invitation
 
 
 def table(request, title, headers, rows, **context):
@@ -580,6 +580,11 @@ def collaborators(request, user_uid=None, invitation_uid=None, action=None):
     if request.method == "POST":
         with transaction.atomic():
             Company.objects.select_for_update().get(pk=request.company.pk)
+            if not CompanyMember.objects.filter(
+                company_uid=request.company.company_uid, user_uid=request.user.user_uid,
+                status="active", role__in=ROLES["admin"],
+            ).exists():
+                raise BusinessError("Un accès d’administration actif est requis.", 403)
             if invitation_uid:
                 invitation = scoped_get(
                     CompanyInvitation, request, invitation_uid=invitation_uid
@@ -608,6 +613,10 @@ def collaborators(request, user_uid=None, invitation_uid=None, action=None):
                         raise BusinessError("Rôle invalide.")
                     member.role = role
                 member.save()
+                member_address = User.objects.get(user_uid=member.user_uid).email
+                CompanyInvitation.objects.filter(
+                    company_uid=member.company_uid, email__iexact=member_address, status="pending"
+                ).update(status="cancelled")
                 audit(
                     request,
                     "team.member_removed"
@@ -620,6 +629,14 @@ def collaborators(request, user_uid=None, invitation_uid=None, action=None):
                 role = request.POST.get("role", "member")
                 if role not in {"admin", "accountant", "member", "viewer"}:
                     raise BusinessError("Rôle invalide.")
+                if CompanyMember.objects.filter(
+                    company_uid=request.company.company_uid, status="active",
+                    user_uid__in=User.objects.filter(email__iexact=address).values("user_uid"),
+                ).exists():
+                    raise BusinessError("Ce collaborateur est déjà actif. Modifiez son rôle depuis l’équipe.", 409)
+                CompanyInvitation.objects.filter(
+                    company_uid=request.company.company_uid, email__iexact=address, status="pending"
+                ).update(status="cancelled")
                 invitation = CompanyInvitation.objects.create(
                     company_uid=request.company.company_uid,
                     invited_by_user_uid=request.user.user_uid,
@@ -682,21 +699,20 @@ def accept_invitation(request, token):
         )
     if request.method == "POST":
         with transaction.atomic():
-            invitation = CompanyInvitation.objects.select_for_update().get(
-                pk=invitation.pk
+            invitation = lock_pending_invitation(token)
+            if not invitation or invitation.email.casefold() != request.user.email.casefold():
+                return render(request, "core/error.html", {"error": "Invitation expirée ou révoquée."}, status=404)
+            if CompanyMember.objects.filter(
+                company_uid=invitation.company_uid, user_uid=request.user.user_uid, status="active"
+            ).exists():
+                return render(request, "core/error.html", {"error": "Ce compte est déjà membre de l’entreprise."}, status=409)
+            CompanyMember.objects.update_or_create(
+                company_uid=invitation.company_uid,
+                user_uid=request.user.user_uid,
+                defaults={"role": invitation.role, "status": "active", "joined_at": stamp()},
             )
-            if invitation.status == "pending":
-                CompanyMember.objects.update_or_create(
-                    company_uid=invitation.company_uid,
-                    user_uid=request.user.user_uid,
-                    defaults={
-                        "role": invitation.role,
-                        "status": "active",
-                        "joined_at": stamp(),
-                    },
-                )
-                invitation.status, invitation.accepted_at = "accepted", stamp()
-                invitation.save()
+            invitation.status, invitation.accepted_at = "accepted", stamp()
+            invitation.save()
         request.session["company_uid"] = invitation.company_uid
         return redirect("/app")
     return render(

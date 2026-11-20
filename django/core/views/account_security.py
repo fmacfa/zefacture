@@ -96,11 +96,16 @@ def verify(request):
     )
 
 
+@transaction.atomic
 def security(request):
     if not request.user.is_authenticated:
         return redirect("/connexion")
     select_company(request)
     error, codes = "", []
+    if request.method == "POST":
+        current = User.objects.select_for_update().get(pk=request.user.pk)
+        if current.session_version != request.user.session_version:
+            return redirect("/connexion")
     active = service.enabled(request.user)
     if request.method == "POST":
         try:

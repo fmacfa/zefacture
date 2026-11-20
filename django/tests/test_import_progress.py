@@ -215,6 +215,7 @@ class ImportProgressTests(ApplicationCase):
             upload = self.client.post(
                 "/app/notes-de-frais",
                 {
+                    "company_uid": self.company.company_uid,
                     "file": [
                         photo("first.png", "red"),
                         photo("second.png", "blue"),
@@ -258,11 +259,11 @@ class ImportProgressTests(ApplicationCase):
                 )
             self.client.post(
                 "/app/notes-de-frais",
-                {"file": photo("third.png", "green"), "pipeline": "local"},
+                {"company_uid": self.company.company_uid, "file": photo("third.png", "green"), "pipeline": "local"},
             )
             self.client.post(
                 "/app/notes-de-frais",
-                {"file": photo("fourth.png", "purple"), "pipeline": "none"},
+                {"company_uid": self.company.company_uid, "file": photo("fourth.png", "purple"), "pipeline": "none"},
             )
             self.assertEqual(BackgroundJob.objects.count(), 3)
             self.assertEqual(BackgroundJob.objects.last().provider, "local")
@@ -311,7 +312,7 @@ class ImportProgressTests(ApplicationCase):
             company_uid=self.company.company_uid, user_uid=self.user.user_uid
         ).update(role="member")
         url = "/app/notes-de-frais?lot=" + lot
-        form = {"action": "analyser-lot", "provider": "google"}
+        form = {"company_uid": self.company.company_uid, "action": "analyser-lot", "provider": "google"}
         with (
             patch.object(
                 extraction_ai, "choices", return_value=[("google", "Google Gemini")]

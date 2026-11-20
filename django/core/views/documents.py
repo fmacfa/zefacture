@@ -369,7 +369,13 @@ def documents(request, section, document_uid=None, action=None):
                     document_uid=document.document_uid
                 ).order_by("-id"),
                 "files": attached,
-                "preview_file": preferred_file(attached, pdp_link),
+                "preview_file": preferred_file(attached, pdp_link, supplier=document.direction == "incoming"),
+                "first_supplier_file": document.direction == "incoming" and not pdp_link and not attached,
+                "choose_original": (
+                    document.direction == "incoming" and not pdp_link and
+                    any(file.kind == "attachment" for file in attached) and
+                    not files.supplier_originals(attached)
+                ),
                 "linked": Document.objects.filter(
                     company_uid=document.company_uid,
                     source_quote_uid=document.document_uid,
@@ -495,7 +501,7 @@ def document_list(request, section, *, export=False):
 
 @transaction.atomic
 def send(document, channel="email", processing_rule=""):
-    Company.objects.select_for_update().get(company_uid=document.company_uid)
+    company = Company.objects.select_for_update().get(company_uid=document.company_uid)
     document = Document.objects.select_for_update().get(pk=document.pk)
     if document.direction != "outgoing":
         raise BusinessError("Ce document n'est pas une émission.")
@@ -510,12 +516,13 @@ def send(document, channel="email", processing_rule=""):
             else document.total_including_tax
         )
         document.save(update_fields=["amount_due"])
-    file = files.generate_document(document)
     if channel == "superpdp" and document.type != "quote":
         from core.services.pdp_sync import queue_invoice
 
-        queue_invoice(document, file, processing_rule)
+        queue_invoice(document, processing_rule=processing_rule)
     elif channel == "email":
+        service.finalize_number(company, document)
+        file = files.generate_document(document)
         body = f"Bonjour,\nVotre {'devis' if document.type == 'quote' else 'facture'} {document.number} d'un montant de {document_amount(document,document.total_including_tax)} {document.currency_code} est disponible."
         if document.type == "quote":
             raw = secrets.token_hex(32)
@@ -594,14 +601,35 @@ def public_quote(request, token):
 @scoped("write")
 def attachment(request, document_uid, file_uid=None, preview=False):
     document = scoped_get(Document, request, document_uid=document_uid)
-    if request.method == "POST" and not file_uid:
-        metadata = files.upload(
-            request.FILES.get("file"),
-            f"attachments/{document.company_uid}/{document.document_uid}",
-        )
-        DocumentFile.objects.create(
-            document_uid=document_uid, kind="attachment", **metadata
-        )
+    if request.method == "POST" and not preview:
+        with transaction.atomic():
+            document = Document.objects.select_for_update().get(pk=document.pk)
+            supplier = document.direction == "incoming" and not PdpInvoice.objects.filter(
+                company_uid=document.company_uid, document_uid=document_uid, direction="in"
+            ).exists()
+            records = list(document.files)
+            if file_uid:
+                if request.POST.get("action") != "original" or not supplier or files.supplier_originals(records):
+                    raise BusinessError("L’original est déjà identifié ou cette action est indisponible.", 409)
+                chosen = next((f for f in records if f.file_uid == file_uid and f.kind == "attachment"), None)
+                if not chosen:
+                    raise BusinessError("Pièce jointe introuvable.", 404)
+                files.read_verified(chosen)
+                chosen.kind = "source"
+                chosen.save(update_fields=["kind"])
+                service.event(document, "original_selected", "Original fournisseur identifié", {"file_uid": file_uid})
+            else:
+                metadata = files.upload(
+                    request.FILES.get("file"),
+                    f"attachments/{document.company_uid}/{document.document_uid}",
+                )
+                # Pin the single legacy attachment before adding another file.
+                originals = files.supplier_originals(records) if supplier else []
+                if originals and originals[0].kind == "attachment":
+                    originals[0].kind = "source"
+                    originals[0].save(update_fields=["kind"])
+                kind = "source" if supplier and not records else "attachment"
+                DocumentFile.objects.create(document_uid=document_uid, kind=kind, **metadata)
         return redirect(document.url)
     if request.method == "GET" and file_uid:
         file = document.files.filter(file_uid=file_uid).first()

@@ -197,6 +197,14 @@ if TRUST_PROXY:
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "formatters": {"http_outcome": {"()": "config.request_logging.RequestOutcomeFormatter"}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+        "http_outcome": {"class": "logging.StreamHandler", "formatter": "http_outcome"},
+    },
+    "loggers": {
+        name: {"handlers": ["http_outcome"], "propagate": False, "level": level}
+        for name, level in (("django.request", "WARNING"), ("django.security", "WARNING"), ("django.server", "INFO"))
+    },
     "root": {"handlers": ["console"], "level": "WARNING"},
 }

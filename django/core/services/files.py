@@ -16,6 +16,20 @@ from core.models import Document, DocumentFile
 from .calculations import calculate
 
 
+def supplier_originals(records):
+    """Prefer explicit invoice sources. A lone historical attachment is unambiguous."""
+    priority = {"source": 0, "facturx": 1, "pdf": 2, "xml": 3}
+    records = list(records)
+    originals = sorted(
+        (file for file in records if file.kind in priority),
+        key=lambda file: (priority[file.kind], file.pk),
+    )
+    if originals:
+        return originals
+    attachments = [file for file in records if file.kind == "attachment"]
+    return attachments if len(attachments) == 1 else []
+
+
 def resolve(storage_path):
     relative = str(storage_path).removeprefix("storage/")
     target = (settings.DATA_DIR / relative).resolve()
@@ -348,13 +362,11 @@ def generate_document(document):
         read_verified(original)
         return original
     if document.direction == "incoming":
-        original = document.files.filter(
-            kind__in=["facturx", "pdf", "source", "attachment"]
-        ).first()
-        if not original:
-            raise BusinessError("Ajoutez le document fournisseur original.", 409)
-        read_verified(original)
-        return original
+        originals = supplier_originals(document.files)
+        if not originals:
+            raise BusinessError("Ajoutez ou désignez la facture originale dans la rubrique Fichiers.", 409)
+        read_verified(originals[0])
+        return originals[0]
     if document.status not in {"draft", "simulated"}:
         if not existing:
             raise BusinessError(
