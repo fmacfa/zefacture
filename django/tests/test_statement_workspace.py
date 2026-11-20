@@ -257,6 +257,21 @@ class BankWorkspaceTests(ApplicationCase):
         self.assertEqual(len(page["rows"]), 1)
         self.assertEqual(page["rows"][0]["source_key"], "ocr:1:2")
 
+    def test_manual_entry_without_account_keeps_its_euro_amount(self):
+        BankTransaction.objects.create(
+            company_uid=self.company.company_uid,
+            account_uid=None,
+            transaction_date="2026-05-02",
+            direction="incoming",
+            amount=1234,
+            label="Dépôt manuel",
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(
+            dict(response.context["bank_totals"])["EUR"]["incoming"], Decimal("1234")
+        )
+        self.assertContains(response, "EUR</td>")
+
     def test_overview_filters_all_pages_and_separates_currencies(self):
         usd = BankAccount.objects.create(
             company_uid=self.company.company_uid, currency_code="USD"

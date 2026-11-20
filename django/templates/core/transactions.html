@@ -23,7 +23,7 @@
 </form>
 <section class="card table-wrap" id="operations"><h2>Opérations bancaires</h2><table><thead><tr><th>Date</th><th>Libellé</th><th>Compte</th><th class="num">Montant</th><th>Traitement</th><th>Action</th></tr></thead><tbody>
 {% for t in transactions %}<tr><td>{{ t.transaction_date }}</td><td>{{ t.label }}{% if t.classification_note %}<small class="bank-detail">{{ t.classification_note }}</small>{% endif %}</td><td>{{ t.account.name|default:"—" }}</td>
-<td class="num">{% if t.direction == "outgoing" %}−{% else %}+{% endif %}{{ t.amount|display_number:2 }} {{ t.account.currency_code }}</td>
+<td class="num">{% if t.direction == "outgoing" %}−{% else %}+{% endif %}{{ t.amount|display_number:2 }} {{ t.account.currency_code|default:"EUR" }}</td>
 <td>{% if t.bank_feed.review %}À vérifier{% elif t.status != "booked" %}{% if t.status == "cancelled" %}Annulée{% else %}En attente{% endif %}{% elif t.document_uid %}<span class="badge accepted">Rapprochée</span>{% if t.document %} <a href="{{ t.document.url }}">{{ t.document.number|default:"Voir la facture" }}</a>{% endif %}{% elif t.standalone_category %}{{ t.category_label }}{% else %}À traiter{% if t.category_label %}<small class="bank-detail">{{ t.category_label }}</small>{% endif %}{% endif %}</td>
 <td>{% if t.bank_feed.review %}<a href="#bank-reviews">Vérifier</a>{% else %}<a href="/app/finances/transactions/{{ t.transaction_uid }}/traiter">{% if t.document_uid or t.status != "booked" %}Consulter{% elif t.standalone_category %}Modifier{% else %}Traiter{% endif %}</a>{% endif %}</td></tr>
 {% empty %}<tr><td colspan="6" class="empty">Aucune opération pour cette sélection.</td></tr>{% endfor %}</tbody></table></section>
