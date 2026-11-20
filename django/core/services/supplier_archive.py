@@ -55,15 +55,8 @@ def stored_versions(document, records, formats):
             versions["pdf"] = readable
         return versions
 
-    # Prefer the recorded invoice source over supplementary attachments. Files
-    # arrive newest first, including historical originals without a MIME type.
-    originals = [
-        file for file in records if file.kind in {"source", "facturx", "pdf", "xml"}
-    ]
-    if not originals:
-        originals = [file for file in records if file.kind == "attachment"][:1]
     versions = {}
-    for file in originals:
+    for file in files.supplier_originals(records):
         versions.setdefault(file_format(file), file)
     return versions
 

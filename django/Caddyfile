@@ -1,3 +1,17 @@
+{
+	log default {
+		format filter {
+			wrap json
+			fields {
+				request>uri delete
+				request>headers delete
+				resp_headers delete
+				uri delete
+			}
+		}
+	}
+}
+
 {$DOMAIN} {
 	encode zstd gzip
 	request_body {

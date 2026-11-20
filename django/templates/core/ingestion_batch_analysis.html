@@ -1,5 +1,6 @@
 {% if batch_count %}
   <form method="post" class="card stack" action="{{ request.path }}?lot={{ batch }}">{% csrf_token %}
+    <input type="hidden" name="company_uid" value="{{ request.company.company_uid }}">
     <h2>Analyser le lot avec l’IA</h2>
     <p>{{ ai_choices.0.1 }} recevra le texte OCR des pièces de ce lot qui restent à analyser. Les pièces déjà analysées par une IA conservent leur résultat.</p>
     <input type="hidden" name="action" value="analyser-lot"><input type="hidden" name="provider" value="{{ ai_choices.0.0 }}">

@@ -230,6 +230,8 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         selection = selection.filter(batch_uid=batch)
     if following:
         return progress_response(request, query if item else selection, visible_imports, documents, expenses, archived, item)
+    if request.method == "POST" and not item and request.POST.get("company_uid") != request.company.company_uid:
+        raise BusinessError("L’entreprise de ce formulaire a changé. Rouvrez les imports dans l’entreprise souhaitée.", 409)
     if request.method == "POST" and not item and request.POST.get("action") == "analyser-lot":
         if not batch or archived:
             raise BusinessError("Choisissez un lot d’imports actifs.")

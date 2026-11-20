@@ -61,7 +61,10 @@ class InvoiceApiTests(ApplicationCase):
         self.assertEqual(issued.status_code, 200, issued.content)
         data = issued.json()["data"]
         self.assertEqual(data["status"], "sent")
+        self.assertEqual(invoice.number, invoice.draft_reference)
+        invoice.refresh_from_db()
         self.assertEqual(data["number"], invoice.number)
+        self.assertNotEqual(invoice.number, invoice.draft_reference)
         self.assertEqual(data["reference"], "ORDER-EXAMPLE-42")
         self.assertEqual(data["pdf_url"], self.route(invoice, "pdf"))
         self.assertTrue(data["issued_at"])
@@ -92,7 +95,7 @@ class InvoiceApiTests(ApplicationCase):
         self.assertFalse(Email.objects.exists())
         self.assertFalse(PdpOutbox.objects.exists())
         self.company.refresh_from_db()
-        self.assertEqual(self.company.next_invoice_number, next_number)
+        self.assertEqual(self.company.next_invoice_number, next_number + 1)
 
         invoice.refresh_from_db()
         change_status(invoice, "pay")

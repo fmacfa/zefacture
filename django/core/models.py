@@ -120,6 +120,7 @@ class CompanyInvitation(models.Model):
 
 
 class PasswordReset(models.Model):
+    account_version = models.IntegerField(null=True)
     reset_uid = models.CharField(max_length=32, unique=True, default=uid)
     user_uid = models.CharField(max_length=32, db_index=True, default="")
     email = models.TextField(default="")
@@ -239,6 +240,15 @@ class Document(models.Model):
     created_at = models.TextField(default=stamp)
     updated_at = models.TextField(null=True, blank=True)
     rounding_amount = models.DecimalField(max_digits=30, decimal_places=8, default=0)
+
+    @property
+    def journal_sign(self):
+        sign = -1 if self.direction == "incoming" else 1
+        return -sign if self.type == "credit_note" else sign
+
+    @property
+    def draft_reference(self):
+        return "BROUILLON-" + self.document_uid
 
     @property
     def lines(self):
@@ -515,6 +525,22 @@ class ApiKey(models.Model):
 
     class Meta:
         db_table = "api_keys"
+
+
+class InvoiceApiCreation(models.Model):
+    company_uid = models.CharField(max_length=32)
+    request_key = models.CharField(max_length=64, null=True)
+    reference_hash = models.CharField(max_length=64, null=True)
+    payload_hash = models.CharField(max_length=64)
+    document = models.OneToOneField(Document, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = "django_invoice_api_creations"
+        constraints = [models.UniqueConstraint(
+            fields=["company_uid", "request_key"], name="unique_invoice_api_request",
+        ), models.UniqueConstraint(
+            fields=["company_uid", "reference_hash"], name="unique_invoice_api_order",
+        )]
 
 
 class BankAccount(models.Model):

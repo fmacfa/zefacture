@@ -99,7 +99,7 @@ class ExpensePaymentTests(ApplicationCase):
             "expense_paid_by": "personal",
             "expense_description": "Visite fournisseur",
         }
-        detail = self.client.post("/app/imports", payload)["Location"]
+        detail = self.client.post("/app/imports", {"company_uid": self.company.company_uid} | payload)["Location"]
         item = Ingestion.objects.get()
         result = self.client.post(
             detail + "/creer-facture",

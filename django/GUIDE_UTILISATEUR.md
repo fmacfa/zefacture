@@ -100,6 +100,8 @@ Pour consulter ou exporter le stock d’une période, utiliser **Rapports → St
 
 ## 5. Devis, factures, avancements et avoirs
 
+Un nouveau brouillon porte une référence `BROUILLON-…`. L’enregistrement, l’aperçu et l’annulation laissent le compteur disponible pour le prochain document émis. Le numéro définitif est attribué à l’envoi, à l’émission par API ou à l’acceptation d’un devis. L’année correspond à la date d’émission saisie. Vérifier cette date si un document plus récent a déjà été émis dans la série. Les numéros déjà attribués avant la mise à jour et les numéros des factures importées sont conservés.
+
 ### Préparer et envoyer un devis
 
 1. Ouvrir **Devis → Nouveau devis**, sélectionner un client et saisir objet, dates et devise.
@@ -135,6 +137,8 @@ Dans **Contact CRM**, **Modifier le contact** ouvre le nom, la fonction, l’ema
 Dans **Notes internes**, saisir une note et cliquer sur **Ajouter la note**. Elle apparaît avec son auteur et sa date et reste dans ZeFacture. L’auteur ou un administrateur peut la modifier. Les membres en lecture seule peuvent consulter le suivi des factures auxquelles ils ont accès.
 
 ## 6. Achats, imports et notes de frais
+
+Sur une facture fournisseur, le téléchargement et l’archive de période privilégient la source identifiée. L’ajout d’une annexe conserve cet original. Pour un ancien dossier contenant plusieurs pièces jointes sans source identifiée, ouvrir la rubrique **Fichiers**, comparer les aperçus puis cliquer sur **Désigner comme facture originale** sur la bonne pièce. Pour une facture SUPERPDP, le lien d’origine reste fourni par la plateforme.
 
 ### Importer plusieurs factures de vente ou d’achat
 
@@ -249,6 +253,8 @@ Dans le filtre :
 Pour lire correctement les chiffres : ventes/achats suivent l’émission, avec déduction des avoirs et exclusion des brouillons, annulations, refus et simulations. Les flux bancaires suivent les transactions comptabilisées. Les restes dus affichés sont ceux d’aujourd’hui sur les documents sélectionnés, pas un solde historique reconstitué à la date de fin. Aucune variation en pourcentage n’est calculée sur une base nulle.
 
 ## 9. Télécharger en PDF, CSV ou Excel
+
+Dans le journal des factures, un achat est négatif et son avoir est positif. Un achat de 120 € TTC suivi d’un avoir fournisseur de 24 € représente −96 € TTC. Si un ancien export comportait des avoirs fournisseurs, régénérer le fichier de la période et vérifier avec le comptable les montants déjà repris.
 
 1. Avec un rôle financier, ouvrir **Rapports**.
 2. Définir la période et la comparaison.

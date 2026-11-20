@@ -506,6 +506,8 @@ class BrandingTests(ApplicationCase):
         )
         send(document)
         document.refresh_from_db()
+        issued = read_verified(generate_document(document))
+        self.assertIn(document.number, PdfReader(io.BytesIO(issued)).pages[0].extract_text())
         branding.save(
             self.company,
             self.data_brand(
@@ -514,7 +516,7 @@ class BrandingTests(ApplicationCase):
                 remove_logo="1",
             ),
         )
-        self.assertEqual(read_verified(generate_document(document)), raw)
+        self.assertEqual(read_verified(generate_document(document)), issued)
         self.assertFalse(branding.for_company(self.other).logo_path)
         self.assertEqual(document.seller["branding"]["display_name"], "Studio Exemple")
 

@@ -142,7 +142,7 @@ def request_sync(company, *, enabled=None, replay=False):
 
 
 @transaction.atomic
-def queue_invoice(document, file, processing_rule=""):
+def queue_invoice(document, file=None, processing_rule=""):
     company = Company.objects.select_for_update().get(company_uid=document.company_uid)
     document = Document.objects.select_for_update().get(pk=document.pk)
     session = pdp.session_for(company)
@@ -150,7 +150,7 @@ def queue_invoice(document, file, processing_rule=""):
         # Historical local simulation is separate from SUPERPDP's real sandbox API.
         if settings.ENVIRONMENT not in {"local", "testing", "development"}:
             raise BusinessError("Simulation locale indisponible en production.", 409)
-        return pdp.send_invoice(document, file, processing_rule)
+        return pdp.send_invoice(document, file or files.generate_document(document), processing_rule)
     state = _binding(company, session)
     if document.direction != "outgoing" or document.type not in {
         "invoice",
@@ -167,8 +167,17 @@ def queue_invoice(document, file, processing_rule=""):
         raise BusinessError(
             "Ce document est déjà émis ; vérifier son suivi SUPERPDP.", 409
         )
-    if file.document_uid != document.document_uid or file.kind != "facturx":
+    if file and (file.document_uid != document.document_uid or file.kind != "facturx"):
         raise BusinessError("Original Factur-X du document requis.")
+    if state.remote_environment != "sandbox":
+        from .documents import finalize_number
+
+        previous_number = document.number
+        finalize_number(company, document)
+        if document.number != previous_number:
+            file = None
+    if file is None:
+        file = files.generate_document(document)
     files.read_verified(file)
     rule = processing_rule or (
         "B2C"
@@ -925,6 +934,10 @@ def ingest_invoice(company, session, state, overview):
                 for item in candidates
                 if item.seller.get("name")
                 == json.loads(values["seller_snapshot"])["name"]
+                and (
+                    direction != "incoming" or
+                    (bool(originals := files.supplier_originals(item.files)) and originals[0].sha256 == sha)
+                )
                 and not PdpInvoice.objects.filter(
                     document_uid=item.document_uid
                 ).exists()

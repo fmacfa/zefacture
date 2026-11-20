@@ -38,7 +38,7 @@ def preview_format(file):
     return kind if kind in IMAGE_FORMATS else ""
 
 
-def preferred_file(records, link=None):
+def preferred_file(records, link=None, *, supplier=True):
     """Prefer the supplier original, or its reading copy when it is XML."""
     if link:
         by_uid = {file.file_uid: file for file in records}
@@ -46,6 +46,8 @@ def preferred_file(records, link=None):
             by_uid.get(link.original_file_uid),
             by_uid.get(link.readable_file_uid),
         ]
+    elif supplier:
+        candidates = files.supplier_originals(records)
     else:
         candidates = [
             file for file in records if file.kind in {"source", "pdf", "facturx", "xml"}

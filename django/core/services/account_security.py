@@ -11,9 +11,21 @@ import qrcode
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from core.common import BusinessError, digest
-from core.models import AuditEvent, UserSecurity
+from core.common import BusinessError, digest, stamp
+from core.models import AuditEvent, User, UserSecurity
 from .files import encrypt, decrypt
+
+
+def lock_pending_invitation(token):
+    """Serialize acceptance with changes to the team's grants (company first)."""
+    from core.models import Company, CompanyInvitation
+
+    rows = CompanyInvitation.objects.filter(token=token, status="pending", expires_at__gt=stamp())
+    company_uid = rows.values_list("company_uid", flat=True).first()
+    if not company_uid:
+        return None
+    Company.objects.select_for_update().get(company_uid=company_uid)
+    return rows.select_for_update().first()
 
 
 def audit(request, action, target_uid=""):
@@ -107,6 +119,7 @@ def setup_details(request):
 
 @transaction.atomic
 def activate(request, code):
+    User.objects.select_for_update().get(pk=request.user.pk)
     details = setup_details(request)
     if not details:
         raise BusinessError("Préparation expirée. Recommencez l’activation.")
@@ -141,7 +154,7 @@ def invalidate_other_sessions(request):
     from django.contrib import auth
     from core.models import User
 
-    # The caller holds UserSecurity when changing MFA. SQL avoids lost increments.
+    # Changes to identity and MFA acquire User before UserSecurity.
     from django.db.models import F
 
     User.objects.filter(pk=request.user.pk).update(

@@ -13,9 +13,10 @@ from django.views.decorators.debug import sensitive_post_parameters, sensitive_v
 from django.views.decorators.http import require_http_methods, require_POST
 from core.common import BusinessError, email, stamp, digest
 from core.forms import FirstConnectionForm
-from core.models import User, Company, CompanyMember, CompanyInvitation, PasswordReset
+from core.models import User, Company, CompanyMember, PasswordReset
 from core.security import throttle
 from core.services import instance_setup
+from core.services.account_security import lock_pending_invitation
 
 
 INSTALLATION_SESSION_KEY = "installation_hash"
@@ -30,13 +31,9 @@ def start_session(request, user):
 
 @transaction.atomic
 def register(data, token=""):
-    invitation = (
-        CompanyInvitation.objects.select_for_update()
-        .filter(token=token, status="pending", expires_at__gt=stamp())
-        .first()
-        if token
-        else None
-    )
+    invitation = lock_pending_invitation(token) if token else None
+    if token and not invitation:
+        raise BusinessError("Invitation expirée ou révoquée.", 404)
     if not settings.REGISTRATION_OPEN and not invitation:
         raise BusinessError(
             "Les inscriptions publiques sont fermées. Demandez une invitation.", 403
@@ -146,6 +143,7 @@ def authentication(request, mode="login", token=""):
                     PasswordReset.objects.create(
                         user_uid=user.user_uid,
                         email=address,
+                        account_version=user.session_version,
                         token_hash=digest(raw),
                         expires_at=(
                             datetime.now(timezone.utc) + timedelta(hours=1)
@@ -166,18 +164,15 @@ def authentication(request, mode="login", token=""):
                 return redirect("/connexion")
             if mode == "reset":
                 with transaction.atomic():
-                    reset = (
-                        PasswordReset.objects.select_for_update()
-                        .filter(
-                            token_hash=digest(token),
-                            status="pending",
-                            expires_at__gt=stamp(),
-                        )
-                        .first()
+                    resets = PasswordReset.objects.filter(
+                        token_hash=digest(token), status="pending", expires_at__gt=stamp(),
                     )
-                    if not reset:
-                        raise BusinessError("Lien expiré ou déjà utilisé.")
-                    user = User.objects.select_for_update().get(user_uid=reset.user_uid)
+                    user_uid = resets.values_list("user_uid", flat=True).first()
+                    user = User.objects.select_for_update().filter(user_uid=user_uid, is_active=True).first()
+                    if not user or not resets.select_for_update().filter(
+                        user_uid=user.user_uid, account_version=user.session_version, email__iexact=user.email,
+                    ).first():
+                        raise BusinessError("Lien expiré ou déjà utilisé. Demandez un nouveau lien.")
                     password = request.POST.get("password", "")
                     if password != request.POST.get("password_confirmation"):
                         raise BusinessError("Les mots de passe diffèrent.")
@@ -297,6 +292,7 @@ def logout(request):
     return redirect("/connexion")
 
 
+@transaction.atomic
 def account(request):
     if not request.user.is_authenticated:
         return redirect("/connexion")
@@ -308,7 +304,9 @@ def account(request):
     if request.method == "POST":
         try:
             throttle(request, "account:" + request.user.user_uid, limit=10, seconds=900)
-            user = request.user
+            user = User.objects.select_for_update().get(pk=request.user.pk)
+            if user.session_version != request.user.session_version:
+                raise BusinessError("Vos identifiants ont changé. Reconnectez-vous.", 409)
             verified = auth.authenticate(
                 request,
                 username=user.email,
@@ -337,6 +335,8 @@ def account(request):
                 if password != request.POST.get("password_confirmation"):
                     raise BusinessError("Les mots de passe diffèrent.")
                 user.set_password(password)
+            if password or address.casefold() != user.email.casefold():
+                PasswordReset.objects.filter(user_uid=user.user_uid, status="pending").update(status="cancelled")
             user.email, user.name, user.updated_at = address, name, stamp()
             user.session_version += 1
             user.save()

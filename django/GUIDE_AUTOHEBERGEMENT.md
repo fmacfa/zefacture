@@ -6,6 +6,12 @@ Guides complémentaires, ajoutés le 6 novembre : [utilisation quotidienne et é
 
 Le [guide SUPERPDP](GUIDE_SUPERPDP.md) couvre la connexion, l’émission et la réception, les originaux, les statuts, les reprises et la recette fournisseur. Sa migration est additive et l’activation reste explicite par entreprise.
 
+## Mise à niveau des intégrations de vente
+
+Avant la mise à jour, vérifier que la boutique envoie une référence de commande stable ou l’en-tête `Idempotency-Key` à chaque création de facture et d’avancement. La migration conserve les documents et leurs numéros historiques. Les liens de récupération du mot de passe demandés avant la mise à jour sont à renouveler. Les invitations remplacées ou rendues caduques par une décision d’équipe sont désactivées. Les fichiers des justificatifs restent à leur emplacement.
+
+La configuration fournie conserve les résultats HTTP et masque les URL porteuses de liens privés dans les journaux. Pour une installation native, appliquer ce principe au proxy, y compris ses erreurs et la collecte distante. [Journalisation Caddy](https://caddyserver.com/docs/caddyfile/directives/log)
+
 ## 1. Ordre de mise en service
 
 1. Choisir le serveur, installer Docker et protéger les accès d’administration.
