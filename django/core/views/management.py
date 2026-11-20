@@ -36,6 +36,7 @@ from core.models import (
     BankAccount,
 )
 from core.forms import CustomerForm, CompanyForm, InventoryForm
+from core.country_fields import CompanyCreationForm
 from core.numbers import GROUPS, DECIMALS, numeric_columns
 from core.security import (
     scoped,
@@ -145,31 +146,23 @@ def companies(request, company_uid=None, action=None):
     if not request.user.is_authenticated:
         return redirect("/connexion")
     select_company(request)
-    if request.method == "POST":
-        if company_uid:
-            if not CompanyMember.objects.filter(
-                company_uid=company_uid, user_uid=request.user.user_uid, status="active"
-            ).exists():
-                return render(
-                    request,
-                    "core/error.html",
-                    {"error": "Entreprise inaccessible."},
-                    status=403,
-                )
-            request.session["company_uid"] = company_uid
-            return redirect("/app")
-        name = request.POST.get("legal_name", "").strip()
-        if not name:
-            return render(
-                request,
-                "core/error.html",
-                {"error": "Nom d'entreprise requis."},
-                status=422,
-            )
+    fields = request.POST.copy() if request.method == "POST" and not company_uid else None
+    if fields is not None:
+        fields.setdefault("country_code", "FR")
+    form = CompanyCreationForm(fields)
+    if request.method == "POST" and company_uid:
+        if not CompanyMember.objects.filter(
+            company_uid=company_uid, user_uid=request.user.user_uid, status="active"
+        ).exists():
+            return render(request, "core/error.html", {"error": "Entreprise inaccessible."}, status=403)
+        request.session["company_uid"] = company_uid
+        return redirect("/app")
+    if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             company = Company.objects.create(
                 owner_user_uid=request.user.user_uid,
-                legal_name=name,
+                legal_name=form.cleaned_data["legal_name"],
+                country_code=form.cleaned_data["country_code"],
                 billing_email=request.user.email,
             )
             CompanyMember.objects.create(
@@ -188,10 +181,12 @@ def companies(request, company_uid=None, action=None):
         "core/companies.html",
         {
             "title": "Mes entreprises",
+            "creation_form": form,
             "companies": Company.objects.filter(
                 company_uid__in=memberships.values("company_uid")
             ),
         },
+        status=422 if form.is_bound and form.errors else 200,
     )
 
 
@@ -373,13 +368,12 @@ def customers(request, customer_uid=None, action=None):
     if action == "annuaire" and obj:
         from core.services.pdp import directory
 
-        result = directory(
-            request.company, obj, request.POST.get("lookup", "directory")
-        )
+        mode = request.POST.get("lookup", "directory")
+        result = directory(request.company, obj, mode)
         return render(
             request,
             "core/directory.html",
-            {"title": "Recherche entreprise", "customer": obj, "result": result},
+            {"title": "Vérification de la TVA" if mode == "vies" else "Recherche entreprise", "customer": obj, "result": result, "mode": mode},
         )
     if obj or action == "new" or request.method == "POST":
         from core.services import crm

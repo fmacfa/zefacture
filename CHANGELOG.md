@@ -1,5 +1,11 @@
 # Changements
 
+## Relevés bancaires et entreprises étrangères
+
+- Import de plusieurs relevés, suivi par fichier et préremplissage facultatif des opérations PDF par IA après OCR.
+- Vue de toutes les transactions et des opérations sans facture liée, avec totaux par devise.
+- Recherche du pays par nom, création d’entreprise étrangère et résultat VIES lisible sur la fiche client.
+
 ## Correctifs du 20 novembre 2026
 
 - Correction des avoirs fournisseurs dans le journal exporté.

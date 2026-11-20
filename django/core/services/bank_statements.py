@@ -232,7 +232,8 @@ def row_key(account, data, kind, file_digest, occurrences):
     if kind == "ofx":
         return digest(f"{account.account_uid}:ofx:{data['external_id']}")
     if kind == "pdf":
-        return digest(f"{account.account_uid}:pdf:{file_digest}:{data['slot']}")
+        slot = data.get("source_key", data["slot"])
+        return digest(f"{account.account_uid}:pdf:{file_digest}:{slot}")
     signature = json_text(
         [
             account.account_uid,

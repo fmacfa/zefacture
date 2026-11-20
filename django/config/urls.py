@@ -156,6 +156,8 @@ urlpatterns = [
         finance.finance,
         {"section": "transactions"},
     ),
+    path("app/finances/transactions/releves/lot/<str:batch_uid>", bank_statements.batch, name="bank_statement_batch"),
+    path("app/finances/transactions/releves/lecture/<str:item_uid>", bank_statements.review_item, name="bank_statement_review"),
     path("app/finances/transactions/releve/confirmer", bank_statements.confirm_pdf),
     re_path(r"^app/finances/transactions/(?P<item_uid>[a-f0-9]{32})/traiter$", bank_statements.treatment),
     path("app/finances/tresorerie", finance.finance, {"section": "cashflow"}),

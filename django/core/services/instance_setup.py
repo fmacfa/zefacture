@@ -47,7 +47,7 @@ def issue_setup_code():
 
 
 @sensitive_variables("password", "setup_hash")
-def create_first_owner(*, address, name, company_name, password, setup_hash=None):
+def create_first_owner(*, address, name, company_name, password, setup_hash=None, country_code="FR"):
     if setup_hash is None:
         InstanceSetup.objects.get_or_create(pk=1)
     now = timezone.now()
@@ -75,6 +75,7 @@ def create_first_owner(*, address, name, company_name, password, setup_hash=None
         company = Company.objects.create(
             owner_user_uid=user.user_uid,
             legal_name=company_name,
+            country_code=country_code,
             billing_email=user.email,
         )
         CompanyMember.objects.create(

@@ -52,11 +52,11 @@ node tests/browser-smoke.cjs
 dc exec -T web weasyprint - - < tests/browser/supplier.html > test-results/browser/supplier.pdf
 node tests/browser-imports.cjs
 node tests/browser-crm-integrations.cjs
+node tests/browser-bank-statements.cjs
 dc stop worker
 dc exec -T web python manage.py shell < tests/pdp_browser_fixture.py > test-results/superpdp-browser-fixture.json
 node tests/browser-superpdp.cjs
 node tests/browser-stock-ai.cjs
-node tests/browser-bank-statements.cjs
 node tests/browser-request-feedback.cjs
 node tests/browser-oauth-branding.cjs
 dc stop web worker

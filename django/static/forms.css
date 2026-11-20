@@ -3,6 +3,8 @@
   margin-inline: auto;
 }
 
+.customer-form + .customer-verification { margin-block-start: 1.5rem; }
+
 .form-section {
   min-inline-size: 0;
   margin: 0;

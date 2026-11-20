@@ -18,11 +18,24 @@ const output=path.resolve('test-results/browser-crm');
   await Promise.all([page.waitForURL('**/app'),page.getByRole('button',{name:'Se connecter',exact:true}).click()]);
   await page.goto(base+'/app/clients/nouveau');
   await page.getByLabel('Relation commerciale',{exact:true}).selectOption('prospect');
+  const country=page.getByLabel('Pays',{exact:true});
+  await country.fill('Allemagne');
+  assert.equal(await country.evaluate(el=>Array.from(el.list.options).some(o=>o.value==='Allemagne (DE)')),true);
   await page.getByRole('radio',{name:/Particulier/}).check();
   await page.getByLabel('Nom et prénom',{exact:true}).fill('Prospect navigateur '+Date.now());
   await page.getByLabel('Email',{exact:true}).fill('prospect@example.test');
   await Promise.all([page.waitForURL(/\/app\/clients\/[a-f0-9]{32}$/),page.getByRole('button',{name:'Créer le client',exact:true}).click()]);
   const customer=page.url();
+  await page.goto(customer + '/modifier');
+  assert.equal(await page.getByLabel('Pays',{exact:true}).inputValue(),'Allemagne (DE)');
+  for (const width of [320,390,768,1440]) {
+    await page.setViewportSize({width,height:900});
+    const actions=await page.locator('.customer-form .end-actions').boundingBox();
+    const panel=await page.locator('.customer-verification').boundingBox();
+    assert.ok(panel.y - (actions.y + actions.height) >= 16, 'Espace entre les boutons et la vérification');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth + 1));
+  }
+  await page.goto(customer);
   assert.equal(await page.locator('select[name=relationship]').inputValue(),'prospect');
   await page.getByText('+ Ajouter un contact',{exact:true}).click();
   await page.getByLabel('Nom du contact',{exact:true}).fill('Contact navigateur');

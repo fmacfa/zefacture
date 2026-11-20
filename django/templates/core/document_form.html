@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static country_fields %}
 {% block content %}
 <div class="page-head">
   <h1>{{ title }}</h1>
@@ -93,7 +93,7 @@
     <label>Nom / raison sociale<input name="legal_name" required></label>
     <label>Type<select name="type"><option value="business">Professionnel</option><option value="individual">Particulier</option></select></label>
     <label>Email<input name="email" type="email"></label>
-    <label>Pays (code ISO)<input name="country_code" value="FR" maxlength="2" required></label>
+    <label>Pays{% country_input "quick-country" %}</label>
     <button type="submit">Créer le client</button>
   </form>
 </dialog>

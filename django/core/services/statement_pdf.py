@@ -47,7 +47,7 @@ def bank_command(args, deadline):
 
 def proposed_rows(text, page):
     debit_col = credit_col = -1
-    for line in text.splitlines():
+    for source_line, line in enumerate(text.splitlines(), 1):
         lowered = line.lower().replace("é", "e")
         if "debit" in lowered and "credit" in lowered and not DATE.match(line):
             debit_col, credit_col = lowered.find("debit"), lowered.find("credit")
@@ -98,6 +98,7 @@ def proposed_rows(text, page):
         yield {
             "page": page,
             "original": line.strip(),
+            "source_line": source_line,
             "date": day,
             "label": label,
             "amount": amount,
@@ -105,7 +106,7 @@ def proposed_rows(text, page):
         }
 
 
-def preview(raw):
+def read_pages(raw):
     if not raw.startswith(b"%PDF-"):
         raise BusinessError("Le fichier choisi n’est pas un PDF lisible.")
     deadline = monotonic() + 50
@@ -125,7 +126,7 @@ def preview(raw):
         if text_path.stat().st_size > MAX_TEXT * 4:
             raise BusinessError("Le relevé contient trop de texte. Scindez le PDF.")
         pages_text = text_path.read_text().split("\f")
-        rows, source = [], []
+        pages_read = []
         for number in range(1, int(pages[1]) + 1):
             page_text = pages_text[number - 1] if number <= len(pages_text) else ""
             found = list(proposed_rows(page_text, number))
@@ -164,11 +165,19 @@ def preview(raw):
                     found = list(proposed_rows(ocr, number))
                     if found or len(ocr.strip()) > len(page_text.strip()):
                         page_text = ocr
-            rows.extend(found)
-            source.append(f"Page {number}\n{page_text.strip()}")
-        transcript = "\n\n".join(source)
-        if len(rows) > MAX_LINES or len(transcript) > MAX_TEXT:
+            pages_read.append({"number": number, "text": page_text, "rows": found})
+        if (sum(len(page["rows"]) for page in pages_read) > MAX_LINES
+                or len(transcript_for(pages_read)) > MAX_TEXT):
             raise BusinessError(
                 "Le PDF dépasse la capacité de relecture. Scindez le relevé en documents plus courts."
             )
-        return rows, transcript
+        return pages_read
+
+
+def transcript_for(pages):
+    return "\n\n".join(f"Page {page['number']}\n{page['text'].strip()}" for page in pages)
+
+
+def preview(raw):
+    pages = read_pages(raw)
+    return [row for page in pages for row in page["rows"]], transcript_for(pages)

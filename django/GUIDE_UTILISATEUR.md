@@ -60,7 +60,7 @@ Les membres ne partagent pas de mot de passe. Aucun nombre maximal de membres n�
 
 ## 3. Clients professionnels, particuliers et CRM
 
-Dans **Clients → Nouveau client**, choisir **Professionnel** ou **Particulier**, puis compléter le nom et les coordonnées. Pour les professionnels, ouvrir **Immatriculation et facturation électronique** pour renseigner les identifiants lorsque nécessaire. Terminer avec **Créer le client**. La vérification dans l’annuaire ou via VIES est disponible depuis la fiche.
+Dans **Clients → Nouveau client**, choisir **Professionnel** ou **Particulier**, puis compléter le nom et les coordonnées. Pour les professionnels, ouvrir **Immatriculation et facturation électronique** pour renseigner les identifiants lorsque nécessaire. Terminer avec **Créer le client**. Dans **Pays**, tapez le nom du pays ou son code ISO, par exemple **Allemagne (DE)**. Les identifiants SIREN et SIRET concernent la France. Pour un client allemand, renseignez le pays et son numéro de TVA avec le préfixe DE. **Vérifier la TVA avec VIES** affiche le résultat et les coordonnées communiquées par le service. Une validation peut être renvoyée sans nom ni adresse. Le pays d’établissement se choisit aussi à la création de votre propre entreprise.
 
 Dans la fiche, choisir la relation : **Prospect**, **Client**, **Fournisseur** ou **Client et fournisseur**. Les anciennes fiches sont conservées et considérées comme clients jusqu’à modification de cette relation.
 
@@ -210,13 +210,15 @@ Dans le tableau de bord, **Paiements hors facture** présente les opérations ba
 
 ### Importer un relevé bancaire
 
-Dans **Finances → Comptes bancaires**, créer un compte avec sa devise et son solde d’ouverture, ou reprendre un compte déjà relié à Bridge. Choisir **Importer un relevé**, vérifier le compte de destination, puis sélectionner le fichier de la banque. La taille maximale est de 5 Mo.
+Dans **Finances → Comptes bancaires**, créer un compte avec sa devise et son solde d’ouverture, ou reprendre un compte déjà relié à Bridge. Choisir **Importer des relevés**, vérifier le compte de destination et sélectionner jusqu’à **50 fichiers du même compte** en une fois, avec 5 Mo maximum par fichier. Les formats peuvent être mélangés. Le suivi indique l’état de chaque fichier et les doublons. **Ouvrir mon dernier lot** permet de reprendre la vérification pendant sept jours.
 
 | Format | Contenu et vérification |
 | --- | --- |
 | CSV | Jusqu’à 1 000 opérations. Indiquer la date, le libellé et le montant signé, ou des colonnes débit et crédit. Une référence bancaire facilite la détection des doublons. |
 | OFX ou QFX | Un compte bancaire ou carte par fichier, avec les opérations comptabilisées, leur identifiant bancaire et la devise du compte. |
-| PDF texte ou scanné | Jusqu’à 15 pages et 100 propositions. La lecture et l’OCR sont locaux. Comparer le **Texte lu dans le relevé** à l’original, corriger la date, le libellé, le montant et le sens. **Ajouter une ligne** permet de compléter une opération manquante. Cocher les opérations vérifiées puis **Confirmer les lignes cochées**. |
+| PDF texte ou scanné | Jusqu’à 15 pages et 100 propositions. La lecture et l’OCR sont locaux. Si un fournisseur IA est configuré, il est présélectionné et reçoit le texte des pages pour proposer les dates, libellés, montants et sens. Choisissez **Lecture locale uniquement** pour garder ces textes sur le serveur. Si le fournisseur est indisponible, la lecture locale permet de continuer. Comparer le **Texte lu dans le relevé** à l’original, corriger la date, le libellé, le montant et le sens. **Ajouter une ligne** permet de compléter une opération manquante. Cocher les opérations vérifiées puis **Confirmer les lignes cochées**. |
+
+Dans **Finances → Transactions**, **Toutes** présente les mouvements de tous les comptes. **Sans facture liée** inclut les dépenses déjà classées et les opérations encore à traiter. Utilisez **À traiter**, **Classées sans facture** ou **Rapprochées** pour affiner la vue. La période, le compte et la recherche s’appliquent aux compteurs. Les encaissements, décaissements et variations nettes des écritures comptabilisées sont calculés pour toute la sélection et affichés séparément par devise.
 
 Le récapitulatif indique les lignes ajoutées, déjà présentes ou rejetées. Un nouvel import du même relevé conserve ses écritures déjà enregistrées. Les correspondances entre sources utilisent le compte, la date, le montant, le sens et la référence ou le libellé. Vérifier les libellés qui diffèrent entre la banque et le relevé.
 

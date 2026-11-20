@@ -63,8 +63,11 @@ def register(data, token=""):
         invitation.status, invitation.accepted_at = "accepted", stamp()
         invitation.save()
     else:
+        from core.country_fields import country_code
+
         company = Company.objects.create(
             owner_user_uid=user.user_uid,
+            country_code=country_code(data.get("country_code", "FR")),
             legal_name=data.get("company_name") or name,
             billing_email=address,
         )
@@ -261,6 +264,7 @@ def first_connection(request):
                     address=data["email"],
                     name=data["name"],
                     company_name=data["company_name"],
+                    country_code=data["country_code"],
                     password=data["password"],
                     setup_hash=setup_hash,
                 )

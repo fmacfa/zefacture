@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}{% load static %}
+{% block styles %}<link rel="stylesheet" href="{% static 'banking.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Suivi des relevés</h1><p>{{ account.name }} · {{ account.currency_code }}</p></div><a class="button secondary" href="/app/finances/transactions?compte={{ account.account_uid }}">Voir les transactions du compte</a></div>
+<section class="card stack" id="bank-batch-files" aria-label="Fichiers du lot" {% if busy %}data-bank-poll{% endif %}>
+{% if busy %}<p role="status"><span class="request-spinner" aria-hidden="true"></span> Lecture en cours. Les résultats s’affichent ici au fil du traitement.</p><noscript><a href="">Actualiser le suivi</a></noscript>{% endif %}
+{% for item in items %}<article class="bank-upload-result"><div><strong>{{ item.filename }}</strong><p>{{ item.status_label }}{% if item.page_index != None %} · page {{ item.page_index|add:1 }}{% endif %}</p>
+{% if item.status == "done" %}<p>{{ item.added|display_number }} ajoutée(s) · {{ item.skipped|display_number }} déjà présente(s) · {{ item.rejected|display_number }} rejetée(s)</p>{% endif %}
+{% if item.message %}<p>{{ item.message }}</p>{% endif %}</div>
+{% if item.status == "review" %}<a class="button" href="{% url 'bank_statement_review' item.item_uid %}">Vérifier les opérations</a>{% endif %}</article>{% endfor %}
+</section><script src="{% static 'bank-statements.js' %}" defer></script>{% endblock %}

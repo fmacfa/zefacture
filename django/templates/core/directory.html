@@ -1,1 +1,12 @@
-{% extends "core/base.html" %}{% block content %}<h1>Résultat de la recherche</h1><p>{{ customer.legal_name }}</p><section class="card"><pre class="code">{{ result }}</pre><p>Reportez les coordonnées vérifiées dans la fiche client.</p><a class="button" href="/app/clients/{{ customer.customer_uid }}">Modifier le client</a></section>{% endblock %}
+{% extends "core/base.html" %}{% block content %}
+<div class="page-head"><div><h1>{{ title }}</h1><p>{{ customer.legal_name }}</p></div><a class="button secondary" href="/app/clients/{{ customer.customer_uid }}">Retour à la fiche client</a></div>
+<section class="card stack">
+{% if mode == "vies" %}
+<h2>{% if result.valid %}Numéro de TVA valide{% else %}Numéro de TVA non valide dans VIES{% endif %}</h2>
+<p><strong>{{ result.number }}</strong>{% if result.checked %} · Vérification du {{ result.checked|date:"d/m/Y à H:i" }}{% endif %}</p>
+{% if result.name %}<p>Raison sociale · {{ result.name }}</p>{% endif %}
+{% if result.address %}<p>Adresse · {{ result.address|linebreaksbr }}</p>{% endif %}
+{% if result.valid and not result.name and not result.address %}<p>VIES a confirmé le numéro. Le service n’a communiqué ni raison sociale ni adresse pour cette vérification.</p>{% endif %}
+{% if not result.valid %}<p>Vérifiez le pays émetteur et le numéro saisi dans la fiche client.</p>{% endif %}
+{% else %}<h2>Résultat de l’annuaire SUPERPDP</h2><pre class="code">{{ result }}</pre>{% endif %}
+<div><a class="button" href="/app/clients/{{ customer.customer_uid }}/modifier">Modifier le client</a></div></section>{% endblock %}

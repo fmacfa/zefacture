@@ -1,4 +1,4 @@
-{% extends "core/base.html" %}
+{% extends "core/base.html" %}{% load static %}
 {% block content %}
 <div class="page-head form-panel">
   <h1>{% if new_customer %}Nouveau client{% else %}Modifier le client{% endif %}</h1>
@@ -54,12 +54,6 @@
         {% include "core/form_field.html" with field=form.postal_code %}
         {% include "core/form_field.html" with field=form.city %}
         {% include "core/form_field.html" with field=form.country_code %}
-        <datalist id="customer-countries">
-          <option value="FR">France</option><option value="BE">Belgique</option><option value="CH">Suisse</option>
-          <option value="LU">Luxembourg</option><option value="DE">Allemagne</option><option value="IT">Italie</option>
-          <option value="ES">Espagne</option><option value="PT">Portugal</option><option value="NL">Pays-Bas</option>
-          <option value="GB">Royaume-Uni</option><option value="CA">Canada</option><option value="US">États-Unis</option>
-        </datalist>
       </div>
     </fieldset>
   </section>
@@ -70,8 +64,8 @@
       <div class="form-grid">
         {% include "core/form_field.html" with field=form.trade_name %}
         {% include "core/form_field.html" with field=form.vat_number %}
-        {% include "core/form_field.html" with field=form.siren %}
-        {% include "core/form_field.html" with field=form.siret %}
+        <div data-french-registration>{% include "core/form_field.html" with field=form.siren %}</div>
+        <div data-french-registration>{% include "core/form_field.html" with field=form.siret %}</div>
       </div>
       <fieldset class="form-section">
         <legend>Adresse de facturation électronique</legend>
@@ -90,11 +84,11 @@
 </form>
 
 {% if directory_url %}
-  <section class="card form-panel">
+  <section class="card form-panel customer-verification">
     <h2>Vérifier les coordonnées</h2>
     <form class="inline" method="post" action="{{ directory_url }}">
       {% csrf_token %}
-      <button class="secondary" name="lookup" value="directory">Annuaire SUPERPDP</button>
+      {% if form.instance.country_code == "FR" or form.instance.siren or form.instance.siret %}<button class="secondary" name="lookup" value="directory">Annuaire SUPERPDP</button>{% endif %}
       <button class="secondary" name="lookup" value="vies">Vérifier la TVA avec VIES</button>
     </form>
   </section>
@@ -104,4 +98,4 @@
     {% csrf_token %}<button class="danger">Archiver le client</button>
   </form>
 {% endif %}
-{% endblock %}
+<script src="{% static 'customer-country.js' %}" defer></script>{% endblock %}
