@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
 from django.core.paginator import Paginator
 from django.conf import settings
 from core.common import BusinessError, today, iso_date, money
@@ -12,6 +12,7 @@ from core.models import (
     BankFeed,
     BankFeedEntry,
     BankTransaction,
+    Document,
     Forecast,
 )
 from core.services import bank_categories
@@ -101,14 +102,9 @@ def finance(request, section="overview", item_uid=None, action=None):
             rows = rows.filter(standalone_category=category)
         treatment = request.GET.get("traitement", "")
         unlinked = Q(document_uid__isnull=True) | Q(document_uid="")
-        if treatment == "pending":
-            rows = rows.filter(
-                unlinked, status="booked", standalone_category=""
-            ).exclude(bank_feed__review__gt="")
-        elif treatment == "standalone":
-            rows = rows.filter(status="booked").exclude(standalone_category="")
-        elif treatment == "invoice":
-            rows = rows.exclude(unlinked)
+        treatment_filters = {"unlinked": unlinked, "invoice": ~unlinked,
+                             "pending": unlinked & Q(status="booked", standalone_category="") & ~Q(bank_feed__review__gt=""),
+                             "standalone": unlinked & Q(status="booked") & ~Q(standalone_category="")}
         start = iso_date(request.GET.get("from"), optional=True)
         end = iso_date(request.GET.get("to"), optional=True)
         if start and end and start > end:
@@ -121,6 +117,9 @@ def finance(request, section="overview", item_uid=None, action=None):
             BankAccount.objects.filter(company_uid=company.company_uid).order_by("name")
         )
         by_uid = {a.account_uid: a for a in accounts}
+        base_rows = rows
+        if treatment in treatment_filters:
+            rows = rows.filter(treatment_filters[treatment])
         if action == "export":
             return download_csv(
                 "transactions",
@@ -156,6 +155,15 @@ def finance(request, section="overview", item_uid=None, action=None):
                     for t in rows
                 ],
             )
+        counts = base_rows.aggregate(all=Count("pk"), **{key: Count("pk", filter=condition) for key, condition in treatment_filters.items()})
+        totals = {}
+        for group in rows.filter(status="booked").order_by().values("account_uid", "direction").annotate(amount=Sum("amount")):
+            account = by_uid.get(group["account_uid"])
+            currency = account.currency_code if account else ""
+            balance = totals.setdefault(currency, {"incoming": Decimal(0), "outgoing": Decimal(0)})
+            balance[group["direction"]] += group["amount"]
+        for balance in totals.values():
+            balance["net"] = balance["incoming"] - balance["outgoing"]
         reviews = (
             BankFeedEntry.objects.filter(
                 feed_account__feed__company_uid=company.company_uid
@@ -169,6 +177,12 @@ def finance(request, section="overview", item_uid=None, action=None):
             reviews = reviews.filter(
                 feed_account__account__account_uid=request.GET["compte"]
             )
+        if start:
+            reviews = reviews.filter(day__gte=start)
+        if end:
+            reviews = reviews.filter(day__lte=end)
+        if request.GET.get("q"):
+            reviews = reviews.filter(label__icontains=request.GET["q"][:200])
         review_page = Paginator(reviews.order_by("pk"), 15).get_page(
             request.GET.get("verification")
         )
@@ -178,7 +192,10 @@ def finance(request, section="overview", item_uid=None, action=None):
         page = Paginator(rows.select_related("bank_feed"), 50).get_page(
             request.GET.get("page")
         )
+        linked = {d.document_uid: d for d in Document.objects.filter(company_uid=company.company_uid,
+                  document_uid__in=[t.document_uid for t in page if t.document_uid])}
         for row in page:
+            row.document = linked.get(row.document_uid)
             row.account = by_uid.get(row.account_uid)
             row.category_label = bank_categories.category_label(row)
         return render(
@@ -186,6 +203,8 @@ def finance(request, section="overview", item_uid=None, action=None):
             "core/transactions.html",
             {
                 "title": "Transactions",
+                "bank_counts": counts, "bank_totals": sorted(totals.items()),
+                **bank_statements.batch_form(request),
                 "categories": bank_categories.CATEGORIES,
                 "new_expense": request.GET.get("depense", ""),
                 "outgoing_categories": bank_categories.OUTGOING,

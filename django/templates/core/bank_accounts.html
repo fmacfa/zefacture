@@ -2,7 +2,7 @@
 {% block styles %}<link rel="stylesheet" href="{% static 'banking.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head"><h1>Comptes bancaires</h1><a class="button secondary" href="/app/finances/transactions">Voir les transactions</a></div>
-<section class="card stack"><h2>Importer un relevé de compte</h2><p>Utilisez un fichier CSV, OFX, QFX ou PDF de votre banque.</p><div><a class="button secondary" href="/app/finances/transactions#releve">Importer un relevé</a></div></section>
+<section class="card stack"><h2>Importer des relevés de compte</h2><p>Sélectionnez plusieurs fichiers CSV, OFX, QFX ou PDF du même compte.</p><div><a class="button secondary" href="/app/finances/transactions#releve">Importer des relevés</a></div></section>
 <section class="card stack bank-connection">
   <div class="section-head"><h2>Connexion bancaire automatique</h2>
     {% if feed.remote_user %}<span class="badge">{% if feed.enabled %}Activée{% else %}En pause{% endif %}</span>{% endif %}

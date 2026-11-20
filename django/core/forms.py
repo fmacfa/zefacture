@@ -1,7 +1,8 @@
 from django import forms
-from .common import BusinessError, country, email, today
+from .common import BusinessError, email, today
 from .models import Company, Customer, InventoryItem, BankAccount, Forecast
 from .services.documents import CUSTOMER_FIELDS, COMPANY_FIELDS
+from .country_fields import CountryInput, country_code as country_from_name
 
 LABELS = {
     "legal_name": "Nom / raison sociale",
@@ -56,6 +57,13 @@ LABELS = {
 
 
 class FirstConnectionForm(forms.Form):
+    country_code = forms.CharField(label="Pays d’établissement", initial="FR", required=False, widget=CountryInput)
+    field_order = ["company_name", "country_code", "name", "email", "password"]
+
+    def clean_country_code(self):
+        return country_from_name(self.cleaned_data.get("country_code") or "FR")
+
+
     company_name = forms.CharField(
         label="Nom de l’entreprise",
         max_length=254,
@@ -136,10 +144,9 @@ class CustomerForm(StyledModelForm):
             "country_code": "country",
         }.items():
             self.fields[name].widget.attrs["autocomplete"] = autocomplete
-        self.fields["country_code"].widget.attrs.update(
-            list="customer-countries", maxlength=2
-        )
-        self.fields["country_code"].help_text = "Par exemple FR pour la France."
+        self.fields["country_code"].widget = CountryInput()
+        self.fields["country_code"].label = "Pays"
+        self.fields["country_code"].help_text = "Recherchez par nom ou par code ISO."
         self.fields["phone"].widget.attrs["inputmode"] = "tel"
         for name, length in (("siren", 9), ("siret", 14)):
             self.fields[name].widget.attrs["inputmode"] = "numeric"
@@ -158,10 +165,7 @@ class CustomerForm(StyledModelForm):
         return value
 
     def clean_country_code(self):
-        try:
-            return country(self.cleaned_data["country_code"])
-        except BusinessError as exc:
-            raise forms.ValidationError(str(exc)) from exc
+        return country_from_name(self.cleaned_data["country_code"], self.instance.country_code if self.instance.pk else "")
 
 
 FRENCH_LEGAL_FORMS = (
@@ -231,6 +235,9 @@ class CompanyForm(StyledModelForm):
 
     def __init__(self, *args, field_names=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if "country_code" in self.fields:
+            self.fields["country_code"].widget = CountryInput()
+            self.fields["country_code"].label = "Pays d’établissement"
         if field_names is not None:
             self.fields = {name: self.fields[name] for name in field_names}
             is_french = (self.instance.country_code or "").upper() == "FR"
@@ -288,7 +295,7 @@ class CompanyForm(StyledModelForm):
             raise forms.ValidationError(str(exc)) from exc
 
     def clean_country_code(self):
-        return self._normalize("country_code", country)
+        return country_from_name(self.cleaned_data["country_code"], self.instance.country_code if self.instance.pk else "")
 
     def clean_billing_email(self):
         return self._normalize("billing_email", email, optional=True)

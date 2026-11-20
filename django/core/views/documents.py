@@ -48,7 +48,12 @@ SECTIONS = {
 def quick_customer(request):
     data = request.POST.dict()
     data.setdefault("type", "business")
-    data.setdefault("country_code", "FR")
+    from core.country_fields import country_code
+    from django.core.exceptions import ValidationError
+    try:
+        data["country_code"] = country_code(data.get("country_code") or "FR")
+    except ValidationError as exc:
+        raise BusinessError(exc.messages[0]) from exc
     customer = service.save_customer(request.company, data)
     return JsonResponse(
         {"customer_uid": customer.customer_uid, "legal_name": customer.legal_name},

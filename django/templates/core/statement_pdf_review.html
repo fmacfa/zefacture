@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}{% load static %}{% block styles %}<link rel="stylesheet" href="{% static 'banking.css' %}">{% endblock %}
-{% block content %}<div class="page-head"><h1>Vérifier le relevé PDF</h1><a class="button secondary" href="/app/finances/transactions#releve">Annuler</a></div>
-<form method="post" class="card stack" data-pdf-review data-limit="{{ max_slots }}" action="/app/finances/transactions/releve/confirmer">{% csrf_token %}<input type="hidden" name="preview" value="{{ token }}">
-<h2>{{ account.name }} · {{ account.currency_code }}</h2><p>Comparez les dates, libellés, montants et sens au relevé. Cochez uniquement les opérations vérifiées. Vous pouvez corriger une proposition ou ajouter une ligne manquante.</p>
+{% block content %}<div class="page-head"><h1>Vérifier le relevé PDF</h1><a class="button secondary" href="{{ batch_url|default:'/app/finances/transactions#releve' }}">{% if item %}Retour au lot{% else %}Annuler{% endif %}</a></div>
+<form method="post" class="card stack" data-pdf-review data-limit="{{ max_slots }}" action="{% if item %}{% url 'bank_statement_review' item.item_uid %}{% else %}/app/finances/transactions/releve/confirmer{% endif %}">{% csrf_token %}<input type="hidden" name="preview" value="{{ token }}">
+<h2>{% if item %}{{ item.filename }} · {% endif %}{{ account.name }} · {{ account.currency_code }}</h2>{% if item.message %}<p class="notice">{{ item.message }}</p>{% endif %}<p>Comparez les dates, libellés, montants et sens au relevé. Cochez uniquement les opérations vérifiées. Vous pouvez corriger une proposition ou ajouter une ligne manquante.</p>
 {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
 <details class="form-disclosure" open><summary>Texte lu dans le relevé</summary><textarea name="transcript" rows="8" readonly aria-label="Texte lu dans le relevé">{{ transcript }}</textarea></details>
 <div class="stack" data-pdf-rows>{% for row in rows %}{% include "core/statement_pdf_row.html" %}{% endfor %}</div>

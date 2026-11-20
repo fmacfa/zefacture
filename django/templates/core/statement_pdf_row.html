@@ -1,4 +1,5 @@
 <fieldset class="bank-pdf-row"><legend>{% if row.page %}Page {{ row.page }}{% else %}Opération{% endif %}</legend>
+{% if row.ai_completed %}<small>Champs proposés par l’IA</small>{% endif %}
 {% if row.original %}<p class="full bank-original">{{ row.original }}</p>{% endif %}
 <input type="hidden" name="slot" value="{{ row.slot }}"><label class="check full"><input type="checkbox" name="selected" value="{{ row.slot }}"{% if row.selected %} checked{% endif %}> Enregistrer cette ligne</label>
 <label>Date<input type="date" name="date_{{ row.slot }}" value="{{ row.date }}"></label><label>Libellé<input name="label_{{ row.slot }}" value="{{ row.label }}" maxlength="500"></label>

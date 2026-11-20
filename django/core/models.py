@@ -597,6 +597,30 @@ class BankTransaction(models.Model):
         ]
 
 
+class BankStatementImport(models.Model):
+    item_uid = models.CharField(max_length=32, unique=True, default=uid)
+    batch_uid = models.CharField(max_length=32, db_index=True)
+    position = models.PositiveSmallIntegerField()
+    account = models.ForeignKey(BankAccount, on_delete=models.CASCADE)
+    user_uid = models.CharField(max_length=32)
+    filename = models.CharField(max_length=255)
+    kind = models.CharField(max_length=4)
+    provider = models.CharField(max_length=16, blank=True)
+    file_digest = models.CharField(max_length=64)
+    contents = models.BinaryField(null=True)
+    status = models.CharField(max_length=16, default="queued", db_index=True)
+    result = models.JSONField(default=dict)
+    message = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    started_at = models.DateTimeField(null=True)
+
+    class Meta:
+        db_table = "django_bank_statement_imports"
+        constraints = [
+            models.UniqueConstraint(fields=("batch_uid", "position"), name="bank_statement_batch_position")
+        ]
+
+
 class StatementMatch(models.Model):
     account = models.ForeignKey(BankAccount, on_delete=models.CASCADE)
     transaction = models.ForeignKey(BankTransaction, on_delete=models.CASCADE, related_name="statement_matches")

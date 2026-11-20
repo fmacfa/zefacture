@@ -347,31 +347,52 @@ def send_invoice(document, file, processing_rule=""):
     return provider_id
 
 
+VIES_PREFIXES = set("AT BE BG CY CZ DE DK EE EL ES FI FR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK XI".split())
+
+
+def vies_check(customer):
+    import requests
+    from django.utils.dateparse import parse_datetime
+
+    value = "".join((customer.vat_number or "").upper().split())
+    country = (customer.country_code or "").upper()
+    code = value[:2] if value[:2] in VIES_PREFIXES else {"GR": "EL"}.get(country, country)
+    number = value[2:] if value.startswith(code) else value
+    if code not in VIES_PREFIXES or not number or not number.isascii() or not number.isalnum():
+        raise BusinessError("Renseignez un numéro de TVA d’un pays couvert par VIES.")
+    try:
+        with requests.Session() as client:
+            client.trust_env = False
+            response = client.post("https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number",
+                                   json={"countryCode": code, "vatNumber": number}, timeout=(5, 20), allow_redirects=False)
+        if response.status_code != 200:
+            raise BusinessError("VIES est indisponible. Réessayez la vérification plus tard.", 502)
+        data = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise BusinessError("VIES est indisponible. Réessayez la vérification plus tard.", 502) from exc
+    if not isinstance(data, dict) or data.get("userError") not in (None, "", "VALID", "INVALID") or data.get("userErrors") or type(data.get("valid")) is not bool:
+        raise BusinessError("VIES n’a pas pu effectuer la vérification. Réessayez plus tard.", 502)
+    def field(key):
+        value = data.get(key)
+        return value.strip() if isinstance(value, str) and value.strip() not in ("", "---", "NOT_PROCESSED") else ""
+    address = field("address") or " ".join(filter(None, (field("traderStreet"), field("traderPostalCode"), field("traderCity"))))
+    try:
+        checked = parse_datetime(field("requestDate"))
+    except ValueError:
+        checked = None
+    return {"number": code + number, "valid": data["valid"], "checked": checked,
+            "name": field("name") or field("traderName"), "address": address}
+
+
 def directory(company, customer, mode):
     if settings.EXTERNAL_SERVICES_DISABLED:
         raise BusinessError(
             "Les annuaires externes sont désactivés sur cette instance.", 503
         )
     if mode == "vies":
-        import requests
-
-        vat = (customer.vat_number or "").replace(" ", "").upper()
-        code = "EL" if customer.country_code == "GR" else customer.country_code
-        if vat.startswith(code):
-            vat = vat[2:]
-        if not vat:
-            raise BusinessError("Numéro de TVA requis.")
-        with requests.Session() as client:
-            client.trust_env = False
-            response = client.post(
-                "https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number",
-                json={"countryCode": code, "vatNumber": vat},
-                timeout=(5, 20),
-                allow_redirects=False,
-            )
-        if response.status_code != 200:
-            raise BusinessError("VIES indisponible.", 502)
-        return response.json()
+        return vies_check(customer)
+    if mode != "directory":
+        raise BusinessError("Recherche inconnue.")
     session = session_for(company)
     number = (customer.siren or customer.siret or "")[:9]
     query = (

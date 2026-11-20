@@ -150,10 +150,14 @@ def require_provider(provider, company_uid=None):
     return label, key, model
 
 
-def request_data(provider, key, model, source, *, sale=False, expense=False):
+def request_data(provider, key, model, source, *, sale=False, expense=False, statement=False):
     schema = SCHEMA
     instruction = INSTRUCTIONS
-    if sale:
+    if statement:
+        from .statement_ai import INSTRUCTIONS as statement_instructions, SCHEMA as statement_schema
+
+        schema, instruction = statement_schema, statement_instructions
+    elif sale:
         schema = object_schema(
             {
                 "buyer": SCHEMAS["supplier"],
@@ -211,7 +215,7 @@ def request_data(provider, key, model, source, *, sale=False, expense=False):
                 "text": {
                     "format": {
                         "type": "json_schema",
-                        "name": "receipt",
+                        "name": "bank_statement" if statement else "receipt",
                         "strict": True,
                         "schema": schema,
                     }
@@ -348,12 +352,12 @@ def normalize_extraction(data, *, sale=False, expense=False):
     return result
 
 
-def extract(provider, transcription, *, sale=False, expense=False, company_uid=None):
+def extract(provider, transcription, *, sale=False, expense=False, statement=False, company_uid=None):
     label, key, model = require_provider(provider, company_uid)
     if not transcription or not transcription.strip():
         raise BusinessError("Transcrivez d’abord le document.")
     url, headers, payload = request_data(
-        provider, key, model, transcription[:80000], sale=sale, expense=expense
+        provider, key, model, transcription[:80000], sale=sale, expense=expense, statement=statement
     )
     try:
         with requests.Session() as session:
@@ -385,9 +389,12 @@ def extract(provider, transcription, *, sale=False, expense=False, company_uid=N
             )
             if fenced:
                 output = fenced.group(1)
-        return normalize_extraction(
-            json.loads(output), sale=sale, expense=expense
-        ), f"{provider}:{model}"
+        data = json.loads(output)
+        if statement:
+            if not isinstance(data, dict) or not isinstance(data.get("operations"), list):
+                raise ValueError("Expected bank operations")
+            return data["operations"], f"{provider}:{model}"
+        return normalize_extraction(data, sale=sale, expense=expense), f"{provider}:{model}"
     except requests.RequestException as exc:
         raise BusinessError(
             f"Impossible de joindre {label} pour l’analyse.", 502
