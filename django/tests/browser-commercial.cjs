@@ -1,23 +1,18 @@
 /* The CI runner provides a disposable local app seeded by browser_fixture.py. */
-const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8091';
 assert.ok(['localhost','127.0.0.1'].includes(new URL(base).hostname));
 
-(async () => {
+module.exports = async function checkCommercial(context) {
   const output = path.resolve(process.env.TEST_OUTPUT || 'test-results/browser-commercial');
   await fs.mkdir(output, {recursive:true});
-  const browser = await chromium.launch();
+  const page = await context.newPage();
   try {
-    const page = await browser.newPage({viewport:{width:1280,height:900}});
+    await page.setViewportSize({width:1280,height:900});
     const errors=[];
     page.on('pageerror',error=>errors.push(error.message));
-    await page.goto(base+'/connexion');
-    await page.getByLabel('Email',{exact:true}).fill('demo@example.test');
-    await page.getByLabel('Mot de passe',{exact:true}).fill('DemoForBrowser123!');
-    await Promise.all([page.waitForURL('**/app'),page.getByRole('button',{name:'Se connecter',exact:true}).click()]);
     await page.goto(base+'/app/devis/nouveau');
     const row=page.locator('#line-rows tr').first();
     await row.getByLabel('Désignation',{exact:true}).fill('Visite technique de démonstration');
@@ -44,7 +39,7 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(base).hostname));
     await page.goto(page.url()+'/modifier');
     assert.equal(await row.getByLabel('Mode de saisie du prix').inputValue(),'gross');
     await page.waitForFunction(()=>/TTC 207[,.]00/.test(document.querySelector('#totals').textContent));
-    for(const width of [1280,390]){
+    for(const width of [1280,1024,768,390]){
       await page.setViewportSize({width,height:844});
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'editor overflows');
       if(width===390) assert.ok((await row.getByLabel('Prix unitaire TTC').boundingBox()).width>100,'mobile price field too narrow');
@@ -61,5 +56,5 @@ assert.ok(['localhost','127.0.0.1'].includes(new URL(base).hostname));
     await page.getByText('Mise en file d’attente',{exact:true}).waitFor();
     assert.deepEqual(errors,[]);
     console.log('Prix TTC, remise, catalogue, réouverture et relance du solde vérifiés.');
-  } finally { await browser.close(); }
-})().catch(error=>{console.error(error);process.exitCode=1;});
+  } finally { await page.close(); }
+};
