@@ -38,7 +38,7 @@ def document_status_cards(query, section, params):
             ("disputed", "En litige"),
             ("refused", "Refusées"),
         ],
-        "factures": [("draft", "Brouillons"), ("sent", "Envoyées"), ("paid", "Payées")],
+        "factures": [("draft", "Brouillons"), ("sent", "Émises à encaisser"), ("paid", "Payées")],
         "avoirs": [("draft", "Brouillons"), ("sent", "Envoyés")],
         "devis": [
             ("draft", "Brouillons"),

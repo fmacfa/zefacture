@@ -21,6 +21,8 @@ from core.models import (
 )
 from .bridge import Bridge, BridgeError
 from .finance import reconcile
+from . import sale_receipts
+from core.models import SaleReceipt
 from .bank_categories import choices as classification_choices
 
 
@@ -280,6 +282,8 @@ def project_entry(entry, *, distinct=False):
                 setattr(tx, key, value)
             tx.updated_at = stamp()
             tx.save(update_fields=[*values, "updated_at"])
+            if tx.document_uid:
+                SaleReceipt.objects.filter(transaction=tx, origin="bank", cancelled=False).update(received_on=entry.day)
     elif entry.status == "booked" and entry.amount:
         matches = candidates(entry)
         if not distinct and matches.exists():
@@ -349,14 +353,9 @@ def match_invoice(company, entry):
     ):
         return
     direction = "outgoing" if tx.direction == "incoming" else "incoming"
-    docs = Document.objects.filter(
-        company_uid=company.company_uid,
-        direction=direction,
-        currency_code=entry.feed_account.account.currency_code,
-        amount_due=tx.amount,
-        type__in=["invoice", "progress_invoice"],
-        status__in=["sent", "received", "accepted"],
-    )
+    docs = sale_receipts.eligible(company, direction, entry.feed_account.account.currency_code, tx.amount)
+    if direction == "incoming":
+        docs = docs.filter(amount_due=tx.amount, status__in=["sent", "received", "accepted"])
     original_numbers = dict(
         PdpInvoice.objects.filter(
             company_uid=company.company_uid,
@@ -434,9 +433,10 @@ def resolve_entry(company, entry_id, choice):
                 "Le solde de la facture a changé. Vérifiez les règlements avant de confirmer cette correction.",
                 409,
             )
+        SaleReceipt.objects.filter(document=doc, transaction=tx, cancelled=False).update(cancelled=True, transaction=None)
         doc.amount_due += tx.amount
         if doc.status == "paid":
-            doc.status = entry.previous_invoice_status or (
+            doc.status = (entry.previous_invoice_status if entry.previous_invoice_status != "paid" else "") or (
                 "received" if doc.direction == "incoming" else "sent"
             )
             doc.paid_at = None

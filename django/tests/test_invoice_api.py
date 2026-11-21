@@ -41,6 +41,53 @@ class InvoiceApiTests(ApplicationCase):
     def route(self, document, action):
         return reverse(f"api_invoice_{action}", args=[document.document_uid])
 
+    def test_commercial_details_roundtrip_in_pdf_and_structured_invoice(self):
+        from lxml import etree
+        from core.services.documents import save_customer
+        self.company.has_vat_on_debits = 1
+        self.company.save(update_fields=["has_vat_on_debits"])
+        buyer = save_customer(self.company, {"legal_name":"Beispiel GmbH", "country_code":"DE", "local_registration":"HRB 4711",
+                                             "address_line1":"Testweg 1", "city":"Berlin", "postal_code":"10115"})
+        data = self.data(customer_uid=buyer.customer_uid, reference="ORDER-DETAILS", purchase_order="BC-124",
+                         delivery_date="2026-03-03", operation_category="M1",
+                         delivery_address={"line1":"Quai des Essais", "city":"Lyon", "postal_code":"69001", "country_code":"FR"})
+        draft = self.api.post("/api/v1/invoices", data, content_type="application/json", **self.auth)
+        self.assertEqual(draft.status_code, 201, draft.content)
+        doc = Document.objects.get(document_uid=draft.json()["data"]["document_uid"])
+        issue = self.api.post(self.route(doc, "issue"), {}, content_type="application/json", **self.auth)
+        self.assertEqual(issue.status_code, 200, issue.content)
+        for _ in range(2):
+            self.assertEqual(self.api.post(self.route(doc, "delivery"), {}, content_type="application/json", **self.auth).status_code, 200)
+        self.assertEqual(InvoiceEvent.objects.filter(document_uid=doc.document_uid, event_code="local:customer_handover").count(), 1)
+        pdf_response = self.api.get(self.route(doc, "pdf"), **self.auth)
+        reader = PdfReader(BytesIO(b"".join(pdf_response.streaming_content) if pdf_response.streaming else pdf_response.content))
+        text = " ".join(page.extract_text() for page in reader.pages)
+        for label in ("BC-124", "03/03/2026", "Quai des Essais", "Biens et services", "débits", "HRB 4711"):
+            self.assertIn(label, text)
+        root = etree.fromstring(reader.attachments["factur-x.xml"][0])
+        for path, expected in (("BuyerOrderReferencedDocument/IssuerAssignedID", "BC-124"),
+                               ("BusinessProcessSpecifiedDocumentContextParameter/ID", "M1"),
+                               ("OccurrenceDateTime/DateTimeString", "20260303"),
+                               ("ShipToTradeParty/PostalTradeAddress/LineOne", "Quai des Essais"),
+                               ("ApplicableTradeTax/DueDateTypeCode", "5")):
+            xpath = "//*" + "/*".join("[local-name()='" + part + "']" for part in path.split("/"))
+            self.assertEqual(root.xpath(xpath + "/text()"), [expected])
+
+    def test_customer_shipping_default_snapshot_and_explicit_billing_address(self):
+        from core.services.documents import save_customer
+        addr = {"line1":"Testweg 2", "city":"Berlin", "country_code":"DE"}
+        save_customer(self.company, {"delivery_address":addr}, self.customer)
+        self.customer.refresh_from_db()
+        for idx, (changes, street) in enumerate([({}, "Testweg 2"), ({"delivery_address":{}}, None)]):
+            result = self.api.post("/api/v1/invoices", self.data(reference=f"ORDER-SHIP-{idx}", **changes),
+                                   content_type="application/json", **self.auth)
+            self.assertEqual(result.status_code, 201)
+            self.assertEqual(result.json()["data"]["delivery_address"].get("line1"), street)
+        result = self.api.post("/api/v1/invoices", self.data(reference="ORDER-NO-COUNTRY",
+                               delivery_address={"line1":"Rue Essai", "city":"Lyon"}),
+                               content_type="application/json", **self.auth)
+        self.assertEqual(result.status_code, 422)
+
     def test_issue_once_and_download_the_stored_facturx(self):
         WebhookEndpoint.objects.create(
             company_uid=self.company.company_uid,

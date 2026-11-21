@@ -384,7 +384,11 @@ def customers(request, customer_uid=None, action=None):
             if relationship not in dict(crm.RELATIONSHIPS):
                 raise BusinessError("Relation commerciale invalide.")
             with transaction.atomic():
-                customer = save_customer(request.company, form.cleaned_data, obj)
+                from core.services.sale_details import ADDRESS_FIELDS, address_from
+                values = dict(form.cleaned_data)
+                if any("delivery_" + key in request.POST for key in ADDRESS_FIELDS):
+                    values["delivery_address"] = address_from(request.POST)
+                customer = save_customer(request.company, values, obj)
                 if not obj:
                     crm.save_profile(customer, {"relationship": relationship})
             messages.success(request, "Client enregistré.")

@@ -120,7 +120,21 @@ Le PDF téléchargeable et les fichiers XML/rapport de validation apparaissent d
 
 Les brouillons restent modifiables. Les documents émis conservent leurs montants, coordonnées et fichiers originaux. Une facture émise se corrige avec un **avoir**, créé depuis **Avoirs** en sélectionnant la facture d’origine, le même client et la même devise. Une facture émise n’est pas remplacée par une nouvelle version silencieuse.
 
-L’action **Marquer payé** correspond à un règlement intégral. Pour un paiement partiel traçable, enregistrer la transaction bancaire et la rapprocher de la facture dans **Finances → Transactions**. Une facture échue avec reste dû peut faire l’objet d’une relance manuelle depuis sa fiche.
+L’action **Marquer payé** correspond à un règlement intégral. Un paiement partiel peut être déclaré sur la fiche client de la facture ou rapproché depuis **Finances → Transactions**. Une facture échue avec reste dû peut faire l’objet d’une relance manuelle depuis sa fiche.
+
+#### Suivre les encaissements des ventes
+
+Dans **Factures**, les encarts **À encaisser aujourd’hui** et **Dont en retard** affichent les soldes ouverts à ce jour. **Encaissé sur la période** utilise la date effective des règlements, même si la facture a été émise avant la période. La période initiale couvre les douze derniers mois. Cliquez sur un montant pour voir les factures correspondantes, séparées par devise. La recherche porte sur les tiers, le numéro et l’objet. Sans encart sélectionné, les dates filtrent la date d’émission.
+
+Ouvrez la facture et utilisez **Suivi de la facture client → Enregistrer le règlement** avec son montant et sa date. Pour une facture de 1 200 € TTC échue et un paiement de 400 €, il reste 800 € à encaisser, dont 800 € échus. À l’arrivée de la transaction, Bridge peut confirmer le paiement existant. Le même versement reste compté une seule fois. La fiche donne accès à la transaction. **Annuler la déclaration** permet de corriger un montant saisi avant confirmation bancaire.
+
+Le rapprochement automatique nécessite l’option activée, une transaction comptabilisée dans la bonne devise et une référence de facture non ambiguë. Pour confirmer automatiquement une déclaration, le montant doit correspondre et les dates doivent être à sept jours d’écart au plus. En cas d’homonymie de montants, ouvrez **Finances → Transactions → Traiter**, puis sélectionnez la déclaration avec sa date ou **Nouveau règlement** si la transaction est supplémentaire. Les règlements historiques de date inconnue restent visibles sur leur fiche.
+
+Dans la fiche, **Émission**, **Remise et transmission** et **Encaissement** se lisent séparément. Après remise du PDF en main propre ou dans un espace client, utilisez **Déclarer la remise au client**. Les événements de messagerie et de SUPERPDP conservent leur propre suivi.
+
+#### Renseigner les données commerciales
+
+Dans **Commande et livraison**, sélectionnez la nature de l’opération, saisissez le numéro du bon de commande fourni par l’acheteur et la date réelle de livraison ou de réalisation. Choisissez l’adresse de la fiche client, l’adresse de facturation ou une adresse propre au document. Ces données alimentent le PDF et son XML Factur-X. La mention de TVA sur les débits reprend le réglage de l’entreprise enregistré dans le document. Un client étranger peut avoir un identifiant d’immatriculation local et un numéro de TVA distincts. Les originaux déjà émis restent consultables dans leur version d’origine.
 
 Un site de vente peut créer le brouillon, émettre la facture et télécharger son PDF avec une clé **API métier**. Le site associe ensuite le PDF à la commande pour le remettre au client. [Émettre et télécharger après une vente](GUIDE_API_WEBHOOKS.md#émettre-et-télécharger-après-une-vente).
 
@@ -230,7 +244,7 @@ Le classement porte sur l’écriture bancaire existante et conserve son montant
 
 ### Rapprocher les règlements
 
-Dans **Transactions**, rechercher un libellé ou filtrer par compte. L’option **Rapprocher automatiquement** associe un mouvement comptabilisé à une seule facture ouverte si le libellé contient son numéro complet et si la devise, le sens du paiement et le reste dû concordent. Un encaissement règle une facture client et un décaissement règle une facture fournisseur. L’historique de la facture conserve le paiement.
+Dans **Transactions**, rechercher un libellé ou filtrer par compte. L’option **Rapprocher automatiquement** associe un mouvement comptabilisé à une facture identifiée par son numéro complet, sa devise et le sens du paiement. Pour une vente, un montant partiel peut réduire le reste dû ou confirmer un règlement déclaré. Pour un achat, le rapprochement automatique exige le montant du solde. Un encaissement règle une facture client et un décaissement règle une facture fournisseur. L’historique de la facture conserve le paiement.
 
 Pour un paiement partiel ou un libellé sans référence exploitable, ouvrir **Traiter → Rapprocher d’une facture**, sélectionner la facture et cliquer sur **Rapprocher**. Dans **Opérations à vérifier**, choisir l’écriture existante si elle correspond au même mouvement, ou **Créer une opération distincte** si deux paiements sont réellement différents. Si la banque annule ou modifie un paiement déjà rapproché, vérifier le mouvement puis confirmer la correction. La facture retrouve alors le montant dû correspondant.
 

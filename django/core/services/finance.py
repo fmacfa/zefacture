@@ -20,11 +20,11 @@ from core.models import (
     Document,
 )
 from .documents import event
-from . import bank_categories
+from . import bank_categories, sale_receipts
 
 
 @transaction.atomic
-def reconcile(company, bank_transaction, document_uid, *, exact=False):
+def reconcile(company, bank_transaction, document_uid, *, exact=False, receipt_choice=""):
     feed_entry = (
         BankFeedEntry.objects.select_for_update()
         .filter(transaction=bank_transaction)
@@ -56,17 +56,16 @@ def reconcile(company, bank_transaction, document_uid, *, exact=False):
     if (
         not document
         or document.type not in {"invoice", "progress_invoice"}
-        or document.status in {"draft", "cancelled", "paid", "refused", "simulated"}
+        or document.status in {"draft", "cancelled", "refused", "simulated"}
+        or document.status == "paid" and not sale_receipts.is_sale(document)
     ):
         raise BusinessError("Facture non rapprochable.", 409)
+    sale = sale_receipts.is_sale(document)
     if (
-        bank_transaction.direction != expected
-        or not 0 < bank_transaction.amount <= document.amount_due
-        or exact
-        and (
-            bank_transaction.amount != document.amount_due
-            or document.status not in {"sent", "received", "accepted"}
-        )
+        bank_transaction.direction != expected or bank_transaction.amount <= 0
+        or not sale and bank_transaction.amount > document.amount_due
+        or not sale and exact and (bank_transaction.amount != document.amount_due
+                                   or document.status not in {"sent", "received", "accepted"})
     ):
         raise BusinessError("Sens incompatible ou paiement supérieur au solde.", 409)
     account = BankAccount.objects.filter(
@@ -77,11 +76,14 @@ def reconcile(company, bank_transaction, document_uid, *, exact=False):
     if feed_entry:
         feed_entry.previous_invoice_status = document.status
         feed_entry.save(update_fields=["previous_invoice_status"])
-    document.amount_due = money(document.amount_due - bank_transaction.amount)
-    if not document.amount_due:
-        document.status, document.paid_at = "paid", stamp()
-    document.updated_at = stamp()
-    document.save()
+    if sale:
+        sale_receipts.confirm_or_record(document, bank_transaction, receipt_choice, exact)
+    else:
+        document.amount_due = money(document.amount_due - bank_transaction.amount)
+        if not document.amount_due:
+            document.status, document.paid_at = "paid", stamp()
+        document.updated_at = stamp()
+        document.save()
     bank_transaction.document_uid = document_uid
     bank_transaction.updated_at = stamp()
     bank_transaction.save()

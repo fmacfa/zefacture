@@ -56,6 +56,9 @@
         {% include "core/form_field.html" with field=form.country_code %}
       </div>
     </fieldset>
+    <details{% if form.instance.delivery_address %} open{% endif %}><summary>Adresse de livraison différente</summary>
+      {% include "core/delivery_address_fields.html" with address=form.instance.delivery_address %}
+    </details>
   </section>
 
   <details class="card form-disclosure" data-customer-business-details{% if form.errors or form.siren.value or form.siret.value or form.vat_number.value %} open{% endif %}>
@@ -64,6 +67,7 @@
       <div class="form-grid">
         {% include "core/form_field.html" with field=form.trade_name %}
         {% include "core/form_field.html" with field=form.vat_number %}
+        {% include "core/form_field.html" with field=form.local_registration %}
         <div data-french-registration>{% include "core/form_field.html" with field=form.siren %}</div>
         <div data-french-registration>{% include "core/form_field.html" with field=form.siret %}</div>
       </div>

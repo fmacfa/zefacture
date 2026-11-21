@@ -2,6 +2,13 @@
 (() => {
   const form = document.getElementById('document-form');
   if (!form) return;
+  const deliveryMode = document.getElementById('delivery-mode');
+  if (deliveryMode) {
+    const address = document.getElementById('delivery-custom');
+    const showDelivery = () => { address.hidden = deliveryMode.value !== 'custom'; };
+    deliveryMode.addEventListener('change', showDelivery);
+    showDelivery();
+  }
   const lines = JSON.parse(document.getElementById('initial-lines').textContent).map(row=>({...defaults(),...row,quantity:row.quantity??row.qty??'1',unit_price_excluding_tax:row.unit_price_excluding_tax??row.unit_price??'0',vat_category_code:row.vat_category_code||(Number(row.vat_rate??20)>0?'S':'Z')}));
   const inventory = JSON.parse(document.getElementById('inventory-data').textContent);
   const tbody = document.getElementById('line-rows');

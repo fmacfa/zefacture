@@ -27,6 +27,8 @@ from core.common import BusinessError, stamp
 # Per-company provider credentials and links to the Django stock ledger are not legacy PHP fields.
 DJANGO_ONLY_COLUMNS = {
     "bank_transactions": {"standalone_category", "classification_note"},
+    "customers": {"local_registration", "delivery_address"},
+    "documents": {"operation_category", "delivery_date", "purchase_order", "delivery_address"},
     "companies": {"ingestion_ai"},
     "inventory_stock_movements": {"source_document_uid", "source_line_uid"},
 }
@@ -244,6 +246,8 @@ def import_legacy(archive, verify_only=False):
                                 os.chmod(dest, 0o600)
                                 copied.append(dest)
                         compare_snapshot(snapshot, models)
+                        from core.receipt_history import fill_receipt_history
+                        fill_receipt_history(apps, connection.alias)
                 except Exception:
                     for dest in copied:
                         dest.unlink(missing_ok=True)

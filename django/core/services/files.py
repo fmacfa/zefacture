@@ -169,6 +169,8 @@ def party_xml(party):
             data[target] = party[source]
     if party.get("siren"):
         data.update(legal_identifier=party["siren"], legal_identifier_schemeid="0002")
+    elif party.get("local_registration"):
+        data["legal_identifier"] = party["local_registration"]
     if party.get("electronic_address"):
         data.update(
             einvoicing_addr=party["electronic_address"],
@@ -203,6 +205,22 @@ def xml_data(document, computed):
         "BG-23": [],
         "BG-25": [],
     }
+    if document.delivery_date:
+        data["BT-72"] = str(document.delivery_date)
+    if document.purchase_order:
+        data["BT-13"] = document.purchase_order
+    if document.operation_category:
+        data["BT-23"] = document.operation_category
+    if document.seller.get("has_vat_on_debits"):
+        data["BT-8"] = "5"
+    address = document.delivery_address
+    if address:
+        data["BG-13"] = {
+            "name": address.get("name") or document.buyer.get("name", ""),
+            "addr_l1": address["line1"], "addr_l2": address.get("line2", ""),
+            "city": address["city"], "postcode": address.get("postal_code", ""),
+            "country_code": address["country_code"],
+        }
     if document.buyer_reference:
         data["BT-10"] = document.buyer_reference
     if document.seller.get("bank_iban"):
@@ -215,6 +233,8 @@ def xml_data(document, computed):
         if document.seller.get("bank_bic"):
             data["BT-86"] = document.seller["bank_bic"]
     notes = [document.notes, document.seller.get("invoice_footer")]
+    if document.seller.get("has_vat_on_debits"):
+        notes.append("Option pour le paiement de la taxe d’après les débits")
     if any(notes):
         data["BG-1"] = [{"BT-22": str(n)} for n in notes if n]
     if document.source_invoice_uid:

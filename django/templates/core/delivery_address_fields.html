@@ -1,0 +1,10 @@
+{% load country_fields %}
+<fieldset class="form-section"><legend>Adresse de livraison</legend>
+  <div class="form-grid">
+    <label>Numéro et rue<input name="delivery_line1" maxlength="180" value="{{ address.line1|default:'' }}"></label>
+    <label>Complément<input name="delivery_line2" maxlength="180" value="{{ address.line2|default:'' }}"></label>
+    <label>Code postal<input name="delivery_postal_code" maxlength="180" value="{{ address.postal_code|default:'' }}"></label>
+    <label>Ville<input name="delivery_city" maxlength="180" value="{{ address.city|default:'' }}"></label>
+    <label>Pays de livraison{% country_input "delivery-country" address.country_code|default:"" "delivery_country_code" False %}</label>
+  </div>
+</fieldset>

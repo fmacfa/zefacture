@@ -106,7 +106,7 @@ def create_invoice(company, user, data, key, *, quote=None):
 def api(request, resource, document_uid=None, action=None):
     try:
         company = api_company(request, ApiKey.Scope.BUSINESS)
-        methods = {"issue": ("POST",), "pdf": ("GET", "HEAD")}.get(action)
+        methods = {"issue": ("POST",), "delivery": ("POST",), "pdf": ("GET", "HEAD")}.get(action)
         if methods and request.method not in methods:
             return JsonResponse(
                 {"error": "Méthode non autorisée."},
@@ -115,6 +115,10 @@ def api(request, resource, document_uid=None, action=None):
             )
         if action == "pdf":
             return invoice_pdf(request, company, document_uid)
+        if action == "delivery":
+            document = document_for_api(company, "invoices", document_uid)
+            handed = documents.record_handover(document)
+            return JsonResponse({"data": {"document_uid": document.document_uid, "delivered_at": handed.occurred_at}})
         if action == "issue":
             document = document_for_api(company, "invoices", document_uid)
             invoice = documents.issue_invoice(document)
@@ -130,7 +134,7 @@ def api(request, resource, document_uid=None, action=None):
                     Customer.objects.filter(company_uid=company.company_uid).values(
                         *(
                             ["customer_uid", "status", "created_at"]
-                            + documents.CUSTOMER_FIELDS
+                            + documents.CUSTOMER_FIELDS + ["delivery_address"]
                         )
                     )
                 )

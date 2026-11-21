@@ -339,17 +339,12 @@ def treatment(request, item_uid):
         company_uid=request.company.company_uid, account_uid=item.account_uid
     ).first()
     currency = account.currency_code if account else "EUR"
-    documents = (
-        finance.effective_documents(request.company)
-        .filter(
-            direction="outgoing" if item.direction == "incoming" else "incoming",
-            type__in=["invoice", "progress_invoice"],
-            currency_code=currency,
-            amount_due__gte=item.amount,
-        )
-        .exclude(status="paid")
-        .order_by("-issue_date", "number")
-    )
+    from core.services.sale_receipts import eligible
+    from core.models import SaleReceipt
+    documents = eligible(request.company, "outgoing" if item.direction == "incoming" else "incoming",
+                         currency, item.amount).order_by("-issue_date", "number")
+    pending = SaleReceipt.objects.filter(document__in=documents, transaction__isnull=True,
+                                         cancelled=False, amount=item.amount).select_related("document")
     return render(
         request,
         "core/bank_treatment.html",
@@ -360,5 +355,6 @@ def treatment(request, item_uid):
             "currency": currency,
             "categories": bank_categories.choices(item.direction),
             "documents": documents,
+            "pending_receipts": pending,
         },
     )

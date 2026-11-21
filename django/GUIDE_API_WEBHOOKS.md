@@ -71,6 +71,7 @@ Les routes sont sans slash final. `{uid}` désigne l’identifiant du document r
 | POST | `/api/v1/quotes/{uid}/progress-invoices` | Crée un avancement (201) ou retrouve le même avancement (200) |
 | POST | `/api/v1/invoices/{uid}/facturx` | Génère ou vérifie le fichier Factur-X, réponse 200 |
 | POST | `/api/v1/invoices/{uid}/issue` | Émet la facture et fige le PDF. Renvoie 200 avec le chemin de téléchargement |
+| POST | `/api/v1/invoices/{uid}/delivery` | Consigne la remise effective au client après sa confirmation par le site marchand. Un nouvel appel retrouve le même événement. |
 | GET, HEAD | `/api/v1/invoices/{uid}/pdf` | Renvoie le PDF conservé de la facture émise, ou ses en-têtes avec HEAD |
 
 Les listes renvoient tous les éléments. Le PDF s’obtient via la route dédiée avec la clé **API métier** de l’entreprise. Les listes et les actions documentées dans le tableau constituent le contrat de cette API.
@@ -164,6 +165,10 @@ Le devis doit être accepté et le pourcentage rester dans le solde disponible. 
 1. Une fois le paiement confirmé par votre site, créer ou retrouver la fiche client et le brouillon de facture. Associer le `document_uid` renvoyé à l’identifiant de la commande.
 2. Envoyer `POST /api/v1/invoices/{uid}/issue` avec un corps vide ou `{}`. ZeFacture valide le Factur-X, conserve le PDF et fige les données de la facture. En cas d’échec de la validation, le document reste un brouillon.
 3. Récupérer `data.pdf_url` dans la réponse et télécharger ce chemin sur la même instance avec la clé **API métier**. Le site marchand peut ensuite remettre le document au client selon ses propres règles d’accès.
+
+Après la remise effective du document, le site peut appeler `POST /api/v1/invoices/{uid}/delivery` avec un corps vide. Le champ `data.delivered_at` donne l’horodatage de la déclaration. Le téléchargement du PDF peut servir à une prévisualisation et laisse cette date disponible pour la confirmation réelle.
+
+La création de devis et factures accepte aussi `delivery_date` (AAAA-MM-JJ), `purchase_order` (référence de commande de l’acheteur), `operation_category` (`B1` biens, `S1` services, `M1` mixte) et `delivery_address` (objet `line1`, `line2`, `postal_code`, `city` et `country_code` ISO). Une adresse vide explicite reprend l’adresse de facturation. En omettant le champ sur une nouvelle facture, elle reprend l’adresse de livraison configurée sur le client. Les clients acceptent également `local_registration` et `delivery_address`.
 
 La réponse d’émission contient les métadonnées habituelles, avec `issued_at` et `pdf_url`. Le statut `sent` désigne l’émission locale. Le site appelant gère la remise au client. L’envoi par email, le dépôt SUPERPDP et l’enregistrement du règlement sont des opérations distinctes dans ZeFacture.
 

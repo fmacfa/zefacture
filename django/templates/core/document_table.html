@@ -3,7 +3,7 @@
     <thead>
       <tr>
         <th>{% if section == "reception" %}Fournisseur{% elif section %}Client{% else %}Client ou fournisseur{% endif %}</th>
-        <th>Date</th><th>Statut</th><th class="num">Total TTC</th><th class="num">Reste dû</th><th>Actions</th>
+        <th>Date</th>{% if section == "factures" %}<th>Échéance</th>{% endif %}<th>Statut</th><th class="num">Total TTC</th><th class="num">Reste dû</th>{% if sales_focus == "received" %}<th class="num">Encaissé sur la période</th>{% endif %}<th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -14,13 +14,23 @@
             {% if d.number %}<small>{{ d.number }}</small>{% endif %}
           </td>
           <td data-label="Date">{{ d.issue_date }}</td>
-          <td data-label="Statut"><span class="badge {{ d.status }}">{{ d.get_status_label|default:d.status }}</span></td>
+          {% if section == "factures" %}<td data-label="Échéance">{{ d.due_date|default:"—" }}{% if d.status == "sent" and d.amount_due > 0 and d.due_date and d.due_date < today %}<small>En retard</small>{% endif %}</td>{% endif %}
+          <td data-label="Statut"><span class="badge {{ d.status }}">{{ d.get_status_label|default:d.status }}</span>{% if section == "factures" and d.status == "sent" and d.amount_due > 0 and d.amount_due < d.total_including_tax %}<small>Paiement partiel</small>{% endif %}</td>
           <td data-label="Total TTC" class="num">{{ d.total_including_tax|display_number:2 }} {{ d.currency_code }}</td>
           <td data-label="Reste dû" class="num">{{ d.amount_due|display_number:2 }} {{ d.currency_code }}</td>
+          {% if sales_focus == "received" %}<td data-label="Encaissé sur la période" class="num">{{ d.period_collected|display_number:2 }} {{ d.currency_code }}</td>{% endif %}
           <td>
             <div class="document-links">
               <a class="strong" href="{{ d.url }}">{% if d.type == "quote" %}Voir le devis{% elif d.type == "credit_note" %}Voir l’avoir{% else %}Voir la facture{% endif %}</a>
               {% if d.status == "draft" and can_write %}<a href="{{ d.url }}/modifier">Modifier</a>{% endif %}
+              {% if section == "factures" and d.status != "draft" %}
+                {% if d.status == "sent" or d.status == "paid" %}
+                  {% if can_finance %}<a href="{{ d.url }}#encaissements">Rapprocher un règlement</a>{% endif %}
+                  {% if can_write %}<a href="/app/avoirs/nouveau?source_invoice_uid={{ d.document_uid }}&amp;customer_uid={{ d.customer_uid }}">Créer un avoir</a>
+                    {% if d.status == "sent" and d.amount_due > 0 and d.due_date and d.due_date < today %}<form method="post" action="{{ d.url }}/relancer">{% csrf_token %}<button class="text-button">Préparer une relance</button></form>{% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
               {% if d.preview_file %}<a class="preview-link" href="/app/documents/{{ d.document_uid }}/fichiers/{{ d.preview_file.file_uid }}/apercu">Aperçu</a>{% endif %}
             </div>
             {% if d.pdp_files %}
@@ -29,7 +39,7 @@
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="6" class="empty">{% if section != "reception" %}Vos documents apparaîtront ici.{% elif request.GET.q or request.GET.status or request.GET.from or request.GET.to %}Aucune facture ne correspond aux filtres. <a href="/app/reception">Effacer les filtres</a>{% else %}Aucune facture fournisseur enregistrée pour le moment.{% endif %}</td></tr>
+        <tr><td colspan="{% if sales_focus == 'received' %}8{% elif section == 'factures' %}7{% else %}6{% endif %}" class="empty">{% if section != "reception" %}Vos documents apparaîtront ici.{% elif request.GET.q or request.GET.status or request.GET.from or request.GET.to %}Aucune facture ne correspond aux filtres. <a href="/app/reception">Effacer les filtres</a>{% else %}Aucune facture fournisseur enregistrée pour le moment.{% endif %}</td></tr>
       {% endfor %}
     </tbody>
   </table>

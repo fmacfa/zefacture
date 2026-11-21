@@ -80,10 +80,11 @@ def finance(request, section="overview", item_uid=None, action=None):
     if section == "transactions":
         if request.method == "POST":
             if item_uid:
+                selection = request.POST.get("document_uid", "").split("/", 1)
                 service.reconcile(
                     company,
                     scoped_get(BankTransaction, request, transaction_uid=item_uid),
-                    request.POST.get("document_uid"),
+                    selection[0], receipt_choice=selection[1] if len(selection) > 1 else "",
                 )
             elif action == "import":
                 return bank_statements.upload(request)

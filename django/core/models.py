@@ -162,7 +162,15 @@ class PdpSession(models.Model):
         unique_together = (("company_uid", "provider"),)
 
 
+class SaleOperation(models.TextChoices):
+    GOODS = "B1", "Livraison de biens"
+    SERVICES = "S1", "Prestation de services"
+    MIXED = "M1", "Biens et services"
+
+
 class Customer(models.Model):
+    delivery_address = models.JSONField(default=dict, blank=True)
+    local_registration = models.CharField(max_length=100, blank=True, default="")
     customer_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, default="")
     type = models.TextField(default="business")
@@ -189,6 +197,10 @@ class Customer(models.Model):
 
 
 class Document(models.Model):
+    delivery_date = models.DateField(null=True, blank=True)
+    purchase_order = models.CharField(max_length=100, blank=True, default="")
+    operation_category = models.CharField(max_length=2, choices=SaleOperation.choices, blank=True, default="")
+    delivery_address = models.JSONField(default=dict, blank=True)
     document_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, default="")
     customer_uid = models.CharField(max_length=32, db_index=True, null=True, blank=True)
@@ -272,6 +284,8 @@ class Document(models.Model):
 
     @property
     def get_status_label(self):
+        if self.direction == "outgoing" and self.type in ("invoice", "progress_invoice") and self.status == "sent":
+            return "Émise"
         return {
             "draft": "Brouillon",
             "sent": "Envoyé",
@@ -595,6 +609,22 @@ class BankTransaction(models.Model):
                 name="bank_class_or_invoice",
             ),
         ]
+
+
+class SaleReceipt(models.Model):
+    receipt_uid = models.CharField(max_length=32, unique=True, default=uid)
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="receipts")
+    amount = models.DecimalField(max_digits=30, decimal_places=8)
+    received_on = models.DateField(null=True, blank=True, db_index=True)
+    origin = models.CharField(max_length=12, choices=[
+        ("manual", "Déclaré"), ("bank", "Bancaire"), ("legacy", "Historique")
+    ])
+    transaction = models.OneToOneField(BankTransaction, on_delete=models.PROTECT, null=True, blank=True, related_name="sale_receipt")
+    cancelled = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "django_sale_receipts"
+        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="sale_receipt_positive")]
 
 
 class BankStatementImport(models.Model):

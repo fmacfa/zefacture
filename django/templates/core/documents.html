@@ -1,10 +1,10 @@
 {% extends "core/base.html" %}
 {% load static %}
-{% block styles %}{% if section == "reception" %}<link rel="stylesheet" href="{% static 'reception.css' %}">{% endif %}{% endblock %}
+{% block styles %}{% if section == "reception" or section == "factures" %}<link rel="stylesheet" href="{% static 'reception.css' %}">{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><p class="eyebrow">FACTURATION</p><h1>{{ title }}</h1></div>
-  {% if can_write %}<a class="button{% if section == 'reception' %} secondary{% endif %}" href="{{ new_url }}">{% if section == "reception" %}Saisir une facture fournisseur{% else %}+ Créer un document{% endif %}</a>{% endif %}
+  {% if can_write %}<a class="button{% if section == 'reception' %} secondary{% endif %}" href="{{ new_url }}">{% if section == "reception" %}Saisir une facture fournisseur{% elif section == "factures" %}+ Créer une facture{% else %}+ Créer un document{% endif %}</a>{% endif %}
 </div>
 {% if section == "reception" %}{% include "core/reception_sync.html" %}{% endif %}
 {% if section == "reception" %}
@@ -19,7 +19,8 @@
 </form>
 {% endif %}
 <div id="document-results">
-  {% if status_cards %}{% include "core/document_status_cards.html" with cards=status_cards %}{% endif %}
+  {% if section == "factures" %}{% include "core/sales_totals.html" %}{% endif %}
+  {% if status_cards and not sales_focus %}{% include "core/document_status_cards.html" with cards=status_cards %}{% endif %}
   {% if section == "reception" and not reception_error %}{% include "core/reception_totals.html" %}{% endif %}
   <section class="card">{% include "core/document_table.html" %}</section>
   {% if not reception_error %}{% include "core/pagination.html" with page=documents %}{% endif %}
