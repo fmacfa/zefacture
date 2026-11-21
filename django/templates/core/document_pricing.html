@@ -1,0 +1,10 @@
+{% load l10n %}
+<datalist id="common-vat-rates"><option value="0"><option value="2.1"><option value="5.5"><option value="10"><option value="20"></datalist>
+<div class="discount-totals">
+  <fieldset class="discount-fields"><legend>Remise globale</legend>
+    <label>Type de remise<select name="global_discount_type"{% if extraction %} data-extract="invoice.global_discount_type"{% endif %}><option value="percent">Pourcentage du HT</option>
+      <option value="amount"{% if pricing.global_discount_type == "amount" %} selected{% endif %}>Montant fixe HT</option></select></label>
+    <label>Valeur de la remise<input class="num" type="number" step="0.0001" min="0" name="global_discount_value"{% if extraction %} data-extract="invoice.global_discount_value"{% endif %} value="{{ pricing.global_discount_value|default:0|unlocalize }}"></label>
+  </fieldset>
+  <div><div class="totals-preview" id="totals" aria-live="polite"></div><p id="tax-breakdown" class="muted num"></p></div>
+</div>

@@ -88,15 +88,7 @@
     </div>
     <button class="secondary" type="button" id="add-line">+ Ajouter une ligne</button>
     <p id="intra-vat-help" class="notice" hidden>Livraison intra-UE : renseignez la date et le pays effectifs dans « Commande et livraison ».</p>
-    <datalist id="common-vat-rates"><option value="0"><option value="2.1"><option value="5.5"><option value="10"><option value="20"></datalist>
-    <div class="discount-totals">
-      <fieldset class="discount-fields"><legend>Remise globale</legend>
-        <label>Type de remise<select name="global_discount_type"><option value="percent">Pourcentage du HT</option>
-          <option value="amount"{% if document.global_discount_type == "amount" %} selected{% endif %}>Montant fixe HT</option></select></label>
-        <label>Valeur de la remise<input class="num" type="number" step="0.0001" min="0" name="global_discount_value" value="{{ document.global_discount_value|default:0|unlocalize }}"></label>
-      </fieldset>
-      <div><div class="totals-preview" id="totals" aria-live="polite"></div><p id="tax-breakdown" class="muted num"></p></div>
-    </div>
+    {% include "core/document_pricing.html" with pricing=document %}
   </section>
 
   <section class="card stack">

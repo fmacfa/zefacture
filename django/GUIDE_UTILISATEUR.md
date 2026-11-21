@@ -116,7 +116,7 @@ Après acceptation, utiliser **Facturer** pour la facture de solde ou **Facture 
 
 Dans **Prestations et produits**, chaque ligne a son propre sélecteur **HT / TTC**. Pour un tarif annoncé au client toutes taxes comprises, choisissez **TTC**, renseignez le prix unitaire et le taux applicable. Vous pouvez mélanger lignes HT et TTC dans un même document. L’éditeur affiche le total HT de chaque ligne après sa remise individuelle.
 
-Sous les lignes, **Remise globale** accepte un pourcentage du sous-total HT après les remises de ligne, ou un montant fixe HT dans la devise du document. La remise fixe se saisit au centime. Le récapitulatif montre son montant, la base et la TVA de chaque taux, puis le TTC à payer. Un éventuel ajustement d’arrondi apparaît aussi sur la facture.
+Sous les lignes, **Remise globale** accepte un pourcentage du sous-total HT après les remises de ligne, ou un montant fixe HT dans la devise du document. La remise fixe se saisit au centime. Lors de la vérification d’une facture importée, les mêmes champs permettent de retrouver les prix et la remise qui figurent sur l’original. Le récapitulatif montre son montant, la base et la TVA de chaque taux, puis le TTC à payer. Un éventuel ajustement d’arrondi apparaît aussi sur la facture.
 
 Prenons deux articles à 120 € TTC (TVA 20 %) avec 10 % de remise de ligne, et une prestation à 110 € TTC (TVA 10 %). Le sous-total HT est de 280 €. Une remise globale de 10 % enlève 18 € de la base à 20 % et 10 € de la base à 10 %. La facture indique **252 € HT, 41,40 € de TVA et 293,40 € TTC**.
 

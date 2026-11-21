@@ -124,9 +124,10 @@
   }
 
   function update() {
-    document.getElementById('intra-vat-help').hidden = !lines.some(row => row.vat_category_code==='K');
-    const options = document.getElementById('inventory-select').options;
-    inventory.forEach((item,index) => {
+    const intraHelp = document.getElementById('intra-vat-help');
+    if (intraHelp) intraHelp.hidden = !lines.some(row => row.vat_category_code==='K');
+    const options = document.getElementById('inventory-select')?.options;
+    if(options) inventory.forEach((item,index) => {
       options[index+1].disabled = Boolean(item.currency_code && item.currency_code!==currency());
       if(item.currency_code) options[index+1].textContent = item.name+' · '+item.currency_code;
     });
@@ -139,7 +140,12 @@
     previewTimer=setTimeout(async()=>{
       previewRequest=new AbortController();
       try {
-        const response=await fetch('/app/documents/calculer',{method:'POST',body:new FormData(form),headers:{Accept:'application/json'},signal:previewRequest.signal});
+        const response=await fetch('/app/documents/calculer',{
+          method:'POST', signal:previewRequest.signal,
+          headers:{Accept:'application/json','Content-Type':'application/json','X-CSRFToken':form.elements.csrfmiddlewaretoken.value},
+          body:JSON.stringify({lines, global_discount_type:form.elements.global_discount_type.value,
+            global_discount_value:form.elements.global_discount_value.value})
+        });
         const data=await response.json();
         if(current!==revision)return;
         if(!response.ok)throw new Error(data.error||'Calcul indisponible.');

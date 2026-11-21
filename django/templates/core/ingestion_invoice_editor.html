@@ -34,11 +34,11 @@
   <section class="card">
     <h2>Lignes de facturation</h2>
     <div class="table-wrap"><table class="line-editor">
-      <thead><tr><th>Désignation / référence</th><th class="num">Qté</th><th>Unité</th><th class="num">PU HT</th><th class="num">Remise %</th><th class="num">TVA % / catégorie</th><th class="num">Total HT</th><th></th></tr></thead>
+      <thead><tr><th>Désignation / référence</th><th class="num">Qté</th><th>Unité</th><th class="num">Prix unitaire</th><th class="num">Remise %</th><th class="num">TVA % / catégorie</th><th class="num">Total HT</th><th></th></tr></thead>
       <tbody id="line-rows"></tbody>
     </table></div>
     <button class="secondary" type="button" id="add-line">+ Ajouter une ligne</button>
-    <div id="totals" class="totals-preview"></div>
+    {% include "core/document_pricing.html" with pricing=parsed.invoice extraction=True %}
   </section>
   <section class="card"><details>
     <summary>Consulter ou corriger le texte transcrit</summary>
