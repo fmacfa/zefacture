@@ -1,5 +1,11 @@
 # Changements
 
+## Suivi des ventes et des encaissements
+
+- Dates de prestation, références de commande, adresses de livraison et nature des opérations dans le PDF et le XML. Prise en compte de la TVA sur les débits et de l’immatriculation locale des clients étrangers.
+- Déclarations de règlement partiel, confirmation en banque et suivi de la remise au client par l’interface ou l’API.
+- Encarts par devise pour les soldes ouverts, les retards et les sommes effectivement encaissées sur une période.
+
 ## Relevés bancaires et entreprises étrangères
 
 - Import de plusieurs relevés, suivi par fichier et préremplissage facultatif des opérations PDF par IA après OCR.

@@ -1,0 +1,9 @@
+<section class="reception-totals" aria-labelledby="sales-balances">
+  <div class="section-head"><h2 id="sales-balances">Encaissements clients</h2>{% if sales_focus %}<a href="{{ sales_reset }}">Voir toutes les factures</a>{% endif %}</div>
+  <p class="form-help">Soldes ouverts à ce jour. Encaissements {% if payment_start %}du {{ payment_start|date:"d/m/Y" }} {% endif %}{% if payment_end %}au {{ payment_end|date:"d/m/Y" }}{% else %}jusqu’à aujourd’hui{% endif %}, selon la date du règlement.</p>
+  {% for group in sales_groups %}<div class="sales-amounts">
+    {% for card in group.cards %}<a href="{{ card.url }}" class="sales-amount sales-{{ card.key }}" {% if card.active %}aria-current="page"{% endif %}>
+      <span>{{ card.label }}</span><strong class="num">{{ card.amount|display_number:2 }} {{ group.currency }}</strong>
+    </a>{% endfor %}
+  </div>{% endfor %}
+</section>

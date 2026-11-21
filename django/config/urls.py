@@ -198,7 +198,7 @@ urlpatterns = [
         {"action": "edit"},
     ),
     re_path(
-        r"^app/(?P<section>devis|factures|avoirs|reception)/(?P<document_uid>[a-f0-9]{32})(?:/(?P<action>telecharger|generer-factur-x|envoyer|payer|relancer|accepter|refuser|litige|annuler|facturer|facture-avancement))?$",
+        r"^app/(?P<section>devis|factures|avoirs|reception)/(?P<document_uid>[a-f0-9]{32})(?:/(?P<action>telecharger|generer-factur-x|envoyer|payer|encaisser|annuler-encaissement|remise-client|relancer|accepter|refuser|litige|annuler|facturer|facture-avancement))?$",
         documents.documents,
     ),
     re_path(
@@ -218,6 +218,10 @@ urlpatterns = [
         api.api,
         {"resource": "invoices", "action": "issue"},
         name="api_invoice_issue",
+    ),
+    re_path(
+        r"^api/v1/invoices/(?P<document_uid>[a-f0-9]{32})/delivery$",
+        api.api, {"resource": "invoices", "action": "delivery"}, name="api_invoice_delivery",
     ),
     re_path(
         r"^api/v1/invoices/(?P<document_uid>[a-f0-9]{32})/pdf$",

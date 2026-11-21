@@ -6,6 +6,7 @@ from .country_fields import CountryInput, country_code as country_from_name
 
 LABELS = {
     "legal_name": "Nom / raison sociale",
+    "local_registration": "Identifiant d’immatriculation local",
     "trade_name": "Nom commercial",
     "type": "Type de client",
     "name": "Nom",

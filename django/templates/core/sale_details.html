@@ -1,0 +1,9 @@
+{% if document.delivery_date or document.purchase_order or document.operation_category or document.delivery_address or document.seller.has_vat_on_debits %}
+<div class="details">
+  {% if document.delivery_date %}<div>Date de livraison ou de prestation : {{ document.delivery_date|date:"d/m/Y" }}</div>{% endif %}
+  {% if document.purchase_order %}<div>Bon de commande : {{ document.purchase_order }}</div>{% endif %}
+  {% if document.operation_category %}<div>Nature de l’opération : {{ document.get_operation_category_display }}</div>{% endif %}
+  {% if document.delivery_address %}<div>Livraison : {{ document.delivery_address.line1 }} {{ document.delivery_address.line2 }} · {{ document.delivery_address.postal_code }} {{ document.delivery_address.city }} · {{ document.delivery_address.country_code }}</div>{% endif %}
+  {% if document.seller.has_vat_on_debits %}<div>Option pour le paiement de la taxe d’après les débits</div>{% endif %}
+</div>
+{% endif %}

@@ -28,7 +28,7 @@
           <label class="full">Facture à corriger
             <select name="source_invoice_uid" required>
               <option value="">Sélectionner…</option>
-              {% for d in invoices %}<option value="{{ d.document_uid }}"{% if document.source_invoice_uid == d.document_uid %} selected{% endif %}>{{ d.number }} · {{ d.buyer.name }}</option>{% endfor %}
+              {% for d in invoices %}<option value="{{ d.document_uid }}"{% if source_invoice == d.document_uid %} selected{% endif %}>{{ d.number }} · {{ d.buyer.name }}</option>{% endfor %}
             </select>
           </label>
         {% endif %}
@@ -55,6 +55,22 @@
     </section>
   </div>
 
+  {% if not incoming %}
+  <section class="card stack">
+    <h2>Commande et livraison</h2>
+    <div class="form-grid">
+      <label>Nature de l’opération<select name="operation_category"><option value="">À préciser</option>{% for code,label in operation_categories %}<option value="{{ code }}"{% if document.operation_category == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>Bon de commande de l’acheteur<input name="purchase_order" maxlength="100" value="{{ document.purchase_order|default:'' }}"></label>
+      <label>Date réelle de livraison ou de prestation<input type="date" name="delivery_date" value="{{ document.delivery_date|date:'Y-m-d' }}"></label>
+    </div>
+    <label>Destination de livraison<select name="delivery_mode" id="delivery-mode">
+      <option value="customer"{% if not document %} selected{% endif %}>Reprendre l’adresse de livraison du client</option>
+      <option value="billing"{% if document and not document.delivery_address %} selected{% endif %}>Adresse de facturation</option>
+      <option value="custom"{% if document.delivery_address %} selected{% endif %}>Adresse propre à ce document</option>
+    </select></label>
+    <div id="delivery-custom">{% include "core/delivery_address_fields.html" with address=document.delivery_address %}</div>
+  </section>
+  {% endif %}
   <section class="card">
     <div class="section-head">
       <h2>Prestations et produits</h2>

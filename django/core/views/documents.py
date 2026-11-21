@@ -2,6 +2,9 @@ import json
 import secrets
 from collections import defaultdict
 from tempfile import TemporaryFile
+from core.models import SaleOperation, Email
+from core.services import sale_receipts, sales_workspace
+from core.common import uid
 from datetime import date, timedelta
 from django.conf import settings
 from django.contrib import messages
@@ -204,6 +207,21 @@ def documents(request, section, document_uid=None, action=None):
                         "litige": "dispute",
                     }[action],
                 )
+        elif action == "remise-client":
+            service.record_handover(document)
+        elif action == "annuler-encaissement":
+            if request.role not in ROLES["finance"]:
+                raise BusinessError("Un accès financier est requis pour annuler un règlement.", 403)
+            sale_receipts.cancel_declaration(document, request.POST.get("receipt_uid"))
+        elif action == "encaisser":
+            if request.role not in ROLES["finance"]:
+                raise BusinessError("Un accès financier est requis pour déclarer un règlement.", 403)
+            from core.numbers import current_style
+            try:
+                value = current_style().parse(request.POST.get("amount", ""))
+            except ValueError as exc:
+                raise BusinessError("Saisissez le montant au format numérique de votre entreprise.") from exc
+            sale_receipts.declare(document, value, request.POST.get("received_on"), request.POST.get("receipt_uid"))
         elif action in {"facturer", "facture-avancement"}:
             result = service.bill_quote(
                 request.company,
@@ -285,6 +303,11 @@ def documents(request, section, document_uid=None, action=None):
             raise BusinessError("Ce document est figé.", 409)
         if request.role not in ROLES["write"]:
             raise BusinessError("Modification non autorisée.", 403)
+        source = None
+        if kind == "credit_note" and not document and request.GET.get("source_invoice_uid"):
+            source = Document.objects.filter(company_uid=request.company.company_uid, direction="outgoing",
+                                             document_uid=request.GET["source_invoice_uid"], type__in=service.INVOICE_TYPES,
+                                             status__in=["sent", "paid"]).first()
         return render(
             request,
             "core/document_form.html",
@@ -293,10 +316,12 @@ def documents(request, section, document_uid=None, action=None):
                 "document": document,
                 "section": section,
                 "is_quote": kind == "quote",
+                "operation_categories": SaleOperation.choices,
                 "selected_customer_uid": document.customer_uid
                 if document
-                else request.GET.get("customer_uid", ""),
+                else source.customer_uid if source else request.GET.get("customer_uid", ""),
                 "is_credit": kind == "credit_note",
+                "source_invoice": document.source_invoice_uid if document else request.GET.get("source_invoice_uid", ""),
                 "incoming": section == "reception",
                 "customers": Customer.objects.filter(
                     company_uid=request.company.company_uid, status="active"
@@ -341,7 +366,7 @@ def documents(request, section, document_uid=None, action=None):
                         else brand.payment_due_days
                     )
                 ),
-                "default_currency": brand.default_currency,
+                "default_currency": source.currency_code if source else brand.default_currency,
             },
         )
     if document:
@@ -394,6 +419,13 @@ def documents(request, section, document_uid=None, action=None):
                 if pdp_link
                 else "",
                 "pdp_operations": pdp_operations,
+                "sale_invoice": sale_receipts.is_sale(document),
+                "receipts": document.receipts.select_related("transaction").order_by("-received_on", "-pk") if sale_receipts.is_sale(document) else (),
+                "receipt_nonce": uid(), "today": today(),
+                "handover": InvoiceEvent.objects.filter(company_uid=document.company_uid, document_uid=document.document_uid,
+                                                       event_code="local:customer_handover").first() if sale_receipts.is_sale(document) else None,
+                "invoice_email": Email.objects.filter(company_uid=document.company_uid, document_uid=document.document_uid,
+                                                      template="invoice").order_by("-id").first() if sale_receipts.is_sale(document) else None,
                 **followup_context(request, document),
             },
         )
@@ -440,6 +472,7 @@ def document_list(request, section, *, export=False):
         )
     error = None
     cards = []
+    sales = {}
     try:
         date_field = "issue_date"
         if section == "reception":
@@ -464,10 +497,14 @@ def document_list(request, section, *, export=False):
             raise BusinessError(
                 "La date de fin doit être égale ou postérieure à la date de début."
             )
-        if start:
-            query = query.filter(**{f"{date_field}__gte": start})
-        if end:
-            query = query.filter(**{f"{date_field}__lte": end})
+        if section == "factures":
+            from core.services.branding import for_company
+            query, sales = sales_workspace.workspace(query, request.GET, start, end, for_company(request.company).default_currency)
+        else:
+            if start:
+                query = query.filter(**{f"{date_field}__gte": start})
+            if end:
+                query = query.filter(**{f"{date_field}__lte": end})
         if not export:
             cards = document_status_cards(query, section, request.GET)
         if request.GET.get("status"):
@@ -492,6 +529,7 @@ def document_list(request, section, *, export=False):
             "section": section,
             "reception_error": str(error) if error else "",
             "status_cards": cards,
+            **sales,
             "reception_totals": reception_totals(query) if section == "reception" and not error else (),
             "new_url": f"/app/{section}/{new}",
             **(

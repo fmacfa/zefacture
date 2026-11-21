@@ -1006,6 +1006,10 @@ def ingest_invoice(company, session, state, overview):
                     for row in lines
                 ]
             )
+            if direction == "outgoing" and status == "sent" and document.type != "credit_note":
+                prepaid = document.total_including_tax - document.amount_due
+                if prepaid > 0:
+                    document.receipts.create(amount=prepaid, origin="legacy")
             event(
                 document,
                 "pdp_imported",

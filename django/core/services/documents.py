@@ -26,7 +26,7 @@ from core.models import (
 from .calculations import calculate
 
 
-CUSTOMER_FIELDS = "type legal_name trade_name siren siret vat_number email phone address_line1 address_line2 postal_code city country_code electronic_address electronic_address_scheme".split()
+CUSTOMER_FIELDS = "type legal_name trade_name local_registration siren siret vat_number email phone address_line1 address_line2 postal_code city country_code electronic_address electronic_address_scheme".split()
 COMPANY_FIELDS = "legal_name trade_name siren siret vat_number address_line1 address_line2 postal_code city country_code billing_email support_email phone website legal_form share_capital rcs_city rcs_number ape_code bank_iban bank_bic payment_terms invoice_footer vat_regime has_vat_on_debits quote_number_prefix invoice_number_prefix credit_note_number_prefix".split()
 INVOICE_TYPES = ("invoice", "progress_invoice")
 ISSUED_INVOICE_STATUSES = {"sent", "paid", "accepted"}
@@ -37,6 +37,11 @@ def save_customer(company, data, customer=None):
     for field in CUSTOMER_FIELDS:
         if field in data:
             setattr(customer, field, str(data[field] or "").strip())
+    if "delivery_address" in data:
+        from .sale_details import address_from
+        customer.delivery_address = address_from(data)
+    if len(customer.local_registration) > 100:
+        raise BusinessError("L’identifiant local est limité à 100 caractères.")
     if not customer.legal_name:
         raise BusinessError("Nom du client requis.")
     if customer.type not in ("business", "individual"):
@@ -79,6 +84,7 @@ def snapshot(party, seller=False):
             result[key] = getattr(session, key, "") or ""
     else:
         result.update(
+            local_registration=party.local_registration,
             type=party.type,
             electronic_address=party.electronic_address or "",
             electronic_address_scheme=party.electronic_address_scheme or "",
@@ -104,6 +110,16 @@ def record_issuance(document, file, label):
     document.updated_at = document.sent_at
     document.save()
     event(document, "sent", label, {"file_uid": file.file_uid})
+
+
+@transaction.atomic
+def record_handover(document):
+    document = Document.objects.select_for_update().get(pk=document.pk)
+    if document.direction != "outgoing" or document.type not in INVOICE_TYPES or document.status not in ISSUED_INVOICE_STATUSES:
+        raise BusinessError("Seule une facture client émise peut être remise au client.", 409)
+    existing = InvoiceEvent.objects.filter(company_uid=document.company_uid, document_uid=document.document_uid,
+                                           event_code="local:customer_handover").first()
+    return existing or event(document, "customer_handover", "Remise au client déclarée")
 
 
 @transaction.atomic
@@ -282,6 +298,8 @@ def save_document(
         }
         setattr(document, side, json_text(snapshot_data))
     document.issue_date = iso_date(data.get("issue_date") or today())
+    from .sale_details import update_details
+    update_details(document, data, customer)
     from .branding import for_company
 
     brand = for_company(company)
@@ -431,7 +449,7 @@ def bill_quote(company, user, quote, percent=None):
         raise BusinessError("Solde trop faible ou montants historiques incohérents.")
     data = {
         key: getattr(quote, key)
-        for key in "customer_uid currency_code subject buyer_reference payment_terms payment_method_code notes".split()
+        for key in "customer_uid currency_code subject buyer_reference payment_terms payment_method_code notes delivery_date delivery_address operation_category purchase_order".split()
     }
     data.update(
         lines=lines,
@@ -507,7 +525,11 @@ def change_status(document, action):
             raise BusinessError("Ce document ne peut pas être payé.", 409)
         if document.status == "paid":
             return document
-        document.status, document.amount_due, document.paid_at = "paid", 0, stamp()
+        if document.direction == "outgoing":
+            from .sale_receipts import mark_balance_paid
+            mark_balance_paid(document)
+        else:
+            document.status, document.amount_due, document.paid_at = "paid", 0, stamp()
     elif document.direction == "incoming" and action in {"accept", "refuse", "dispute"}:
         if document.status not in {"received", "accepted", "disputed"}:
             raise BusinessError("Transition fournisseur impossible.", 409)
@@ -531,6 +553,11 @@ def change_status(document, action):
 def payload(document):
     keys = "document_uid type direction status number customer_uid issue_date due_date currency_code reference subject buyer_reference payment_terms payment_method_code notes source_quote_uid source_invoice_uid progress_percent total_excluding_tax total_vat total_including_tax rounding_amount amount_due accepted_at created_at".split()
     result = {key: getattr(document, key) for key in keys}
+    result.update(
+        delivery_date=str(document.delivery_date) if document.delivery_date else None,
+        purchase_order=document.purchase_order, operation_category=document.operation_category,
+        delivery_address=document.delivery_address,
+    )
     result["customer_name"] = document.buyer.get("name", "")
     result["lines"] = list(document.lines.values())
     result["files"] = list(

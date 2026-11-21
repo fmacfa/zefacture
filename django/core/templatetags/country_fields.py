@@ -5,7 +5,7 @@ register = template.Library()
 
 
 @register.simple_tag
-def country_input(field_id, value="FR"):
+def country_input(field_id, value="FR", name="country_code", required=True):
     return CountryInput().render(
-        "country_code", value, attrs={"id": field_id, "required": True}
+        name, value, attrs={"id": field_id, "required": required}
     )

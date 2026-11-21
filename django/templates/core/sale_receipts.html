@@ -1,0 +1,27 @@
+<section class="card stack" id="encaissements">
+  <h2>Suivi de la facture client</h2>
+  <dl class="payment-summary">
+    <div><dt>Émission</dt><dd>{% if document.status == "draft" %}Brouillon{% elif document.status == "simulated" %}Simulation{% elif document.status == "cancelled" %}Annulée{% else %}Émise {{ document.sent_at|default:"" }}{% endif %}</dd></div>
+    <div><dt>Remise et transmission</dt><dd>{% if handover %}Remise au client déclarée le {{ handover.occurred_at }}. {% endif %}{% if invoice_email %}E-mail · {% if invoice_email.status == "sent" %}accepté par la messagerie{% elif invoice_email.status == "queued" %}en attente d’envoi{% elif invoice_email.status == "failed" %}échec{% else %}{{ invoice_email.status }}{% endif %}{% endif %}
+      {% if pdp_link or pdp_operations %}SUPERPDP · {{ pdp_status_label|default:"consulter le suivi du dépôt" }}{% elif not invoice_email and not handover %}Aucune transmission enregistrée dans ZeFacture{% endif %}</dd></div>
+    <div><dt>Encaissement</dt><dd>{% if document.status == "draft" or document.status == "simulated" or document.status == "cancelled" %}Sans objet{% elif document.amount_due == 0 %}Soldée{% elif document.amount_due < document.total_including_tax %}Partiellement réglée{% else %}En attente de paiement{% endif %}</dd></div>
+  </dl>
+  {% if can_write and not handover %}{% if document.status == "sent" or document.status == "paid" or document.status == "accepted" %}
+    <form method="post" action="{{ document.url }}/remise-client" data-confirm="Confirmer que le client a reçu la facture ?">{% csrf_token %}<button class="secondary">Déclarer la remise au client</button></form>
+  {% endif %}{% endif %}
+  {% if receipts %}<div class="table-wrap"><table><thead><tr><th>Date d’encaissement</th><th class="num">Montant</th><th>Justification</th></tr></thead><tbody>{% for receipt in receipts %}<tr>
+    <td>{{ receipt.received_on|date:"d/m/Y"|default:"Date historique inconnue" }}</td><td class="num">{{ receipt.amount|display_number:2 }} {{ document.currency_code }}</td>
+    <td>{% if receipt.cancelled %}Règlement annulé{% elif receipt.transaction_id %}{% if can_finance %}<a href="/app/finances/transactions/{{ receipt.transaction.transaction_uid }}/traiter">Voir la transaction rapprochée</a>{% else %}Rapproché en banque{% endif %}{% else %}{{ receipt.get_origin_display }} · à confirmer en banque
+      {% if can_finance and receipt.origin == "manual" %}<form method="post" action="{{ document.url }}/annuler-encaissement" data-confirm="Annuler cette déclaration et rétablir le reste dû ?">{% csrf_token %}<input type="hidden" name="receipt_uid" value="{{ receipt.receipt_uid }}"><button class="text-button">Annuler la déclaration</button></form>{% endif %}
+    {% endif %}</td>
+  </tr>{% endfor %}</tbody></table></div>{% endif %}
+  {% if can_finance and document.amount_due > 0 and document.status == "sent" or can_finance and document.amount_due > 0 and document.status == "accepted" %}
+  <form class="filters" method="post" action="{{ document.url }}/encaisser">{% csrf_token %}
+    <input type="hidden" name="receipt_uid" value="{{ receipt_nonce }}">
+    <label>Montant reçu ({{ document.currency_code }})<input name="amount" type="text" inputmode="decimal" required></label>
+    <label>Date d’encaissement<input name="received_on" type="date" value="{{ today }}" max="{{ today }}" required></label>
+    <button>Enregistrer le règlement</button>
+  </form>{% endif %}
+  {% if can_finance and document.status != "draft" and document.status != "cancelled" and document.status != "simulated" %}
+  <a href="/app/finances/transactions?traitement=pending">Rapprocher une transaction bancaire</a>{% endif %}
+</section>

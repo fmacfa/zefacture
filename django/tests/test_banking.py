@@ -186,6 +186,83 @@ class BankingTests(ApplicationCase):
             )
         )
 
+    def test_bridge_confirms_400_on_1200_once_and_shows_the_remaining_800(self):
+        feed = self.connect()
+        invoice = self.invoice("VENTE-1200", direction="outgoing", status="sent", issue_date="2026-04-03",
+                               due_date="2026-05-01", total_including_tax=1200, amount_due=1200)
+        period = {"from": "2026-05-01", "to": "2026-05-31"}
+        payment = {"amount": "400,00", "received_on": DAY, "receipt_uid": uuid4().hex}
+        for _ in range(2):
+            self.assertEqual(self.client.post(invoice.url + "/encaisser", payment).status_code, 302)
+        def verify_balances():
+            invoice.refresh_from_db()
+            self.assertEqual((invoice.amount_due, invoice.status, invoice.receipts.count()), (800, "sent", 1))
+            page = self.client.get("/app/factures", {**period, "suivi": "received", "devise": "EUR"})
+            self.assertContains(page, invoice.number)
+            self.assertEqual([c["amount"] for c in page.context["sales_groups"][0]["cards"]], [800, 800, 400])
+        verify_balances()
+        self.api.rows[10] = [movement(710, amount=400, label="Virement VENTE-1200")]
+        self.sync(feed)
+        self.sync(feed)
+        verify_balances()
+        receipt = invoice.receipts.get()
+        self.assertEqual(receipt.transaction.document_uid, invoice.document_uid)
+        self.assertContains(self.client.get(invoice.url), receipt.transaction.transaction_uid + "/traiter")
+        self.assertEqual(self.client.get("/app/factures", {**period, "suivi":"overdue"}).context["documents"].paginator.count, 1)
+
+        self.api.rows[10].append(movement(711, amount=800, label="Solde VENTE-1200"))
+        self.sync(feed)
+        invoice.refresh_from_db()
+        self.assertEqual((invoice.amount_due, invoice.status, invoice.receipts.count()), (0, "paid", 2))
+        self.api.rows[10][0] = movement(710, amount=400, label="Virement VENTE-1200",
+                                         deleted=True, updated_at="2026-05-15T08:00:00Z")
+        self.sync(feed)
+        entry = BankFeedEntry.objects.get(remote_id="710")
+        self.assertEqual(entry.review, "correction")
+        bank_sync.resolve_entry(self.company, entry.pk, "correct")
+        invoice.refresh_from_db()
+        self.assertEqual((invoice.amount_due, invoice.status), (400, "sent"))
+        self.assertEqual(invoice.receipts.filter(cancelled=False).get().amount, 800)
+
+    def test_fully_declared_invoice_and_ambiguous_declarations_can_be_matched(self):
+        feed = self.connect()
+        doc = self.invoice("VENTE-PAI-81", direction="outgoing", status="sent", amount_due=800, total_including_tax=800)
+        for _ in range(2):
+            self.client.post(doc.url + "/encaisser", {"amount":400, "received_on":DAY, "receipt_uid":uuid4().hex})
+        self.api.rows[10] = [movement(812, amount=400, label=doc.number)]
+        self.sync(feed)
+        tx = BankFeedEntry.objects.get(remote_id="812").transaction
+        treatment = self.client.get(TRANSACTIONS + "/" + tx.transaction_uid + "/traiter")
+        receipt = doc.receipts.first()
+        choice = doc.document_uid + "/" + receipt.receipt_uid
+        self.assertContains(treatment, choice)
+        self.assertIsNone(tx.document_uid)
+        self.assertEqual(self.client.post(TRANSACTIONS + "/" + tx.transaction_uid + "/rapprocher",
+                                         {"document_uid": choice}).status_code, 302)
+        doc.refresh_from_db()
+        self.assertEqual((doc.amount_due, doc.status, doc.receipts.filter(transaction__isnull=False).count()), (0, "paid", 1))
+
+    def test_receipt_history_is_additive_and_unknown_dates_do_not_enter_cash_totals(self):
+        from django.apps import apps
+        from django.db import connection
+        from core.receipt_history import fill_receipt_history
+        from core.services.sales_workspace import workspace
+        paid = self.invoice("VENTE-OLD-01", direction="outgoing", status="paid", issue_date=DAY,
+                            due_date=DAY, total_including_tax=1200, amount_due=0, paid_at=DAY + " 12:00:00")
+        unknown = self.invoice("VENTE-OLD-02", direction="outgoing", status="sent", issue_date=DAY,
+                               due_date=DAY, total_including_tax=1200, amount_due=800)
+        tx = BankTransaction.objects.create(company_uid=self.company.company_uid, document_uid=paid.document_uid,
+                                           direction="incoming", amount=400, transaction_date=DAY, status="booked")
+        for _ in range(2):
+            fill_receipt_history(apps, connection.alias)
+        self.assertEqual(paid.receipts.count(), 2)
+        self.assertEqual(paid.receipts.get(transaction=tx).amount, 400)
+        self.assertEqual(paid.receipts.get(origin="legacy").amount, 800)
+        self.assertIsNone(unknown.receipts.get().received_on)
+        visible = Document.objects.filter(pk__in=[paid.pk, unknown.pk])
+        _, summary = workspace(visible, {}, DAY, DAY, "EUR")
+        self.assertEqual(summary["sales_groups"][0]["cards"][2]["amount"], 1200)
+
     def test_consent_settings_permissions_nonce_pause_and_resume(self):
         self.assertContains(self.client.get(ACCOUNTS), "Configurer Bridge")
         feed = self.connect()
