@@ -28,7 +28,10 @@ from core.common import BusinessError, stamp
 DJANGO_ONLY_COLUMNS = {
     "bank_transactions": {"standalone_category", "classification_note"},
     "customers": {"local_registration", "delivery_address"},
-    "documents": {"operation_category", "delivery_date", "purchase_order", "delivery_address"},
+    "email_outbox": {"reminder_balance"},
+    "document_lines": {"unit_price_including_tax", "global_discount_amount"},
+    "inventory_items": {"currency_code", "vat_category_code", "unit_price_including_tax"},
+    "documents": {"global_discount_type", "global_discount_value", "global_discount_amount", "operation_category", "delivery_date", "purchase_order", "delivery_address"},
     "companies": {"ingestion_ai"},
     "inventory_stock_movements": {"source_document_uid", "source_line_uid"},
 }

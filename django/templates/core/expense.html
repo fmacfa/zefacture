@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}{% load static %}
-{% block styles %}<link rel="stylesheet" href="{% static 'document-reader.css' %}"><link rel="stylesheet" href="{% static 'expenses.css' %}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{% static 'document-reader.css' %}"><link rel="stylesheet" href="{% static 'expenses.css' %}"><link rel="stylesheet" href="{% static 'document-editor.css' %}">{% endblock %}
 {% block content %}
 <a class="expense-back" href="/app/notes-de-frais{% if item.archived_at %}?archives=1{% endif %}">← Notes de frais</a>
 <div class="page-head expense-heading">

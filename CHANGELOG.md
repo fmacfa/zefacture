@@ -1,5 +1,12 @@
 # Changements
 
+## Tarifs, catalogue et relances des ventes
+
+- Saisie des prix unitaires HT ou TTC et remise globale en pourcentage ou en montant HT, avec répartition par taux dans les devis, les factures et le XML Factur-X.
+- Ajout d’un produit ou d’un service au catalogue depuis une ligne de devis, avec réutilisation d’une référence existante.
+- Relance individuelle ou groupée depuis la liste des retards. L’aperçu et le contrôle avant envoi tiennent compte des paiements partiels.
+- Choix supplémentaires de formes juridiques et guide des champs de facturation pour les sociétés françaises et étrangères.
+
 ## Suivi des ventes et des encaissements
 
 - Dates de prestation, références de commande, adresses de livraison et nature des opérations dans le PDF et le XML. Prise en compte de la TVA sur les débits et de l’immatriculation locale des clients étrangers.

@@ -199,6 +199,9 @@ class Customer(models.Model):
 class Document(models.Model):
     delivery_date = models.DateField(null=True, blank=True)
     purchase_order = models.CharField(max_length=100, blank=True, default="")
+    global_discount_type = models.CharField(max_length=7, default="percent")
+    global_discount_value = models.DecimalField(max_digits=16, decimal_places=4, default=0)
+    global_discount_amount = models.DecimalField(max_digits=30, decimal_places=2, default=0)
     operation_category = models.CharField(max_length=2, choices=SaleOperation.choices, blank=True, default="")
     delivery_address = models.JSONField(default=dict, blank=True)
     document_uid = models.CharField(max_length=32, unique=True, default=uid)
@@ -324,6 +327,13 @@ class Document(models.Model):
 
 
 class DocumentLine(models.Model):
+    unit_price_including_tax = models.DecimalField(max_digits=30, decimal_places=8, null=True, blank=True)
+    global_discount_amount = models.DecimalField(max_digits=30, decimal_places=2, default=0)
+
+    @property
+    def net_before_global_discount(self):
+        return self.total_excluding_tax + self.global_discount_amount
+
     line_uid = models.CharField(max_length=32, unique=True, default=uid)
     document_uid = models.CharField(max_length=32, db_index=True, default="")
     position = models.IntegerField(default=1)
@@ -366,6 +376,9 @@ class DocumentFile(models.Model):
 
 
 class InventoryItem(models.Model):
+    currency_code = models.CharField(max_length=3, blank=True, default="")
+    vat_category_code = models.CharField(max_length=2, default="", blank=True)
+    unit_price_including_tax = models.DecimalField(max_digits=30, decimal_places=8, null=True, blank=True)
     item_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, default="")
     reference = models.TextField(null=True, blank=True)
@@ -498,6 +511,7 @@ class InvoiceEvent(models.Model):
 
 
 class Email(models.Model):
+    reminder_balance = models.DecimalField(max_digits=30, decimal_places=2, null=True, blank=True)
     email_uid = models.CharField(max_length=32, unique=True, default=uid)
     company_uid = models.CharField(max_length=32, db_index=True, null=True, blank=True)
     document_uid = models.CharField(max_length=32, db_index=True, null=True, blank=True)

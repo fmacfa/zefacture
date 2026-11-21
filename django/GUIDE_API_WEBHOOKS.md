@@ -150,6 +150,21 @@ Les dates sont `AAAA-MM-JJ`, l’échéance ne précède pas l’émission. Les 
 
 Il faut de 1 à 1 000 lignes ; quantité positive, prix non négatif, TVA et remise entre 0 et 100. Envoyer les décimaux en chaînes avec un point. ZeFacture recalcule les totaux ; les réponses API convertissent les valeurs décimales en nombres JSON. Éviter de reconstruire des montants comptables à partir de nombres flottants binaires côté client.
 
+Pour un tarif TTC, envoyez `unit_price_including_tax` dans la ligne, avec `vat_rate`. Le TTC renseigné sert de base au calcul du prix unitaire HT. Le champ historique `unit_price_excluding_tax` reste disponible pour les tarifs HT. Le taux détermine la catégorie par défaut (`S` si positif, `Z` à zéro). À zéro, `vat_category_code` permet aussi de préciser `E` (exonérée), `AE` (autoliquidation), `K` (livraison intra-UE), `G` (export) ou `O` (hors champ), selon l’opération.
+
+Pour appliquer une remise à tout le document, ajoutez à la racine `global_discount_type` et `global_discount_value`. Les types acceptés sont `percent` (0 à 100, après les remises de ligne) et `amount` (montant fixe HT au centime dans la devise du document). Le serveur répartit la remise entre les taux. La réponse donne `global_discount_amount`, les totaux, `rounding_amount` et `amount_due`. Par exemple, cette partie d’une requête produit 180,00 € HT, 27,00 € de TVA et 207,00 € à payer.
+
+```json
+{
+  "global_discount_type": "percent",
+  "global_discount_value": "10",
+  "lines": [
+    {"description": "Article", "quantity": "1", "unit_price_including_tax": "120", "vat_rate": "20"},
+    {"description": "Service", "quantity": "1", "unit_price_excluding_tax": "100", "vat_rate": "10"}
+  ]
+}
+```
+
 Pour générer un Factur-X à la création d’un brouillon, ajouter `"generate_facturx": true`. Les coordonnées nécessaires à la validation doivent être complètes. Un échec de cette génération annule la création dans la transaction. Pour un parcours de vente, créez le brouillon puis appelez `/issue`, qui génère le Factur-X et fige la facture en une seule opération.
 
 Pour accepter un devis ou créer le solde, envoyer `{}` à l’action correspondante. Pour un avancement, transmettre une clé propre à l’étape dans l’en-tête `Idempotency-Key`, par exemple `chantier-demo-etape-1`, et le pourcentage dans le corps de la demande.

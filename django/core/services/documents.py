@@ -236,7 +236,12 @@ def save_document(
         raise BusinessError(
             "Sélectionnez un client ou fournisseur actif de cette entreprise."
         )
-    computed = calculate(data.get("lines", []))
+    discount_type = data.get("global_discount_type", document.global_discount_type)
+    discount_value = decimal(data.get("global_discount_value", document.global_discount_value))
+    computed = calculate(data.get("lines", []), discount_type, discount_value)
+    document.global_discount_type = discount_type
+    document.global_discount_value = discount_value
+    document.global_discount_amount = computed["allowance"]
     document.customer_uid = customer.customer_uid if customer else None
     if direction == "incoming":
         document.number = str(data.get("number", "")).strip()
@@ -300,6 +305,10 @@ def save_document(
     document.issue_date = iso_date(data.get("issue_date") or today())
     from .sale_details import update_details
     update_details(document, data, customer)
+    if customer and data.get("delivery_mode") == "billing" and any(t["category"] == "K" for t in computed["taxes"]):
+        document.delivery_address = {"line1": customer.address_line1 or "", "line2": customer.address_line2 or "",
+                                     "city": customer.city or "", "postal_code": customer.postal_code or "",
+                                     "country_code": customer.country_code}
     from .branding import for_company
 
     brand = for_company(company)
@@ -366,10 +375,10 @@ def save_document(
     document.total_excluding_tax, document.total_vat, document.total_including_tax = (
         computed["net"],
         computed["vat"],
-        computed["gross"],
+        computed["payable"],
     )
-    document.rounding_amount = 0
-    document.amount_due = 0 if kind in {"quote", "credit_note"} else computed["gross"]
+    document.rounding_amount = computed["rounding"]
+    document.amount_due = 0 if kind in {"quote", "credit_note"} else computed["payable"]
     new = document.pk is None
     document.updated_at = stamp()
     document.save()
@@ -441,11 +450,14 @@ def bill_quote(company, user, quote, percent=None):
                         vat_category_code=category,
                     )
                 )
-    computed = calculate(lines)
+    discount_type = quote.global_discount_type if not already and percent is None else "percent"
+    discount_value = quote.global_discount_value if not already and percent is None else 0
+    computed = calculate(lines, discount_type, discount_value)
     previous_gross = sum((d.total_including_tax for d in previous), Decimal(0))
     gross = money(quote.total_including_tax * cumulative / 100) - previous_gross
     rounding = gross - computed["gross"]
-    if gross <= 0 or abs(rounding) > max(Decimal("0.02"), len(bases) * Decimal("0.02")):
+    zero_final = percent is None and not already and not quote.total_including_tax
+    if (gross <= 0 and not zero_final) or abs(rounding) > abs(quote.rounding_amount) + max(Decimal("0.02"), len(bases) * Decimal("0.02")):
         raise BusinessError("Solde trop faible ou montants historiques incohérents.")
     data = {
         key: getattr(quote, key)
@@ -453,6 +465,8 @@ def bill_quote(company, user, quote, percent=None):
     }
     data.update(
         lines=lines,
+        global_discount_type=discount_type,
+        global_discount_value=discount_value,
         reference=f"Devis {quote.number}",
         issue_date=today(),
         due_date=str(date.fromisoformat(today()) + timedelta(days=30)),
@@ -554,6 +568,8 @@ def payload(document):
     keys = "document_uid type direction status number customer_uid issue_date due_date currency_code reference subject buyer_reference payment_terms payment_method_code notes source_quote_uid source_invoice_uid progress_percent total_excluding_tax total_vat total_including_tax rounding_amount amount_due accepted_at created_at".split()
     result = {key: getattr(document, key) for key in keys}
     result.update(
+        global_discount_type=document.global_discount_type, global_discount_value=document.global_discount_value,
+        global_discount_amount=document.global_discount_amount,
         delivery_date=str(document.delivery_date) if document.delivery_date else None,
         purchase_order=document.purchase_order, operation_category=document.operation_category,
         delivery_address=document.delivery_address,

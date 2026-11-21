@@ -105,12 +105,26 @@ Un nouveau brouillon porte une référence `BROUILLON-…`. L’enregistrement, 
 ### Préparer et envoyer un devis
 
 1. Ouvrir **Devis → Nouveau devis**, sélectionner un client et saisir objet, dates et devise.
-2. Ajouter les lignes, quantités, prix HT, TVA et remises. Vérifier les totaux calculés.
+2. Ajouter les lignes, choisir le prix unitaire HT ou TTC, la quantité, la TVA et les remises. Vérifier le total et sa ventilation par taux.
 3. Enregistrer le document et télécharger le PDF. Compléter un brouillon sans client avant de l’envoyer ou de l’accepter.
 4. Utiliser l’action d’envoi après vérification du destinataire. L’email et le PDF sont préparés dans la file ; la livraison dépend de la messagerie et du worker.
 5. Le lien transmis permet au destinataire de consulter et d’accepter le devis. Il est privé et temporaire ; dans cette version, sa durée est de trente jours après l’envoi, indépendamment de l’échéance affichée du devis.
 
 Après acceptation, utiliser **Facturer** pour la facture de solde ou **Facture d’avancement** pour un pourcentage. Les avancements déjà facturés sont déduits du solde ; le cumul ne peut pas dépasser 100 %. Contrôler la nouvelle échéance avant l’émission.
+
+#### Saisir un prix TTC et une remise globale
+
+Dans **Prestations et produits**, chaque ligne a son propre sélecteur **HT / TTC**. Pour un tarif annoncé au client toutes taxes comprises, choisissez **TTC**, renseignez le prix unitaire et le taux applicable. Vous pouvez mélanger lignes HT et TTC dans un même document. L’éditeur affiche le total HT de chaque ligne après sa remise individuelle.
+
+Sous les lignes, **Remise globale** accepte un pourcentage du sous-total HT après les remises de ligne, ou un montant fixe HT dans la devise du document. La remise fixe se saisit au centime. Lors de la vérification d’une facture importée, les mêmes champs permettent de retrouver les prix et la remise qui figurent sur l’original. Le récapitulatif montre son montant, la base et la TVA de chaque taux, puis le TTC à payer. Un éventuel ajustement d’arrondi apparaît aussi sur la facture.
+
+Prenons deux articles à 120 € TTC (TVA 20 %) avec 10 % de remise de ligne, et une prestation à 110 € TTC (TVA 10 %). Le sous-total HT est de 280 €. Une remise globale de 10 % enlève 18 € de la base à 20 % et 10 € de la base à 10 %. La facture indique **252 € HT, 41,40 € de TVA et 293,40 € TTC**.
+
+#### Ajouter un article depuis le devis
+
+Sur la ligne renseignée, cliquez sur **Ajouter au catalogue**. Vérifiez le nom, la référence, le choix **Produit** ou **Service** et le tarif affiché, puis confirmez. Le catalogue reprend la désignation, le prix unitaire avant remises, l’unité, la devise, le taux et la catégorie de TVA. La ligne reste dans le devis. Vous pourrez insérer l’article depuis le sélecteur d’inventaire sur un autre devis dans la même devise.
+
+Si la référence existe, **Utiliser cet article** reprend sa référence et préserve le prix négocié dans le devis. Sans référence, la recherche utilise le nom de l’article. En présence de plusieurs résultats, précisez la référence ou choisissez l’article dans l’inventaire. La création d’un article laisse son stock à zéro.
 
 ### Créer et suivre une facture
 
@@ -131,6 +145,24 @@ Ouvrez la facture et utilisez **Suivi de la facture client → Enregistrer le r�
 Le rapprochement automatique nécessite l’option activée, une transaction comptabilisée dans la bonne devise et une référence de facture non ambiguë. Pour confirmer automatiquement une déclaration, le montant doit correspondre et les dates doivent être à sept jours d’écart au plus. En cas d’homonymie de montants, ouvrez **Finances → Transactions → Traiter**, puis sélectionnez la déclaration avec sa date ou **Nouveau règlement** si la transaction est supplémentaire. Les règlements historiques de date inconnue restent visibles sur leur fiche.
 
 Dans la fiche, **Émission**, **Remise et transmission** et **Encaissement** se lisent séparément. Après remise du PDF en main propre ou dans un espace client, utilisez **Déclarer la remise au client**. Les événements de messagerie et de SUPERPDP conservent leur propre suivi.
+
+#### Relancer depuis la liste des retards
+
+Dans **Factures clients**, ouvrez **Dont en retard**. Cliquez sur **Préparer une relance** pour une facture, ou cochez plusieurs lignes puis cliquez sur **Préparer les relances sélectionnées**. Relisez le destinataire, l’objet, le texte et le solde de chaque facture. Pour une vente de 1 200 € avec 400 € déjà rapprochés, l’e-mail réclame **800 €**.
+
+**Confirmer l’envoi** place les messages dans **Emails**. La fiche de la facture conserve la trace de la relance. Une facture soldée, un destinataire manquant ou une relance déjà en attente ou envoyée le même jour sont signalés. Si un paiement arrive entre l’aperçu et la confirmation, ouvrez un nouvel aperçu. Si le solde change après confirmation, le worker annule le message devenu obsolète avant son expédition. Le mode de messagerie **outbox** conserve les messages pour consultation locale.
+
+#### Champs à vérifier avant émission
+
+| Rubrique | Informations à renseigner |
+| --- | --- |
+| Entreprise émettrice | Pays d’établissement, identité légale, forme juridique, immatriculation, adresse, régime de TVA et option sur les débits. Les entreprises françaises disposent de suggestions de formes juridiques. Une entreprise étrangère peut renseigner sa forme locale. |
+| Client | Professionnel ou particulier, raison sociale ou nom, adresse de facturation, adresse de livraison et e-mail de facturation. Pour une entreprise étrangère, distinguez l’immatriculation locale du numéro de TVA. |
+| Document | Objet, référence interne, référence acheteur, bon de commande, nature de l’opération, dates d’émission, d’échéance et de livraison ou de prestation, devise, moyen et conditions de paiement. |
+| Lignes | Désignation, référence, quantité, unité, prix unitaire HT ou TTC, remise, taux et catégorie de TVA. |
+| Fiscalité et mentions | Pour une ligne taxée, saisissez le taux applicable, y compris un taux libre. À 0 %, choisissez entre taux zéro, exonération, autoliquidation, livraison intra-UE, export hors UE et hors champ. Renseignez le motif applicable dans **Notes / motif d’exonération**. Pour une livraison intra-UE, précisez la date et le pays de livraison. |
+
+Le taux de TVA s’applique à la ligne. La forme juridique saisie pour l’entreprise ne sélectionne pas le taux.
 
 #### Renseigner les données commerciales
 

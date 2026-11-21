@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import transaction
 from core.models import User, Company, CompanyMember, Customer
 from core.services.documents import save_customer, save_document
+from core.services.sale_receipts import declare
 
 if settings.ENVIRONMENT not in {"local", "testing"}:
     raise RuntimeError("Synthetic fixture is disabled in production")
@@ -79,6 +80,29 @@ def seed():
                 ],
             ),
         )
+
+    # A partially settled sale for the overdue-list browser workflow.
+    late = save_document(
+        company,
+        user,
+        "invoice",
+        {
+            "customer_uid": customer.customer_uid,
+            "issue_date": "2020-01-01",
+            "due_date": "2020-01-30",
+            "lines": [
+                {
+                    "description": "Prestation de démonstration",
+                    "quantity": 1,
+                    "unit_price": 1000,
+                    "vat_rate": 20,
+                }
+            ],
+        },
+    )
+    late.number, late.status = "DEMO-RELANCE", "sent"
+    late.save(update_fields=["number", "status"])
+    declare(late, 400, "2020-02-10", "a" * 32)
 
 
 seed()

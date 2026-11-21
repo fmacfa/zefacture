@@ -66,6 +66,7 @@ const output=path.resolve(process.env.TEST_OUTPUT||'test-results/browser');
   const source=await context.request.get(base+'/source/archive');assert.equal(source.status(),200);
   assert.equal(errors.length,0,errors.join('\n'));
   await fs.writeFile(path.join(output,'report.json'),JSON.stringify({ok:true,flow:['login','quote_autosave','quote_accept','invoice_conversion','facturx','pdf_download','email_outbox','partial_payment','mobile','source_archive'],javascript_errors:errors},null,2));
+  await require('./browser-commercial.cjs')(context);
   await browser.close();
   console.log('Browser smoke passed: 11 checks; PDF and screenshots saved.');
 })().catch(error=>{console.error(error);process.exit(1)});

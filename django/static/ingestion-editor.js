@@ -11,6 +11,8 @@
     if (!extracted[group] || typeof extracted[group] !== 'object' || Array.isArray(extracted[group])) extracted[group]={};
   }
   extracted.invoice.currency_code=extracted.invoice.currency_code||'EUR';
+  extracted.invoice.global_discount_type ||= 'percent';
+  extracted.invoice.global_discount_value ??= '0';
   const fields=form.querySelectorAll('[data-extract]');
   for(const input of fields) {
     const [group,key]=input.dataset.extract.split('.');

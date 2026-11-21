@@ -1,7 +1,12 @@
+{% if sales_focus == "overdue" and can_write and documents %}
+<form method="post" id="select-reminders" action="/app/factures/relances" class="form-actions">{% csrf_token %}
+  <button class="secondary">Préparer les relances sélectionnées</button>
+</form>{% endif %}
 <div class="table-wrap">
   <table class="invoice-table">
     <thead>
       <tr>
+        {% if sales_focus == "overdue" and can_write %}<th>Relancer</th>{% endif %}
         <th>{% if section == "reception" %}Fournisseur{% elif section %}Client{% else %}Client ou fournisseur{% endif %}</th>
         <th>Date</th>{% if section == "factures" %}<th>Échéance</th>{% endif %}<th>Statut</th><th class="num">Total TTC</th><th class="num">Reste dû</th>{% if sales_focus == "received" %}<th class="num">Encaissé sur la période</th>{% endif %}<th>Actions</th>
       </tr>
@@ -9,6 +14,7 @@
     <tbody>
       {% for d in documents %}
         <tr class="document-row">
+          {% if sales_focus == "overdue" and can_write %}<td data-label="Relancer"><input type="checkbox" name="facture" form="select-reminders" value="{{ d.document_uid }}" aria-label="Sélectionner {{ d.number }}"></td>{% endif %}
           <td>
             <span class="document-party">{% if d.direction == "incoming" %}{{ d.seller.name|default:"Fournisseur" }}{% else %}{{ d.buyer.name|default:"Sans client" }}{% endif %}</span>
             {% if d.number %}<small>{{ d.number }}</small>{% endif %}
@@ -27,7 +33,7 @@
                 {% if d.status == "sent" or d.status == "paid" %}
                   {% if can_finance %}<a href="{{ d.url }}#encaissements">Rapprocher un règlement</a>{% endif %}
                   {% if can_write %}<a href="/app/avoirs/nouveau?source_invoice_uid={{ d.document_uid }}&amp;customer_uid={{ d.customer_uid }}">Créer un avoir</a>
-                    {% if d.status == "sent" and d.amount_due > 0 and d.due_date and d.due_date < today %}<form method="post" action="{{ d.url }}/relancer">{% csrf_token %}<button class="text-button">Préparer une relance</button></form>{% endif %}
+                    {% if d.status == "sent" and d.amount_due > 0 and d.due_date and d.due_date < today %}<a href="/app/factures/relances?facture={{ d.document_uid }}">Préparer une relance</a>{% endif %}
                   {% endif %}
                 {% endif %}
               {% endif %}

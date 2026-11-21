@@ -189,7 +189,7 @@ class BankingTests(ApplicationCase):
     def test_bridge_confirms_400_on_1200_once_and_shows_the_remaining_800(self):
         feed = self.connect()
         invoice = self.invoice("VENTE-1200", direction="outgoing", status="sent", issue_date="2026-04-03",
-                               due_date="2026-05-01", total_including_tax=1200, amount_due=1200)
+                               due_date="2026-05-01", buyer_snapshot='{"email":"client@example.test"}', total_including_tax=1200, amount_due=1200)
         period = {"from": "2026-05-01", "to": "2026-05-31"}
         payment = {"amount": "400,00", "received_on": DAY, "receipt_uid": uuid4().hex}
         for _ in range(2):
@@ -205,6 +205,9 @@ class BankingTests(ApplicationCase):
         self.sync(feed)
         self.sync(feed)
         verify_balances()
+        review = self.client.get("/app/factures/relances", {"facture": invoice.document_uid})
+        self.assertEqual(review.status_code, 200)
+        self.assertRegex(review.context["rows"][0]["item"].body_text, r"800[,.]00 EUR")
         receipt = invoice.receipts.get()
         self.assertEqual(receipt.transaction.document_uid, invoice.document_uid)
         self.assertContains(self.client.get(invoice.url), receipt.transaction.transaction_uid + "/traiter")
