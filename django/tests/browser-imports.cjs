@@ -14,7 +14,7 @@ const output=path.resolve('test-results/browser');
   await Promise.all([page.waitForURL('**/app'),page.getByRole('button',{name:'Se connecter',exact:true}).click()]);
   await page.goto(base+'/app/devis/nouveau');
   await page.getByRole('button',{name:'+ Nouveau client',exact:true}).click();
-  const dialog=page.locator('dialog');
+  const dialog=page.getByRole('dialog',{name:'Nouveau client',exact:true});
   await dialog.getByLabel('Nom / raison sociale',{exact:true}).fill('Client rapide fictif');
   await dialog.getByLabel('Email',{exact:true}).fill('quick@example.test');
   await dialog.getByRole('button',{name:'Créer le client',exact:true}).click();

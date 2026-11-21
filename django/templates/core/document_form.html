@@ -119,9 +119,9 @@
     <p data-price class="muted"></p><p role="status" aria-live="polite"></p>
     <div class="form-actions"><button type="button" class="secondary" data-close>Fermer</button><button type="submit">Ajouter au catalogue</button>
       <button type="button" data-use hidden>Utiliser cet article</button></div></form></dialog>{% endif %}
-<dialog id="quick-customer">
+<dialog id="quick-customer" aria-labelledby="quick-customer-title">
   <form class="stack">
-    <div class="section-head"><h2>Nouveau client</h2><button type="button" class="text-button" data-close aria-label="Fermer">×</button></div>
+    <div class="section-head"><h2 id="quick-customer-title">Nouveau client</h2><button type="button" class="text-button" data-close aria-label="Fermer">×</button></div>
     {% csrf_token %}
     <div class="notice error" role="alert" hidden></div>
     <label>Nom / raison sociale<input name="legal_name" required></label>
