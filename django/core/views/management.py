@@ -769,6 +769,8 @@ def emails(request, email_uid=None):
         item = scoped_get(Email, request, email_uid=email_uid)
         if item.status == "sent":
             raise BusinessError("Cet email a déjà été envoyé.")
+        if item.status == "cancelled" and item.template == "invoice_reminder":
+            raise BusinessError("Préparez une nouvelle relance depuis les factures en retard.")
         from core.services.email_connections import route_email
 
         with transaction.atomic():

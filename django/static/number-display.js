@@ -23,7 +23,12 @@
     return (pair[0].startsWith('-') ? '-' : '') + pieces.join('') + (pair[1] ? '.' + pair[1] : '');
   }
   window.ZeNumbers = {
-    amount(value) { return format(Number(value).toFixed(2), group || 'space', decimal || 'comma'); }
+    number(value) { return format(value, group || 'space', decimal || 'comma'); },
+    amount(value) {
+      const cents = /^([+-]?\d+)(?:\.(\d{1,2}))?$/.exec(String(value));
+      const amount = cents ? cents[1] + '.' + (cents[2] || '').padEnd(2, '0') : Number(value).toFixed(2);
+      return format(amount, group || 'space', decimal || 'comma');
+    }
   };
   const grouping = document.getElementById('number-grouping');
   const separator = document.getElementById('number-decimal');
@@ -56,6 +61,19 @@
     original.setAttribute('aria-hidden','true');
     original.dataset.numberReady = '1';
     original.type = 'hidden';
+    if (original.getAttribute('list') && document.getElementById(original.getAttribute('list'))) {
+      const list = document.getElementById(original.getAttribute('list'));
+      const localizedId = list.id + '-' + group + '-' + decimal;
+      let suggestions = document.getElementById(localizedId);
+      if (!suggestions) {
+        suggestions = document.createElement('datalist');
+        suggestions.id = localizedId;
+        for (const option of list.options)
+          suggestions.append(new Option('', format(option.value, group, decimal)));
+        document.body.append(suggestions);
+      }
+      visible.setAttribute('list', localizedId);
+    }
     visible.value = format(original.value, group, decimal);
     visible.addEventListener('input', () => {
       const result = visible.value === '' ? '' : canonical(visible.value);

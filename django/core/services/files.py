@@ -195,7 +195,7 @@ def xml_data(document, computed):
         "BT-20": document.payment_terms or "Paiement à l'échéance",
         "BG-4": party_xml(document.seller),
         "BG-7": party_xml(document.buyer),
-        "BT-106": str(net),
+        "BT-106": str(computed["subtotal"]),
         "BT-109": str(net),
         "BT-110": str(vat),
         "BT-112": str(gross),
@@ -214,6 +214,8 @@ def xml_data(document, computed):
     if document.seller.get("has_vat_on_debits"):
         data["BT-8"] = "5"
     address = document.delivery_address
+    if any(t["category"] == "K" for t in computed["taxes"]) and (not address.get("country_code") or not document.delivery_date):
+        raise BusinessError("Livraison intra-UE : indiquez la date et le pays effectifs de livraison avant l’émission.")
     if address:
         data["BG-13"] = {
             "name": address.get("name") or document.buyer.get("name", ""),
@@ -249,7 +251,16 @@ def xml_data(document, computed):
         "G": "Exportation hors Union européenne",
         "O": "Hors champ de la TVA",
     }
+    if computed["allowance"]:
+        data["BT-107"] = str(computed["allowance"])
+        data["BG-20"] = []
     for tax in computed["taxes"]:
+        if tax["allowance"]:
+            discount = {"amount": str(tax["allowance"]), "reason": "Remise globale",
+                        "vat_category_code": tax["category"]}
+            if tax["category"] != "O":
+                discount["vat_rate"] = str(tax["rate"])
+            data["BG-20"].append(discount)
         item = {
             "BT-116": str(tax["basis"]),
             "BT-117": str(tax["tax"]),
@@ -266,7 +277,7 @@ def xml_data(document, computed):
             "BT-126": str(line["position"]),
             "BT-129": str(line["quantity"]),
             "BT-130": line["unit_code"],
-            "BT-131": str(line["total_excluding_tax"]),
+            "BT-131": str(line["total_excluding_tax"] + line["global_discount_amount"]),
             "BT-146": str(line["unit_price_excluding_tax"]),
             "BT-149": "1",
             "BT-151": line["vat_category_code"],
@@ -276,7 +287,7 @@ def xml_data(document, computed):
         if line["vat_category_code"] == "O":
             item.pop("BT-152")
         base = money(line["quantity"] * line["unit_price_excluding_tax"])
-        allowance = base - line["total_excluding_tax"]
+        allowance = base - line["total_excluding_tax"] - line["global_discount_amount"]
         if allowance:
             item["BG-27"] = [
                 {
@@ -395,7 +406,7 @@ def generate_document(document):
             )
         read_verified(existing)
         return existing
-    computed = calculate(list(document.lines.values()))
+    computed = calculate(list(document.lines.values()), document.global_discount_type, document.global_discount_value)
     if (
         computed["net"],
         computed["vat"],
@@ -464,7 +475,8 @@ def generate_document(document):
             "core/document_pdf.html",
             {
                 "document": document,
-                "lines": computed["lines"],
+                "lines": [dict(line, net_before_global_discount=line["total_excluding_tax"] + line["global_discount_amount"])
+                          for line in computed["lines"]],
                 "taxes": computed["taxes"],
                 "is_quote": kind == "pdf",
                 "source_invoice_number": source_number,

@@ -21,7 +21,10 @@
     <legend>Prix et TVA</legend>
     <div class="form-grid">
       {% include "core/form_field.html" with field=form.unit_price_excluding_tax %}
+      {% include "core/form_field.html" with field=form.unit_price_including_tax %}
+      {% include "core/form_field.html" with field=form.currency_code %}
       {% include "core/form_field.html" with field=form.vat_rate %}
+      {% include "core/form_field.html" with field=form.vat_category_code %}
     </div>
   </fieldset>
   <fieldset class="form-section">

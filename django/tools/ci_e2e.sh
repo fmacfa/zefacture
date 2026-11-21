@@ -49,6 +49,7 @@ export NODE_PATH="$PWD/tests/browser/node_modules${NODE_PATH:+:$NODE_PATH}"
 TEST_SETUP_LINK="$(dc exec -T web python manage.py setup_link)" node tests/browser-first-connection.cjs
 dc exec -T web python manage.py shell < tests/browser_fixture.py
 node tests/browser-smoke.cjs
+node tests/browser-commercial.cjs
 dc exec -T web weasyprint - - < tests/browser/supplier.html > test-results/browser/supplier.pdf
 node tests/browser-imports.cjs
 node tests/browser-crm-integrations.cjs

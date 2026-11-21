@@ -44,14 +44,14 @@ class BusinessError(Exception):
         super().__init__(message)
 
 
-def decimal(value, default="0"):
+def decimal(value, default="0", *, quantum=Decimal("0.0001")):
     try:
         result = Decimal(
             str(value if value not in (None, "") else default).replace(",", ".")
         )
         if not result.is_finite() or abs(result) > Decimal("100000000"):
             raise ValueError()
-        return result.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+        return result.quantize(quantum, rounding=ROUND_HALF_UP)
     except (InvalidOperation, ValueError):
         raise BusinessError("Valeur numérique invalide ou trop élevée.")
 

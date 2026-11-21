@@ -41,6 +41,24 @@ class InvoiceApiTests(ApplicationCase):
     def route(self, document, action):
         return reverse(f"api_invoice_{action}", args=[document.document_uid])
 
+    def test_mixed_net_and_gross_prices_with_discount_and_idempotent_retry(self):
+        params = self.data(
+            reference="ORDER-TTC-TEST",
+            global_discount_type="percent",
+            global_discount_value="10",
+            lines=[
+                {"description": "Produit", "quantity": "1", "unit_price_including_tax": "120", "vat_rate": "20"},
+                {"description": "Service", "quantity": "1", "unit_price_excluding_tax": "100", "vat_rate": "10"},
+            ],
+        )
+        for status in (201, 200):
+            response = self.api.post("/api/v1/invoices", params, content_type="application/json", **self.auth)
+            self.assertEqual(response.status_code, status, response.content)
+            saved = response.json()["data"]
+            self.assertEqual([saved[key] for key in ("global_discount_amount", "total_excluding_tax", "total_vat", "amount_due")], [20, 180, 27, 207])
+            self.assertEqual(saved["lines"][0]["unit_price_including_tax"], 120)
+        self.assertEqual(Document.objects.filter(company_uid=self.company.company_uid, reference=params["reference"]).count(), 1)
+
     def test_commercial_details_roundtrip_in_pdf_and_structured_invoice(self):
         from lxml import etree
         from core.services.documents import save_customer

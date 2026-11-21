@@ -305,7 +305,7 @@ Vous pouvez le consulter ici : {document_link}
 {signature}
 ```
 
-Variables : `{company}`, `{customer}`, `{document_number}`, `{total}`, `{currency}`, `{due_date}`, `{document_link}`, `{original_body}`, `{signature}`. L’interface refuse les attributs, conversions et expressions de programmation. Le lien d’acceptation est conservé si le modèle de devis l’omet. Laisser l’objet et le corps vides rétablit le modèle standard. Les emails déjà préparés conservent leur contenu et leur adresse de réponse.
+Variables : `{company}`, `{customer}`, `{document_number}`, `{total}`, `{amount_due}` (solde restant pour une relance), `{currency}`, `{due_date}`, `{document_link}`, `{original_body}`, `{signature}`. L’interface refuse les attributs, conversions et expressions de programmation. Le lien d’acceptation est conservé si le modèle de devis l’omet. Laisser l’objet et le corps vides rétablit le modèle standard. Les emails déjà préparés conservent leur contenu et leur adresse de réponse.
 
 La présentation est figée dans chaque nouveau document ou brouillon sauvegardé. Les factures et devis **déjà émis conservent leurs originaux** ; changer le logo ne les régénère pas. Les anciens logos nécessaires à leurs instantanés restent dans les sauvegardes.
 

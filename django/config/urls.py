@@ -4,6 +4,8 @@ from core.views import (
     management as management,
     documents,
     document_followup,
+    sales_editor,
+    invoice_reminders,
     finance,
     banking,
     bank_statements,
@@ -23,6 +25,9 @@ from core.views import (
 
 urlpatterns = [
     path("", public.public),
+    path("app/documents/calculer", sales_editor.preview_prices),
+    path("app/devis/articles", sales_editor.quote_article),
+    path("app/factures/relances", invoice_reminders.prepare),
     path("healthz", public.health),
     path("source", public.public, {"page": "source"}),
     path("source/archive", public.source_archive),

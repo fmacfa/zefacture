@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block content %}
+<div class="page-head"><h1>{% if confirmed %}Résultat des relances{% else %}Vérifier les relances{% endif %}</h1>
+  <a class="button secondary" href="/app/factures?suivi=overdue">Retour aux retards</a></div>
+<div class="stack">{% for row in rows %}
+<section class="card stack"><div class="section-head"><div><h2><a href="{{ row.doc.url }}">{{ row.doc.number }}</a></h2>
+<p>{{ row.doc.buyer.name }} · Échéance {{ row.doc.due_date }}</p></div>
+<div class="num">Reste à régler<br><strong>{{ row.doc.amount_due|display_number:2 }} {{ row.doc.currency_code }}</strong></div></div>
+{% if row.error %}<p class="notice">{{ row.error }}</p>{% elif row.result %}<p class="notice">{{ row.result }}</p>{% else %}
+<dl><dt>Destinataire</dt><dd>{{ row.item.recipient_email }}</dd><dt>Objet</dt><dd>{{ row.item.subject }}</dd></dl>
+<pre class="email-body">{{ row.item.body_text }}</pre>{% endif %}</section>{% endfor %}
+{% if review %}<form method="post" class="form-actions end-actions">{% csrf_token %}
+<input type="hidden" name="review" value="{{ review }}"><button name="action" value="send">Confirmer l’envoi de {{ count }} relance{{ count|pluralize }}</button></form>{% endif %}
+{% if confirmed %}<p><a href="/app/emails">Consulter la file et les envois</a></p>{% endif %}</div>{% endblock %}

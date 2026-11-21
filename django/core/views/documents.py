@@ -241,26 +241,8 @@ def documents(request, section, document_uid=None, action=None):
                 request.POST.get("processing_rule", ""),
             )
         elif action == "relancer":
-            if (
-                document.type not in {"invoice", "progress_invoice"}
-                or document.direction != "outgoing"
-                or document.status != "sent"
-                or not document.due_date
-                or document.due_date >= today()
-                or document.amount_due <= 0
-            ):
-                raise BusinessError(
-                    "Seule une facture échue avec un reste dû peut être relancée."
-                )
-            queue(
-                document.company_uid,
-                document.document_uid,
-                "invoice_reminder",
-                document.buyer.get("email"),
-                "Relance facture " + document.number,
-                f"Bonjour,\nLa facture {document.number}, échue le {document.due_date}, présente un reste dû de {document_amount(document,document.amount_due)} {document.currency_code}.",
-            )
-            service.event(document, "reminder", "Relance préparée")
+            from core.services.reminders import enqueue
+            enqueue(request.company.company_uid, document.document_uid)
         else:
             raise BusinessError("Action inconnue.", 404)
         messages.success(request, "Action enregistrée.")
@@ -340,8 +322,8 @@ def documents(request, section, document_uid=None, action=None):
                         "description",
                         "reference",
                         "unit_code",
-                        "unit_price_excluding_tax",
-                        "vat_rate",
+                        "unit_price_excluding_tax", "unit_price_including_tax",
+                        "vat_category_code", "item_uid", "vat_rate", "currency_code",
                     )
                 ),
                 "lines": list(document.lines.values())
@@ -393,6 +375,7 @@ def documents(request, section, document_uid=None, action=None):
             "core/document.html",
             {
                 "title": document.number,
+                "today": today(),
                 "document": document,
                 "lines": document.lines,
                 "events": InvoiceEvent.objects.filter(

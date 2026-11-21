@@ -45,6 +45,8 @@ LABELS = {
     "reorder_level": "Seuil d'alerte",
     "unit_code": "Unité",
     "unit_price_excluding_tax": "Prix unitaire HT",
+    "unit_price_including_tax": "Prix unitaire TTC",
+    "vat_category_code": "Catégorie de TVA",
     "vat_rate": "TVA (%)",
     "bank_name": "Banque",
     "iban": "IBAN",
@@ -180,6 +182,14 @@ FRENCH_LEGAL_FORMS = (
     ("SCI", "Société civile immobilière (SCI)"),
     ("SCS", "Société en commandite simple (SCS)"),
     ("SCA", "Société en commandite par actions (SCA)"),
+    ("SC", "Société civile (SC)"),
+    ("GIE", "Groupement d’intérêt économique (GIE)"),
+    ("SELARL", "Société d’exercice libéral à responsabilité limitée (SELARL)"),
+    ("SELARLU", "SELARL unipersonnelle (SELARLU)"),
+    ("SELAS", "Société d’exercice libéral par actions simplifiée (SELAS)"),
+    ("SELASU", "SELAS unipersonnelle (SELASU)"),
+    ("SARL de famille", "SARL de famille"),
+    ("EIRL", "Entreprise individuelle à responsabilité limitée (EIRL existante)"),
     ("Association", "Association"),
 )
 FRENCH_VAT_REGIMES = (
@@ -334,13 +344,46 @@ class CompanyForm(StyledModelForm):
 class InventoryForm(StyledModelForm):
     class Meta:
         model = InventoryItem
-        fields = "reference name description item_type stock_tracking reorder_level unit_code unit_price_excluding_tax vat_rate".split()
+        fields = "reference name description item_type stock_tracking reorder_level unit_code unit_price_excluding_tax unit_price_including_tax currency_code vat_rate vat_category_code".split()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from .services.branding import SUPPORTED_CURRENCIES
+        self.fields["currency_code"].widget = forms.Select(choices=[("", "Devise du document"), *[(c,c) for c in sorted(SUPPORTED_CURRENCIES)]])
+        from .services.calculations import VAT_CATEGORIES
+        self.fields["unit_price_excluding_tax"].required = False
+        self.fields["unit_price_including_tax"].help_text = "Si vous saisissez le TTC, le prix HT est calculé avec le taux de TVA."
+        self.fields["vat_category_code"].widget = forms.Select(choices=[("", "Selon le taux"), *VAT_CATEGORIES])
+        self.fields["item_type"].widget = forms.Select(choices=[("product", "Produit"), ("service", "Service")])
         self.fields["stock_tracking"].widget = forms.Select(
             choices=[(0, "Non"), (1, "Oui")]
         )
+
+    def clean(self):
+        cleaned = super().clean()
+        from .services.calculations import unit_prices, VAT_CATEGORIES
+        from .common import BusinessError
+        from .services.branding import SUPPORTED_CURRENCIES
+        if cleaned.get("currency_code") and cleaned["currency_code"] not in SUPPORTED_CURRENCIES:
+            self.add_error("currency_code", "Devise non prise en charge.")
+        rate = cleaned.get("vat_rate")
+        if rate is None or not 0 <= rate <= 100:
+            self.add_error("vat_rate", "Choisissez un taux compris entre 0 et 100 %.")
+            return cleaned
+        category = cleaned.get("vat_category_code") or ("S" if rate else "Z")
+        if category not in dict(VAT_CATEGORIES) or (category == "S") != bool(rate):
+            self.add_error("vat_category_code", "La catégorie de TVA doit correspondre au taux.")
+        if all(cleaned.get(field) is None for field in ("unit_price_excluding_tax", "unit_price_including_tax")):
+            self.add_error("unit_price_excluding_tax", "Saisissez un prix HT ou TTC.")
+            return cleaned
+        try:
+            price, gross = unit_prices(cleaned, rate)
+            if price < 0:
+                raise BusinessError("Le prix doit être positif ou nul.")
+            cleaned.update(unit_price_excluding_tax=price, unit_price_including_tax=gross, vat_category_code=category)
+        except BusinessError as exc:
+            self.add_error("unit_price_excluding_tax", str(exc))
+        return cleaned
 
 
 class AccountForm(StyledModelForm):

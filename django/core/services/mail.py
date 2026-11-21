@@ -6,11 +6,9 @@ from core.common import email, stamp, BusinessError
 from core.models import Email
 
 
-@transaction.atomic
-def queue(company_uid, document_uid, template, recipient, subject, body):
-    from .email_connections import route_email
-
+def compose(company_uid, document_uid, template, recipient, subject, body, *, reminder_balance=None, save_envelope=False):
     item = Email(
+        reminder_balance=reminder_balance,
         company_uid=company_uid,
         document_uid=document_uid,
         template=template,
@@ -25,7 +23,15 @@ def queue(company_uid, document_uid, template, recipient, subject, body):
     if company_uid:
         from .branding import apply_mail
 
-        apply_mail(item)
+        apply_mail(item, save_envelope=save_envelope)
+    return item
+
+
+@transaction.atomic
+def queue(company_uid, document_uid, template, recipient, subject, body, *, reminder_balance=None):
+    from .email_connections import route_email
+    item = compose(company_uid, document_uid, template, recipient, subject, body,
+                   reminder_balance=reminder_balance, save_envelope=True)
     route_email(item)
     item.save()
     return item
@@ -36,6 +42,12 @@ def deliver(item):
         raise BusinessError("Les envois sont désactivés sur cette instance.")
     if item.transport == "outbox":
         return False
+    if item.template == "invoice_reminder" and item.reminder_balance is not None:
+        from .reminders import still_current
+        if not still_current(item):
+            item.status, item.last_error = "cancelled", "Le solde, l’échéance ou le destinataire a changé. Préparez une nouvelle relance."
+            item.save(update_fields=["status", "last_error"])
+            return False
     attachment = None
     if item.document_uid and item.template in {"invoice", "quote"}:
         from core.models import Document

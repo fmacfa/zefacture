@@ -7,7 +7,7 @@ from io import BytesIO
 from types import SimpleNamespace
 from PIL import Image, ImageOps, UnidentifiedImageError
 from django.db import transaction
-from core.numbers import document_amount
+from core.numbers import document_amount, document_style
 from core.common import BusinessError, uid, email
 from core.models import CompanyBranding, Document, EmailEnvelope
 from . import files
@@ -24,6 +24,7 @@ VARIABLES = {
     "customer",
     "document_number",
     "total",
+    "amount_due",
     "currency",
     "due_date",
     "document_link",
@@ -247,7 +248,7 @@ def logo_bytes(company_uid, branding):
     )
 
 
-def apply_mail(item):
+def apply_mail(item, *, save_envelope=True):
     from core.models import Company
 
     company = Company.objects.get(company_uid=item.company_uid)
@@ -274,6 +275,7 @@ def apply_mail(item):
                 "customer": document.buyer.get("name", ""),
                 "document_number": document.number,
                 "total": document_amount(document,document.total_including_tax),
+                "amount_due": document_style(document).format(document.amount_due, 2),
                 "currency": document.currency_code,
                 "due_date": document.due_date or "",
                 "document_link": link,
@@ -284,6 +286,8 @@ def apply_mail(item):
             validate_template(template["body"])
             item.subject = template["subject"].format_map(variables)
             item.body_text = template["body"].format_map(variables)
+            if item.template == "invoice_reminder" and "{amount_due}" not in template["body"] and "{original_body}" not in template["body"]:
+                item.body_text += "\n\nSolde restant à régler : " + variables["amount_due"] + " " + document.currency_code
             if link and link not in item.body_text:
                 item.body_text += marker + link
             if brand.email_signature and "{signature}" not in template["body"]:
@@ -294,7 +298,7 @@ def apply_mail(item):
         item.body_text += "\n\n" + brand.email_signature
     if len(item.subject) > 998 or any(c in item.subject for c in "\r\n"):
         raise BusinessError("Objet d’email invalide après personnalisation.")
-    if brand.reply_to:
+    if brand.reply_to and save_envelope:
         EmailEnvelope.objects.update_or_create(
             email_uid=item.email_uid, defaults={"reply_to": brand.reply_to}
         )

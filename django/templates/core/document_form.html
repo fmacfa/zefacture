@@ -1,5 +1,6 @@
 {% extends "core/base.html" %}
-{% load static country_fields %}
+{% load static country_fields l10n %}
+{% block styles %}<link rel="stylesheet" href="{% static 'document-editor.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ title }}</h1>
@@ -81,12 +82,21 @@
     </div>
     <div class="table-wrap">
       <table class="line-editor">
-        <thead><tr><th>Désignation / référence</th><th class="num">Qté</th><th>Unité</th><th class="num">PU HT</th><th class="num">Remise %</th><th class="num">TVA % / catégorie</th><th class="num">Total HT</th><th></th></tr></thead>
+        <thead><tr><th>Désignation / référence</th><th class="num">Qté</th><th>Unité</th><th class="num">Prix unitaire</th><th class="num">Remise %</th><th class="num">TVA % / catégorie</th><th class="num">Total HT</th><th></th></tr></thead>
         <tbody id="line-rows"></tbody>
       </table>
     </div>
     <button class="secondary" type="button" id="add-line">+ Ajouter une ligne</button>
-    <div class="totals-preview" id="totals" aria-live="polite"></div>
+    <p id="intra-vat-help" class="notice" hidden>Livraison intra-UE : renseignez la date et le pays effectifs dans « Commande et livraison ».</p>
+    <datalist id="common-vat-rates"><option value="0"><option value="2.1"><option value="5.5"><option value="10"><option value="20"></datalist>
+    <div class="discount-totals">
+      <fieldset class="discount-fields"><legend>Remise globale</legend>
+        <label>Type de remise<select name="global_discount_type"><option value="percent">Pourcentage du HT</option>
+          <option value="amount"{% if document.global_discount_type == "amount" %} selected{% endif %}>Montant fixe HT</option></select></label>
+        <label>Valeur de la remise<input class="num" type="number" step="0.0001" min="0" name="global_discount_value" value="{{ document.global_discount_value|default:0|unlocalize }}"></label>
+      </fieldset>
+      <div><div class="totals-preview" id="totals" aria-live="polite"></div><p id="tax-breakdown" class="muted num"></p></div>
+    </div>
   </section>
 
   <section class="card stack">
@@ -101,6 +111,14 @@
     <button type="submit">Enregistrer le document</button>
   </div>
 </form>
+{% if is_quote %}<dialog id="quote-article" aria-labelledby="quote-article-title"><form class="stack">
+    <h2 id="quote-article-title">Ajouter au catalogue</h2>
+    <label>Nom de l’article<input name="name" required maxlength="255"></label>
+    <label>Référence de l’article<input name="reference" maxlength="255"></label>
+    <label>Type d’article<select name="item_type"><option value="service">Service</option><option value="product">Produit</option></select></label>
+    <p data-price class="muted"></p><p role="status" aria-live="polite"></p>
+    <div class="form-actions"><button type="button" class="secondary" data-close>Fermer</button><button type="submit">Ajouter au catalogue</button>
+      <button type="button" data-use hidden>Utiliser cet article</button></div></form></dialog>{% endif %}
 <dialog id="quick-customer">
   <form class="stack">
     <div class="section-head"><h2>Nouveau client</h2><button type="button" class="text-button" data-close aria-label="Fermer">×</button></div>
@@ -117,7 +135,7 @@
 {{ inventory|json_script:"inventory-data" }}
 {% endblock %}
 {% block scripts %}
-<script src="{% static 'money.js' %}"></script>
+{% if is_quote %}<script src="{% static 'quote-article.js' %}" defer></script>{% endif %}
 <script src="{% static 'document-editor.js' %}" defer></script>
 <script src="{% static 'quick-customer.js' %}" defer></script>
 {% endblock %}
