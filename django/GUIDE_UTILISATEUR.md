@@ -335,6 +335,8 @@ Les clés API se créent dans **API & intégrations** ; les webhooks sortants da
 
 ## 11. Personnalisation et utilisation sur téléphone
 
+Par défaut, ZeFacture affiche son logo tricolore, une navigation bleu marine et des boutons d’action rouges. Vous pouvez choisir la couleur des documents et utiliser votre logo d’entreprise dans **Identité visuelle**.
+
 Dans **Personnalisation**, les rubriques **Identité visuelle**, **Documents**, **Adresse et signature** et **Modèles d’emails** possèdent chacune leur propre enregistrement. L’aperçu de facture dans les deux premières rubriques réagit au nom, au logo, à la couleur, à la présentation, à la devise et à l’échéance avant enregistrement. Les mentions légales et bancaires restent dans **Mon entreprise**. Les variables autorisées des modèles figurent dans l’écran et le [guide d’administration](GUIDE_AUTOHEBERGEMENT.md#8-personnalisation-pour-les-clients).
 
 Une nouvelle identité visuelle s’applique aux nouveaux documents et aux brouillons sauvegardés ; elle ne modifie pas les originaux déjà émis. Les entreprises d’une même instance conservent leurs réglages distincts.

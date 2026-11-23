@@ -917,8 +917,8 @@ def export_bytes(format, headers, rows, title, company, selected, report):
                         horizontal="right" if column - 1 in numeric else None, vertical="top", wrap_text=True
                     )
                     if index == 0:
-                        cell.font = Font(bold=True, color="FFFFFF")
-                        cell.fill = PatternFill("solid", fgColor="176F60")
+                        cell.font = Font(bold=True, color="FFFFFFFF")
+                        cell.fill = PatternFill("solid", fgColor="FF112B57")
                     cells.append(cell)
                 ws.append(cells)
             ws.auto_filter.ref = (

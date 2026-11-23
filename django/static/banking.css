@@ -8,8 +8,8 @@
   .bank-connection .inline button { width: 100%; white-space: normal; }
 }
 .bank-views { display:flex; flex-wrap:wrap; gap:.65rem; margin:1rem 0; }
-.bank-views a { display:inline-flex; gap:.65rem; align-items:center; padding:.65rem .9rem; border:1px solid var(--line); border-radius:.6rem; background:white; }
-.bank-views [aria-current="page"] { background:var(--brand, #296149); color:white; }
+.bank-views a { display:inline-flex; gap:.65rem; align-items:center; padding:.65rem .9rem; border:1px solid var(--line); border-radius:.6rem; background:var(--white); }
+.bank-views [aria-current="page"] { background:var(--zf-blue); color:white; }
 .bank-views b, .bank-amounts dd { text-align:right; font-variant-numeric:tabular-nums; }
 .bank-amounts { display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:.7rem; margin:0; }
 .bank-amounts div { text-align:right; padding:.65rem; }.bank-amounts dd { margin:.25rem 0 0; font-weight:700; }

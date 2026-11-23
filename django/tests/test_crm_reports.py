@@ -364,6 +364,7 @@ class ReportingTests(ApplicationCase):
         )
         workbook = load_workbook(io.BytesIO(result.content))
         self.assertEqual(workbook["Données"].max_row, 76)
+        self.assertEqual(workbook["Données"]["A1"].fill.fgColor.rgb, "FF112B57")
         result = self.report_request(
             {"dataset": "customers", "preset": "all", "format": "xlsx"}
         )

@@ -29,9 +29,10 @@
 }
 
 .invoice-preview-sheet {
+  --muted: var(--zf-muted);
   background: #fff;
-  color: #1d302d;
-  border: 1px solid #e0e5dc;
+  color: var(--zf-ink);
+  border: 1px solid var(--zf-line);
   border-radius: .35rem;
   padding: clamp(.65rem, 1.55vw, 1.25rem);
   min-width: 0;
@@ -110,7 +111,7 @@
 .invoice-preview-sheet .details {
   margin: .5rem 0;
   padding: .4rem;
-  background: #e8eee5;
+  background: var(--zf-blue-pale);
 }
 
 .invoice-preview-sheet .lines th {
@@ -122,7 +123,7 @@
 }
 
 .invoice-preview-sheet .lines td {
-  border-bottom: 1px solid #e0e5dc;
+  border-bottom: 1px solid var(--zf-line);
 }
 
 .invoice-preview-sheet.compact .lines td {
@@ -140,7 +141,7 @@
 
 .invoice-preview-sheet .grand {
   font-weight: 700;
-  background: #e8eee5;
+  background: var(--zf-blue-pale);
 }
 
 .invoice-preview-sheet .notes p:empty {

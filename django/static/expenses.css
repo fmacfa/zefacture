@@ -13,16 +13,16 @@
 .expense-original .reader-stage { max-height: 70vh; max-height: 70dvh; }
 .expense-metrics { display: grid; grid-template-columns: 1.15fr 1fr; gap: .6rem; margin: 0; }
 .expense-metrics > div { min-width: 0; background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1rem; }
-.expense-metrics .expense-gross { border-top: 3px solid var(--zf-green); }
+.expense-metrics .expense-gross { border-top: 3px solid var(--zf-blue); }
 .expense-metrics dt { color: var(--muted); font-weight: 600; }
 .expense-metrics dd { margin: .25rem 0 0; font-weight: 700; font-size: clamp(1.05rem, 2vw, 1.65rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .expense-metrics small { font-size: .8rem; }
 .expense-payment { border-top: 1px solid var(--line); }
 .expense-chip { display: inline-flex; align-items: center; gap: .45em; max-width: 100%; border: 1px solid var(--line); padding: .2rem .55rem; border-radius: 1rem; font-size: .83rem; font-weight: 650; }
 .expense-chip::before { content: ""; width: .55em; height: .55em; flex: none; border-radius: 50%; background: var(--muted); }
-.refund-due::before { background: var(--zf-orange); }
-.refund-paid::before { background: var(--zf-green); }
-.amount-cards .amount-due { border-top: 3px solid var(--zf-orange); }
+.refund-due::before { background: var(--zf-red); }
+.refund-paid::before { background: var(--zf-blue); }
+.amount-cards .amount-due { border-top: 3px solid var(--zf-red); }
 .expense-secondary { margin-top: 1rem; }
 .expense-secondary form { margin: 0; }
 .expense-details [hidden] { display: none; }

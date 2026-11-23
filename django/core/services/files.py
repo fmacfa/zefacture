@@ -481,9 +481,7 @@ def generate_document(document):
                 "is_quote": kind == "pdf",
                 "source_invoice_number": source_number,
                 "branding": branding,
-                "brand_color": palette(branding.get("accent_color", "#176568"))[
-                    "primary"
-                ],
+                "brand_color": palette(branding.get("accent_color"))["primary"],
                 "logo_uri": logo_uri,
             },
         )
