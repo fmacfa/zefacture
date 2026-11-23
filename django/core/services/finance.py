@@ -48,7 +48,7 @@ def reconcile(company, bank_transaction, document_uid, *, exact=False, receipt_c
         raise BusinessError(
             "Remettez l’opération à traiter avant de la rapprocher d’une facture.", 409
         )
-    if bank_transaction.document_uid:
+    if bank_transaction.document_uid or bank_transaction.allocations.exists():
         raise BusinessError("Transaction déjà rapprochée.", 409)
     expected = (
         "incoming" if document and document.direction == "outgoing" else "outgoing"
@@ -109,6 +109,7 @@ def classify(company, item, category, note):
     )
     if (
         item.document_uid
+        or item.allocations.exists()
         or item.status != "booked"
         or (feed_entry and feed_entry.review)
     ):

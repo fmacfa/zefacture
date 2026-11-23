@@ -2,6 +2,8 @@
 
 ZeFacture est distribué sous AGPL-3.0-only. Les composants tiers conservent leurs propres licences et notices, incluses dans leurs distributions.
 
+La liste des devises des justificatifs utilise le paquet Python iso4217, distribué dans le domaine public.
+
 Composants principaux : Django (BSD), WeasyPrint (BSD), factur-x (BSD), SaxonC-HE (MPL-2.0), psycopg (LGPL), pypdf (BSD), Pillow (HPND), PyNaCl (Apache-2.0), argon2-cffi (MIT), bcrypt (Apache-2.0), Gunicorn (MIT), WhiteNoise (MIT), requests (Apache-2.0), PyMySQL (MIT).
 
 L'image Docker contient également Python, PostgreSQL dans un service séparé, les bibliothèques Pango/Harfbuzz, Poppler, Tesseract et des polices libres. Caddy est un service optionnel. Consulter les licences des paquets dans les images et distributions concernées.

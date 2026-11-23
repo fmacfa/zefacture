@@ -451,6 +451,8 @@ class Ingestion(models.Model):
         max_digits=30, decimal_places=8, null=True, blank=True
     )
     expense_currency = models.TextField(default="EUR")
+    expense_paid_eur = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    expense_payer_name = models.CharField(max_length=180, blank=True, default="")
     expense_status = models.TextField(default="pending")
     archived_at = models.DateTimeField(null=True, blank=True)
     original_filename = models.TextField(default="")
@@ -478,6 +480,7 @@ class ExpenseReimbursement(models.Model):
     receipt = models.OneToOneField(Ingestion, on_delete=models.CASCADE, related_name="reimbursement")
     status = models.CharField(max_length=12, choices=[
         ("due", "À rembourser"), ("paid", "Remboursée"), ("exempt", "Sans remboursement"),
+        ("unknown", "À préciser"),
     ])
     paid_on = models.DateField(null=True, blank=True)
     updated_by = models.CharField(max_length=32)
@@ -487,7 +490,7 @@ class ExpenseReimbursement(models.Model):
         db_table = "django_expense_reimbursements"
         constraints = [models.CheckConstraint(
             condition=models.Q(status="paid", paid_on__isnull=False)
-            | models.Q(status__in=["due", "exempt"], paid_on__isnull=True),
+            | models.Q(status__in=["due", "exempt", "unknown"], paid_on__isnull=True),
             name="expense_reimbursement_date",
         )]
 
@@ -625,6 +628,35 @@ class BankTransaction(models.Model):
         ]
 
 
+class BankAllocation(models.Model):
+    class Kind(models.TextChoices):
+        DOCUMENT = "document", "Facture ou avoir"
+        FEE = "fee", "Commission ou frais"
+        CREDIT = "credit", "Crédit antérieur / trop-perçu"
+        RENT = "rent", "Terme de loyer"
+        CARRY = "carry", "Solde reporté"
+        OTHER = "other", "Autre montant justifié"
+
+    transaction = models.ForeignKey(BankTransaction, on_delete=models.CASCADE, related_name="allocations")
+    document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="bank_allocations", null=True, blank=True)
+    kind = models.CharField(max_length=12, choices=Kind.choices)
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    note = models.CharField(max_length=500, blank=True)
+    previous_status = models.CharField(max_length=32, blank=True)
+    previous_receipt_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        db_table = "django_bank_allocations"
+        ordering = ["pk"]
+        constraints = [
+            models.CheckConstraint(condition=~models.Q(amount=0), name="bank_allocation_nonzero"),
+            models.CheckConstraint(condition=models.Q(kind="document", document__isnull=False)
+                                  | (~models.Q(kind="document") & models.Q(document__isnull=True)),
+                                  name="bank_allocation_document_kind"),
+            models.UniqueConstraint(fields=["transaction", "document"], name="bank_allocation_one_per_document"),
+        ]
+
+
 class SaleReceipt(models.Model):
     receipt_uid = models.CharField(max_length=32, unique=True, default=uid)
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="receipts")
@@ -633,12 +665,15 @@ class SaleReceipt(models.Model):
     origin = models.CharField(max_length=12, choices=[
         ("manual", "Déclaré"), ("bank", "Bancaire"), ("legacy", "Historique")
     ])
-    transaction = models.OneToOneField(BankTransaction, on_delete=models.PROTECT, null=True, blank=True, related_name="sale_receipt")
+    transaction = models.ForeignKey(BankTransaction, on_delete=models.PROTECT, null=True, blank=True, related_name="sale_receipts")
     cancelled = models.BooleanField(default=False)
 
     class Meta:
         db_table = "django_sale_receipts"
-        constraints = [models.CheckConstraint(condition=models.Q(amount__gt=0), name="sale_receipt_positive")]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="sale_receipt_positive"),
+            models.UniqueConstraint(fields=["transaction", "document"], name="sale_receipt_one_per_tx_document"),
+        ]
 
 
 class BankStatementImport(models.Model):

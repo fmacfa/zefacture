@@ -25,7 +25,7 @@ from core.models import (
     InvoiceEvent,
     PdpInvoice,
 )
-from core.services import bank_sync, finance
+from core.services import bank_allocations, bank_sync, finance
 from core.services.bridge import Bridge
 from core.services.files import decrypt
 from core.services.invoice_contacts import assign_automatically
@@ -357,6 +357,27 @@ class BankingTests(ApplicationCase):
         self.assertEqual(self.client.post(TRANSACTIONS + f"/verification/{entry.pk}", {"choice":"correct"}).status_code, 302)
         tx.refresh_from_db()
         self.assertEqual((tx.direction, tx.standalone_category, tx.classification_note), ("incoming", "", "Paie du mois"))
+
+    def test_bank_correction_restores_all_allocated_amounts_before_replacing_net(self):
+        feed = self.connect()
+        self.api.rows[10] = [movement(322, amount=-95, label="Règlement groupé")]
+        self.sync(feed)
+        entry = BankFeedEntry.objects.get(remote_id="322")
+        tx = entry.transaction
+        doc = self.invoice("ACHAT-EXEMPLE", amount_due=100, total_including_tax=100)
+        bank_allocations.allocate(self.company, tx, [
+            {"target": doc.document_uid, "amount": "-100"}, {"target": "credit", "amount": "5"},
+        ])
+        self.api.rows[10] = [movement(322, amount=-90, label="Règlement corrigé", updated_at="2026-05-15T08:00:00Z")]
+        self.sync(feed)
+        entry.refresh_from_db()
+        doc.refresh_from_db()
+        self.assertEqual((entry.review, entry.transaction.amount, doc.amount_due), ("correction", 95, 0))
+        bank_sync.resolve_entry(self.company, entry.pk, "correct")
+        tx.refresh_from_db()
+        doc.refresh_from_db()
+        self.assertFalse(tx.allocations.exists())
+        self.assertEqual((tx.amount, doc.status, doc.amount_due), (90, "received", 100))
 
     def test_multiple_accounts_cursor_reference_reconciliation_and_financial_correction(
         self,

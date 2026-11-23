@@ -1,4 +1,4 @@
-{% extends "core/base.html" %}{% load static %}
+{% extends "core/base.html" %}{% load static l10n %}
 {% block styles %}<link rel="stylesheet" href="{% static 'document-reader.css' %}"><link rel="stylesheet" href="{% static 'expenses.css' %}"><link rel="stylesheet" href="{% static 'document-editor.css' %}">{% endblock %}
 {% block content %}
 <a class="expense-back" href="/app/notes-de-frais{% if item.archived_at %}?archives=1{% endif %}">← Notes de frais</a>
@@ -21,8 +21,10 @@
   </section>
   <div class="expense-details">
     <dl class="expense-metrics" aria-label="Montants du justificatif">
-      <div class="expense-gross"><dt>Total TTC</dt><dd>{% if facts.amount != "" %}{{ facts.amount|display_number:"2g" }} <small>{{ facts.currency }}</small>{% else %}À compléter{% endif %}</dd></div>
-      <div><dt>TVA sur la pièce</dt><dd>{% if facts.vat != "" %}{{ facts.vat|display_number:"2g" }} <small>{{ facts.currency }}</small>{% else %}Non identifiée{% endif %}</dd></div>
+      <div class="expense-gross"><dt>Total TTC</dt><dd>{% if facts.amount != "" %}{{ facts.amount|expense_amount }} <small>{{ facts.currency }}</small>{% else %}À compléter{% endif %}</dd></div>
+      <div><dt>TVA sur la pièce</dt><dd>{% if facts.vat != "" %}{{ facts.vat|expense_amount }} <small>{{ facts.currency }}</small>{% else %}Non identifiée{% endif %}</dd></div>
+      {% if facts.paid_eur != None %}<div><dt>Montant payé en euros</dt><dd>{{ facts.paid_eur|display_number:"2g" }} <small>EUR</small></dd></div>{% endif %}
+      {% if facts.payer_name %}<div><dt>Avancé par</dt><dd>{{ facts.payer_name }}</dd></div>{% endif %}
     </dl>
     {% if item.progress.busy %}
       <section class="card import-wait" data-import-wait><h2>Traitement du document</h2><p role="status">{% include "core/import_state.html" with i=item only %}</p><p>Les champs apparaîtront ici dès la fin du traitement.</p><noscript><a href="{{ request.path }}">Actualiser</a></noscript></section>
@@ -36,15 +38,18 @@
         <div class="form-grid">
           <label>Commerçant<input name="merchant_name" value="{{ facts.merchant }}" maxlength="255" required></label>
           <label>Date de dépense<input name="expense_date" type="date" value="{{ facts.date }}" required></label>
-          <label>Montant TTC<input name="expense_amount" type="number" step="0.01" min="0" value="{{ facts.amount }}" inputmode="decimal" required></label>
+          <label>Montant TTC<input name="expense_amount" type="number" step="0.0001" min="0" value="{{ facts.amount }}" inputmode="decimal" required></label>
           <label>Devise<input name="expense_currency" value="{{ facts.currency }}" placeholder="EUR" maxlength="3" required></label>
-          <label>TVA sur la pièce<input name="expense_vat" type="number" min="0" step="0.01" inputmode="decimal" value="{{ facts.vat }}"></label>
+          <label>Montant payé en euros<input name="expense_paid_eur" type="number" step="0.01" min="0" value="{{ facts.paid_eur|default_if_none:''|unlocalize }}" inputmode="decimal"><small>Contre-valeur qui figure sur le relevé du payeur.</small></label>
+          <label>TVA sur la pièce<input name="expense_vat" type="number" min="0" step="0.0001" inputmode="decimal" value="{{ facts.vat }}"></label>
           <label>Catégorie<input name="expense_category" list="expense-categories" value="{{ facts.category }}" maxlength="255" placeholder="Choisir ou saisir une catégorie"></label>
           <datalist id="expense-categories">{% for name in categories %}<option value="{{ name }}"></option>{% endfor %}</datalist>
         </div>
         <fieldset class="form-section expense-payment" id="suivi-reglement"><legend>Paiement et motif</legend>
           {% if payment_suggestion and not item.expense_payment_method and suggested_method %}<p class="form-help">Le justificatif mentionne « {{ payment_suggestion }} ».</p>{% endif %}
-          <div class="form-grid">{% include "core/payment_fields.html" %}</div>
+          <div class="form-grid">{% include "core/payment_fields.html" %}
+            <label>Personne ayant avancé les fonds<input name="expense_payer_name" maxlength="180" value="{{ facts.payer_name }}"></label>
+          </div>
         </fieldset>
         <div class="form-actions"><button>Enregistrer le justificatif</button></div>
       </form>
@@ -58,7 +63,7 @@
       {% if item.reimbursement.paid_on %}<p>Versement effectué le <strong>{{ item.reimbursement.paid_on|date:"d/m/Y" }}</strong>.</p>{% endif %}
       {% if can_finance and not item.archived_at and not item.progress.busy %}
         <form method="post" action="{{ request.path }}/remboursement" class="stack" data-reimbursement>{% csrf_token %}
-          <div class="form-grid"><label>État du remboursement<select name="reimbursement_status"><option value="auto">Selon l’origine des fonds</option>{% for key,label in reimbursement_states.items %}{% if key != "unknown" %}<option value="{{ key }}"{% if item.reimbursement.status == key %} selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select></label>
+          <div class="form-grid"><label>État du remboursement<select name="reimbursement_status"><option value="auto">Selon l’origine des fonds</option>{% for key,label in reimbursement_states.items %}<option value="{{ key }}"{% if item.reimbursement.status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
           <label data-paid-date>Date du versement<input type="date" name="paid_on" max="{{ today|date:'Y-m-d' }}" value="{{ item.reimbursement.paid_on|date:'Y-m-d' }}"></label></div>
           <p class="form-help">Les fonds personnels sont à rembourser. Indiquez la date du versement effectué pour marquer la note remboursée.</p>
           <div><button class="secondary">Enregistrer le remboursement</button></div>

@@ -122,8 +122,10 @@ def review(request, item, action, query, documents):
         fields = expense_values(request.POST, require_complete=True)
         if expense_workspace.reimbursement_state(item) == "paid" and (
             fields["expense_amount"] != item.expense_amount or fields["expense_currency"] != item.expense_currency
+            or fields.get("expense_paid_eur", item.expense_paid_eur) != item.expense_paid_eur
+            or fields.get("expense_payer_name", item.expense_payer_name) != item.expense_payer_name
         ):
-            raise BusinessError("Corrigez le suivi du remboursement avant de modifier le montant déjà versé.", 409)
+            raise BusinessError("Corrigez le suivi du remboursement avant de modifier les montants ou le nom du payeur.", 409)
         expense_payments.mark_expense_fields(item, fields)
         if "expense_vat" in request.POST:
             raw_vat = request.POST["expense_vat"].strip()

@@ -227,6 +227,10 @@ Sur une facture importée, **Préremplir avec l’IA** permet de lancer une anal
 
 Sur la fiche, les champs **Paiement et motif** sont visibles à côté du justificatif. Choisir le moyen de paiement et préciser qui a avancé les fonds. Vérifier le motif professionnel, puis cliquer sur **Enregistrer le justificatif**.
 
+### Conserver une avance en devise
+
+Sur la fiche du justificatif, saisir le **Montant TTC** et la **Devise** de la pièce, par exemple un prix en couronnes tchèques (CZK). Si le relevé du payeur indique le débit en euros, le reporter dans **Montant payé en euros**. Renseigner **Personne ayant avancé les fonds** lorsque son identité est établie. Ces deux champs peuvent être complétés séparément. La sélection affiche le total des paiements en euros documentés et le nombre de notes correspondantes. Le rapport **Notes de frais** inclut ces données et la recherche accepte le nom de la personne.
+
 ### Suivre le remboursement d’une note
 
 Une note enregistrée en **Fonds personnels** apparaît dans **À rembourser**. Une dépense réglée par l’entreprise apparaît dans **Sans remboursement**. Quand l’origine est inconnue, la note figure dans **À préciser**. Un responsable ou un comptable peut ajuster l’état sur la fiche. Après le versement, sélectionner **Remboursée**, indiquer **Date du versement** et cliquer sur **Enregistrer le remboursement**. Pour corriger un montant déjà remboursé, rectifier d’abord l’état du remboursement. Ce suivi déclare un versement effectué. Le mouvement bancaire correspondant se retrouve dans **Transactions**.
@@ -267,6 +271,12 @@ Dans **Finances → Comptes bancaires**, créer un compte avec sa devise et son 
 Dans **Finances → Transactions**, **Toutes** présente les mouvements de tous les comptes. **Sans facture liée** inclut les dépenses déjà classées et les opérations encore à traiter. Utilisez **À traiter**, **Classées sans facture** ou **Rapprochées** pour affiner la vue. La période, le compte et la recherche s’appliquent aux compteurs. Les encaissements, décaissements et variations nettes des écritures comptabilisées sont calculés pour toute la sélection et affichés séparément par devise.
 
 Le récapitulatif indique les lignes ajoutées, déjà présentes ou rejetées. Un nouvel import du même relevé conserve ses écritures déjà enregistrées. Les correspondances entre sources utilisent le compte, la date, le montant, le sens et la référence ou le libellé. Vérifier les libellés qui diffèrent entre la banque et le relevé.
+
+### Ventiler un mouvement entre plusieurs montants
+
+Dans **Finances → Transactions → Traiter → Ventiler le mouvement**, sélectionner une affectation par ligne. Inscrire les sommes entrantes en positif et les sommes sortantes en négatif. Pour une vente de 120,00 EUR avec une commission de 3,60 EUR, affecter +120,00 EUR à la facture et −3,60 EUR à **Commission ou frais**. La somme des lignes doit correspondre au virement de +116,40 EUR.
+
+Une ventilation peut associer plusieurs factures distinctes, un avoir, un terme de loyer, un solde reporté ou un crédit antérieur. Lorsqu’un encaissement a déjà été déclaré, le choisir dans **Encaissements déjà déclarés** pour le confirmer. **Ventilées** retrouve ces opérations. **Annuler la ventilation** libère le mouvement et rétablit les soldes concernés. Un encaissement déjà déclaré retrouve son état précédent. Le rapport **Ventilations bancaires** donne une ligne signée par affectation. Le rapport **Transactions bancaires** conserve le montant du relevé une seule fois.
 
 ### Classer un mouvement sans facture
 

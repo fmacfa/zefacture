@@ -21,7 +21,7 @@ from core.models import (
 )
 from .bridge import Bridge, BridgeError
 from .finance import reconcile
-from . import sale_receipts
+from . import bank_allocations, sale_receipts
 from core.models import SaleReceipt
 from .bank_categories import choices as classification_choices
 
@@ -271,7 +271,8 @@ def project_entry(entry, *, distinct=False):
             values["direction"],
             values["status"],
         )
-        if tx.document_uid and changed_payment:
+        linked = bool(tx.document_uid) or tx.allocations.exists()
+        if linked and changed_payment:
             entry.review = "correction"
         elif tx.standalone_category and values["status"] == "booked" and tx.standalone_category not in classification_choices(values["direction"]):
             entry.review = "classification"
@@ -282,7 +283,7 @@ def project_entry(entry, *, distinct=False):
                 setattr(tx, key, value)
             tx.updated_at = stamp()
             tx.save(update_fields=[*values, "updated_at"])
-            if tx.document_uid:
+            if linked:
                 SaleReceipt.objects.filter(transaction=tx, origin="bank", cancelled=False).update(received_on=entry.day)
     elif entry.status == "booked" and entry.amount:
         matches = candidates(entry)
@@ -346,6 +347,7 @@ def match_invoice(company, entry):
     if (
         not tx
         or tx.document_uid
+        or tx.allocations.exists()
         or tx.standalone_category
         or tx.status != "booked"
         or entry.review
@@ -424,6 +426,8 @@ def resolve_entry(company, entry_id, choice):
     if entry.review == "classification":
         tx.standalone_category = ""
         tx.save(update_fields=["standalone_category"])
+    if tx.allocations.exists():
+        bank_allocations.undo_locked(tx)
     if tx.document_uid:
         doc = Document.objects.select_for_update().get(
             company_uid=company.company_uid, document_uid=tx.document_uid
@@ -515,6 +519,7 @@ def sync_one(feed_id):
             feed_account__account__status="active",
             transaction__status="booked",
             transaction__document_uid__isnull=True,
+            transaction__allocations__isnull=True,
             transaction__standalone_category="",
             review="",
         ).values_list("pk", flat=True)
