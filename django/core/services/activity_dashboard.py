@@ -2,12 +2,15 @@ import calendar
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
+from itertools import groupby
 from urllib.parse import urlencode
 
 from django.db.models import Sum
 from django.db.models.functions import Substr
 
+from core.models import StatementControl
 from core.security import ROLES
+from . import month_end
 from . import reports
 
 MONTHS = (
@@ -31,6 +34,29 @@ def transaction_url(start, end, currency, direction=""):
     if direction:
         params["sens"] = direction
     return "/app/finances/transactions?" + urlencode(params) + "#operations"
+
+
+def statement_covers(controls, account_uids, start, end, verified):
+    """A zero without booked rows requires coverage for each account in the currency."""
+    if not account_uids:
+        return False
+    for uid in account_uids:
+        cursor = start
+        for control in controls.get(uid, ()):
+            if control.end < cursor or control.start > end:
+                continue
+            if control.start > cursor:
+                return False
+            if control.pk not in verified:
+                verified[control.pk] = month_end.ledger(control)["matches"]
+            if not verified[control.pk]:
+                return False
+            if control.end >= end:
+                break
+            cursor = control.end + timedelta(days=1)
+        else:
+            return False
+    return True
 
 
 def bank_chart(company, period, requested, billing_currencies):
@@ -74,6 +100,20 @@ def bank_chart(company, period, requested, billing_currencies):
     yearly = count > 18
     cursor = date(start.year, 1 if yearly else start.month, 1)
     step = max(1, (end.year - start.year + 12) // 12) if yearly else 1
+    account_uids = [uid for uid, code in accounts.items() if code == currency]
+    controls = defaultdict(list)
+    for control in (
+        StatementControl.objects.filter(
+            account__company_uid=company.company_uid,
+            account__account_uid__in=account_uids,
+            start__lte=end,
+            end__gte=start,
+        )
+        .select_related("account")
+        .order_by("start")
+    ):
+        controls[control.account.account_uid].append(control)
+    verified = {}
     ticks = []
     while cursor <= end:
         if yearly:
@@ -94,6 +134,8 @@ def bank_chart(company, period, requested, billing_currencies):
         ticks.append(
             dict(
                 label=label,
+                gap=not groups
+                and not statement_covers(controls, account_uids, left, last, verified),
                 full=f"{left:%d/%m/%Y} – {last:%d/%m/%Y}",
                 start=left,
                 end=last,
@@ -119,6 +161,18 @@ def bank_chart(company, period, requested, billing_currencies):
             tick["y_" + direction] = round(
                 154 - 125 * float(tick[direction] / scale), 2
             )
+    segments = []
+    for gap, group in groupby(ticks, key=lambda tick: tick["gap"]):
+        if gap:
+            continue
+        points = list(group)
+        segments.append(
+            {
+                direction: " ".join(f"{t['x']},{t['y_' + direction]}" for t in points)
+                for direction in ("incoming", "outgoing")
+            }
+            | {"start": points[0]["x"], "end": points[-1]["x"]}
+        )
     return {
         "currency": currency,
         "currencies": currencies,
@@ -126,10 +180,8 @@ def bank_chart(company, period, requested, billing_currencies):
         "scale": scale,
         "half": scale / 2,
         "url": transaction_url(start, end, currency),
-        "paths": {
-            direction: " ".join(f"{t['x']},{t['y_' + direction]}" for t in ticks)
-            for direction in ("incoming", "outgoing")
-        },
+        "segments": segments,
+        "gaps": [t for t in ticks if t["gap"]],
         "yearly": yearly,
     }
 

@@ -477,3 +477,29 @@ class MonthlyExpenseTests(ApplicationCase):
         self.assertEqual(chart["currency"], "USD")
         self.assertEqual(chart["currencies"], ["EUR", "USD"])
         self.assertNotIn("ticks", chart)
+
+    def test_uncovered_month_is_a_gap_and_verified_zero_is_plotted(self):
+        account = self.account()
+        self.debit(account, 12, "2025-01-15")
+        url = "/app?from=2025-01-01&to=2025-03-31"
+        chart = self.client.get(url).context["bank_chart"]
+        self.assertEqual([t["gap"] for t in chart["ticks"]], [False, True, True])
+        month_end.save_control(
+            account,
+            {
+                "start": "2025-02-01",
+                "end": "2025-02-28",
+                "opening": "10",
+                "closing": "10",
+                "debits": "0",
+                "credits": "0",
+            },
+            self.user.user_uid,
+            "Février",
+        )
+        response = self.client.get(url)
+        self.assertEqual(
+            [t["gap"] for t in response.context["bank_chart"]["ticks"]],
+            [False, False, True],
+        )
+        self.assertContains(response, "Couverture à vérifier")
