@@ -10,7 +10,7 @@ from pathlib import Path
 
 from django.db import transaction
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
+from openpyxl.utils import get_column_letter, coordinate_to_tuple
 from openpyxl.xml.functions import iterparse
 
 from core.common import BusinessError, stamp
@@ -63,18 +63,23 @@ def open_book(raw):
                 if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", entry.filename):
                     with archive.open(entry) as xml:
                         for _, node in iterparse(xml, events=("end",)):
-                            if (
-                                node.tag.rpartition("}")[2] == "row"
-                                and int(node.get("r", 0)) > MAX_ROWS
-                            ):
-                                raise ValueError()
-                            if node.tag.rpartition("}")[2] == "c":
-                                location = node.get("r", "")
-                                if re.match(
-                                    r"[A-Z]{3,}|(?:C[W-Z]|[D-Z][A-Z])\d", location
-                                ):
-                                    raise ValueError()
-                            node.clear()
+                            tag = node.tag.rpartition("}")[2]
+                            if tag == "c":
+                                meaningful = any(
+                                    part.tag.rpartition("}")[2] == "f"
+                                    or (
+                                        part.tag.rpartition("}")[2] in ("v", "t")
+                                        and part.text
+                                    )
+                                    for part in node.iter()
+                                )
+                                if meaningful:
+                                    row, column = coordinate_to_tuple(node.get("r", ""))
+                                    if row > MAX_ROWS or column > MAX_COLS:
+                                        raise ValueError()
+                                node.clear()
+                            elif tag == "row":
+                                node.clear()
         return load_workbook(
             io.BytesIO(raw), read_only=True, data_only=False, keep_links=False
         )
@@ -95,7 +100,11 @@ def upload(company, filename, raw):
 
 
 def read_sheet(workbook, sheet, header):
-    book = open_book(bytes(workbook.contents))
+    raw = bytes(workbook.contents)
+    book = open_book(raw)
+    cached = load_workbook(
+        io.BytesIO(raw), read_only=True, data_only=True, keep_links=False
+    )
     try:
         if sheet not in book.sheetnames or not 1 <= header <= MAX_ROWS:
             raise BusinessError(
@@ -103,7 +112,12 @@ def read_sheet(workbook, sheet, header):
             )
         ws = book[sheet]
         ws.reset_dimensions()
-        all_rows = ws.iter_rows(min_row=header, max_col=MAX_COLS)
+        cached_sheet = cached[sheet]
+        cached_sheet.reset_dimensions()
+        bounds = {"min_row": header, "max_col": MAX_COLS, "max_row": MAX_ROWS}
+        all_rows = ws.iter_rows(**bounds)
+        cached_rows = cached_sheet.iter_rows(**bounds, values_only=True)
+        next(cached_rows, ())
         first = next(all_rows, ())
         columns = [
             (i, get_column_letter(i), str(c.value or "")[:140])
@@ -111,11 +125,13 @@ def read_sheet(workbook, sheet, header):
             if c.value is not None
         ]
         rows = []
-        for n, cells in enumerate(all_rows, header + 1):
+        for n, (cells, saved) in enumerate(zip(all_rows, cached_rows), header + 1):
             if n > MAX_ROWS:
                 raise BusinessError("La feuille dépasse 2 500 lignes.")
             row = {
-                i: (c.value, c.data_type)
+                i: (saved[i - 1], "cached")
+                if c.data_type == "f" and type(saved[i - 1]) in (int, float)
+                else (c.value, c.data_type)
                 for i, c in enumerate(cells, 1)
                 if c.value is not None
             }
@@ -123,6 +139,7 @@ def read_sheet(workbook, sheet, header):
                 rows.append((n, row))
         return columns, rows
     finally:
+        cached.close()
         book.close()
 
 
@@ -148,7 +165,7 @@ def normalize(key, value):
         if not result:
             raise ValueError("Date illisible")
         return result
-    text = str(value).strip()
+    text = format(value, ".15g") if isinstance(value, float) else str(value).strip()
     if key in NUMERIC:
         try:
             amount = Decimal(
@@ -184,7 +201,7 @@ def logical_values(cells, mapping, currency):
         if column not in cells:
             continue
         value, kind = cells[column]
-        if kind in ("f", "e"):
+        if kind in ("f", "e") or (kind == "cached" and key != "expense_amount"):
             if key in REQUIRED or key in ("key", "expense_currency"):
                 raise ValueError(
                     "La colonne obligatoire contient une formule ou une erreur"
@@ -279,6 +296,7 @@ def preview(company, workbook, register, sheet, header, mapping, currency):
         result.append(row)
         try:
             vals = logical_values(cells, mapping, currency)
+            row["cached_total"] = cells[mapping["expense_amount"]][1] == "cached"
             key = ("id:" + vals["key"]) if vals.get("key") else f"row:{n}"
             if len(key) > 180:
                 raise ValueError("Identifiant trop long")

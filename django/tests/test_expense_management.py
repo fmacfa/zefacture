@@ -1,4 +1,5 @@
 import io
+import zipfile
 from datetime import date
 from decimal import Decimal
 
@@ -432,3 +433,37 @@ class MonthlyExpenseTests(ApplicationCase):
         self.assertEqual(
             item.register_lines.get().source_values["expense_amount"], "13"
         )
+
+    def test_styled_tail_and_persisted_formula_result(self):
+        book = Workbook()
+        page = book.active
+        page.append(["Date", "Commerce", "Total", "Euros payés"])
+        page.append(["2025-04-05", "Restaurant exemple", "=10+2", "=10+2"])
+        page.cell(1000000, 11).number_format = "0.00"
+        origin = io.BytesIO()
+        book.save(origin)
+        raw = io.BytesIO()
+        with zipfile.ZipFile(origin) as src, zipfile.ZipFile(raw, "w") as dst:
+            for info in src.infolist():
+                data = src.read(info)
+                if info.filename == "xl/worksheets/sheet1.xml":
+                    data = data.replace(b"<f>10+2</f><v></v>", b"<f>10+2</f><v>12</v>")
+                dst.writestr(info, data)
+        file = expense_registers.upload(self.company, "Frais.xlsx", raw.getvalue())
+        row = expense_registers.preview(
+            self.company,
+            file,
+            register="Voyage",
+            sheet="Sheet",
+            header=1,
+            mapping={
+                "expense_date": 1,
+                "merchant_name": 2,
+                "expense_amount": 3,
+                "expense_paid_eur": 4,
+            },
+            currency="EUR",
+        )[0]
+        self.assertTrue(row["cached_total"])
+        self.assertEqual(row["amount"], "12")
+        self.assertNotIn("expense_paid_eur", row["values"])
