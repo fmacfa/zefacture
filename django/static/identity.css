@@ -8,17 +8,17 @@
 
 :root {
   --zf-font: "DM Sans", system-ui, sans-serif;
-  --zf-paper: #f9faf7;
-  --zf-ink: #1d302d;
-  --zf-muted: #63706a;
-  --zf-line: #e0e5dc;
-  --zf-forest: #183c32;
-  --zf-green: #2e6652;
-  --zf-sage: #e8eee5;
-  --zf-orange: #e36b43;
-  --zf-orange-dark: #b34827;
-  --zf-orange-pale: #fcece2;
-  --zf-orange-ink: #102720;
+  --zf-paper: #fff;
+  --zf-ink: #172944;
+  --zf-muted: #53647f;
+  --zf-line: #d8e1ef;
+  --zf-navy: #112b57;
+  --zf-blue: #2048a8;
+  --zf-blue-pale: #eaf0fb;
+  --zf-red: #c52d43;
+  --zf-red-dark: #a51f34;
+  --zf-red-pale: #fdecef;
+  --zf-red-on-navy: #ff6670;
 }
 
 .brand {
@@ -38,9 +38,9 @@
 .brand-mark { flex: none; object-fit: contain; }
 .brand-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand-name strong { font-weight: 700; }
-.brand-dot { color: var(--zf-orange); }
+.brand-dot { color: var(--zf-red); }
 
 :where(a, button, input, select, textarea, summary):focus-visible {
-  outline: 3px solid var(--zf-orange-dark);
+  outline: 3px solid var(--focus, var(--zf-red-dark));
   outline-offset: 3px;
 }

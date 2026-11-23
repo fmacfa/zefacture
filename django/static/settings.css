@@ -58,7 +58,7 @@
 }
 
 .settings-navigation a[aria-current="page"] {
-  border-inline-start-color: var(--zf-orange);
+  border-inline-start-color: var(--zf-red);
   background: var(--paper);
   font-weight: 700;
 }

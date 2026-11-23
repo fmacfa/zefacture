@@ -1,4 +1,4 @@
-# ZeFacture
+# <img src="django/static/zefacture-mark.svg" alt="" width="36" height="36"> ZeFacture
 
 [![CI ZeFacture sur main](https://github.com/fmacfa/zefacture/actions/workflows/django.yml/badge.svg?branch=main)](https://github.com/fmacfa/zefacture/actions/workflows/django.yml)
 

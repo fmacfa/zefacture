@@ -152,8 +152,8 @@ form [hidden] {
 .batch-files li { display:grid; grid-template-columns:minmax(0,1fr) minmax(10rem,1fr) minmax(0,1fr); align-items:center; gap:.75rem; border-top:1px solid var(--line); padding:.5rem 0; overflow-wrap:anywhere; }
 @media (max-width:700px) { .batch-files li { grid-template-columns:minmax(0,1fr); } }
 
-.duplicate-notice { border-inline-start: .3rem solid #d27b24; }
-.duplicate-badge { display: inline-block; background: #fff1dd; color: #693600; border-radius: .35rem; padding: .2rem .5rem; }
+.duplicate-notice { border-inline-start: .3rem solid var(--zf-red); }
+.duplicate-badge { display: inline-block; background: var(--zf-red-pale); color: var(--zf-red-dark); border-radius: .35rem; padding: .2rem .5rem; }
 
 .payment-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(15rem,100%),1fr)); gap: 1rem; margin: 0; }
 .payment-summary dt { color: var(--muted); font-size: .875rem; }
@@ -166,8 +166,8 @@ form [hidden] {
 .import-submit { gap: .75rem 1rem; }
 .import-state { display: inline-flex; flex-wrap: nowrap; font-weight: 600; }
 .import-state .request-spinner[hidden] { display: none; }
-.import-state[data-pending] { color: var(--action); }
-.import-state[data-code="failed"] { color: var(--danger, #a32f30); }
+.import-state[data-pending] { color: var(--link); }
+.import-state[data-code="failed"] { color: var(--danger); }
 .import-wait .import-state { font-size: 1.1rem; }
 .import-wait .request-spinner { width: 1.25em; height: 1.25em; }
 .batch-files li > span { display: grid; gap: .3rem; }

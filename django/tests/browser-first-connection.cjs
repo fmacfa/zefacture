@@ -31,10 +31,10 @@ async function run() {
     await page.goto(origin + '/source');
     await assertIdentity(page);
     const source = page.getByRole('link', { name: 'Télécharger le code source' });
-    assert.equal(await source.evaluate(link => getComputedStyle(link).backgroundColor), 'rgb(227, 107, 67)');
+    assert.equal(await source.evaluate(link => getComputedStyle(link).backgroundColor), 'rgb(197, 45, 67)');
     assert.equal(await source.getAttribute('href'), '/source/archive');
     assert.equal(await page.locator('.public-page').evaluate(card =>
-      getComputedStyle(card).borderTopColor), 'rgb(227, 107, 67)');
+      getComputedStyle(card).borderTopColor), 'rgb(197, 45, 67)');
     await page.getByRole('link', { name: 'Connexion', exact: true }).click();
     assert.equal(new URL(page.url()).pathname, '/connexion/installation');
     await page.getByRole('heading', { name: 'Créer le premier compte' }).waitFor();
@@ -43,10 +43,10 @@ async function run() {
     const verificationURL = origin + '/connexion/installation/autoriser';
     assert.ok(await submit.isEnabled());
     assert.equal(await page.locator('.setup-story').evaluate(panel =>
-      getComputedStyle(panel).backgroundColor), 'rgb(24, 60, 50)');
+      getComputedStyle(panel).backgroundColor), 'rgb(17, 43, 87)');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.equal(await page.locator('[name="setup_code"], [name="terms"]').count(), 0);
-    assert.equal(await submit.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(227, 107, 67)');
+    assert.equal(await submit.evaluate(button => getComputedStyle(button).backgroundColor), 'rgb(197, 45, 67)');
     await page.screenshot({ path: path.join(output, 'first-connection-mobile.png'), fullPage: true });
 
     await page.setViewportSize({ width: 1440, height: 960 });
@@ -99,7 +99,7 @@ async function run() {
     await page.getByRole('heading', { name: "Vue d'ensemble" }).waitFor();
     await assertIdentity(page);
     assert.equal(await page.locator('.sidebar').evaluate(sidebar =>
-      getComputedStyle(sidebar).backgroundColor), 'rgb(24, 60, 50)');
+      getComputedStyle(sidebar).backgroundColor), 'rgb(17, 43, 87)');
 
     const visitor = await browser.newPage();
     await visitor.goto(origin + '/connexion/installation');

@@ -12,7 +12,7 @@ from core.common import BusinessError, uid, email
 from core.models import CompanyBranding, Document, EmailEnvelope
 from . import files
 
-DEFAULT_ACCENT = "#2e6652"
+DEFAULT_ACCENT = CompanyBranding.DEFAULT_ACCENT
 
 TEMPLATE_NAMES = {
     "quote": "Devis",
@@ -53,7 +53,7 @@ def for_company(company):
     return CompanyBranding.objects.filter(
         company_uid=company.company_uid
     ).first() or CompanyBranding(
-        company_uid=company.company_uid, accent_color=DEFAULT_ACCENT
+        company_uid=company.company_uid
     )
 
 
@@ -180,9 +180,7 @@ def save(company, data, uploaded=None, *, section=None):
     updates = {}
     for validate in validators:
         updates.update(validate(data))
-    row, _ = CompanyBranding.objects.get_or_create(
-        company_uid=company.company_uid, defaults={"accent_color": DEFAULT_ACCENT}
-    )
+    row, _ = CompanyBranding.objects.get_or_create(company_uid=company.company_uid)
     row = CompanyBranding.objects.select_for_update().get(pk=row.pk)
     if section in (None, "identite"):
         if uploaded:
@@ -216,6 +214,7 @@ def palette(color):
         dark = tuple(min(255, c + max(1, int((255 - c) * 0.12))) for c in dark)
     hexa = lambda values: "#" + "".join(f"{c:02x}" for c in values)
     return {
+        "is_custom": color.lower() != DEFAULT_ACCENT,
         "primary": hexa(light),
         "hover": hexa(tuple(int(c * 0.8) for c in light)),
         "dark_link": hexa(dark),

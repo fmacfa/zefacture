@@ -4,6 +4,7 @@
       data-density="{{ preferences.density|default:'comfortable' }}" data-number-group="{% if number_style.customized %}{{ number_style.grouping }}{% endif %}" data-number-decimal="{% if number_style.customized %}{{ number_style.decimal }}{% endif %}">
 <head>
   <meta charset="utf-8">
+  <meta name="theme-color" content="#112b57">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title|default:"ZeFacture" }} · ZeFacture</title>
   <link rel="icon" type="image/svg+xml" href="{% static 'zefacture-mark.svg' %}">
@@ -20,7 +21,7 @@
   <script src="{% static 'app.js' %}" defer></script>
   {% if title == "Mon compte" or mode == "register" or mode == "reset" %}<script src="{% static 'password-strength.js' %}" defer></script>{% endif %}
   <script src="{% static 'form-draft.js' %}" defer></script>
-  {% if palette %}
+  {% if palette.is_custom %}
     <style nonce="{{ csp_nonce }}">
       :root {
         --brand-link: {{ palette.primary }};

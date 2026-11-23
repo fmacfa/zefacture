@@ -978,9 +978,11 @@ class WebhookDelivery(models.Model):
 
 
 class CompanyBranding(models.Model):
+    DEFAULT_ACCENT = "#2048a8"
+
     company_uid = models.CharField(max_length=32, unique=True)
     display_name = models.CharField(max_length=120, blank=True, default="")
-    accent_color = models.CharField(max_length=7, default="#176f60")
+    accent_color = models.CharField(max_length=7, default=DEFAULT_ACCENT)
     logo_path = models.TextField(blank=True, default="")
     logo_sha256 = models.CharField(max_length=64, blank=True, default="")
     document_layout = models.CharField(max_length=20, default="classic")

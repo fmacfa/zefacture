@@ -596,8 +596,37 @@ class BrandingTests(ApplicationCase):
         result = self.client.get(urlsplit(link).path)
         self.assertContains(result, "Studio Exemple")
         self.assertNotContains(result, "Nouvelle identité")
+        self.assertContains(result, "--brand-link: #9b156b;")
+
+    def test_standard_accent_keeps_the_theme_after_saving_email_settings(self):
+        url = "/app/entreprise/personnalisation/emails"
+        self.assertRedirects(
+            self.client.post(
+                url,
+                {"company_uid": self.company.company_uid, "reply_to": "contact@example.test"},
+            ),
+            url,
+        )
+        saved = CompanyBranding.objects.get(company_uid=self.company.company_uid)
+        self.assertEqual(saved.accent_color, branding.DEFAULT_ACCENT)
+        self.assertNotContains(self.client.get("/app"), "--brand-link:")
+
+        quote = self.document(kind="quote")
+        send(quote)
+        queued = Email.objects.get(document_uid=quote.document_uid)
+        link = queued.body_text.split("Consulter et accepter : ", 1)[1].splitlines()[0]
+        branding.save(
+            self.company, self.data_brand(accent_color="#2e6652"), section="identite"
+        )
+        self.assertContains(self.client.get("/app"), "--brand-link: #2e6652;")
+        self.client.logout()
+        self.assertNotContains(self.client.get(urlsplit(link).path), "--brand-link:")
 
     def test_branding_defaults_display_preferences_and_admin_permissions(self):
+        self.assertEqual(branding.for_company(self.company).accent_color, "#2048a8")
+        self.assertEqual(CompanyBranding().accent_color, branding.DEFAULT_ACCENT)
+        self.assertEqual(branding.palette(None)["primary"], branding.DEFAULT_ACCENT)
+        self.assertFalse(branding.palette("#2048A8")["is_custom"])
         branding.save(self.company, self.data_brand())
         response = self.client.get("/app/devis/nouveau")
         self.assertContains(response, 'value="CHF"')

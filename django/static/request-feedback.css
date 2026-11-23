@@ -2,8 +2,8 @@
   position: fixed; z-index: 9999; inset-inline-end: max(1rem,env(safe-area-inset-right));
   inset-block-end: max(1rem,env(safe-area-inset-bottom)); max-width: calc(100vw - 2rem);
   box-sizing: border-box; display: flex; align-items: center; gap: .65rem;
-  padding: .8rem 1rem; border: 1px solid var(--line,#cbdacf); border-radius: .65rem;
-  background: var(--white,#fff); color: var(--ink,#173c30); box-shadow: 0 3px 16px #10281b26;
+  padding: .8rem 1rem; border: 1px solid var(--line,var(--zf-line)); border-radius: .65rem;
+  background: var(--white,#fff); color: var(--ink,var(--zf-ink)); box-shadow: 0 3px 16px #112b5726;
   font-size: .95rem; font-weight: 600; pointer-events: none;
 }
 .request-status[hidden] { display: none; }

@@ -1,5 +1,9 @@
 # Changements
 
+## Identité visuelle tricolore
+
+- Le logo et l’interface adoptent le bleu, le blanc et le rouge. Les nouveaux documents utilisent le bleu par défaut, les rapports reprennent la palette et chaque entreprise peut choisir sa propre couleur dans **Personnalisation**.
+
 ## Tarifs, catalogue et relances des ventes
 
 - Saisie des prix unitaires HT ou TTC et remise globale en pourcentage ou en montant HT, avec répartition par taux dans les devis, les factures et le XML Factur-X.

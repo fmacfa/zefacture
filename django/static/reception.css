@@ -32,7 +32,7 @@
   padding: 1rem 1.1rem;
   min-width: 0;
 }
-.amount-cards .amount-gross { border-top: 3px solid var(--zf-green); padding-top: calc(1rem - 2px); }
+.amount-cards .amount-gross { border-top: 3px solid var(--zf-blue); padding-top: calc(1rem - 2px); }
 .amount-cards dt { color: var(--muted); font-weight: 600; }
 .amount-cards dd { margin: .35rem 0 0; font-size: clamp(1.15rem, 2vw, 1.7rem); font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .amount-cards small { font-size: .78rem; font-weight: 600; }
@@ -109,15 +109,15 @@
   gap: .45rem;
   padding: 1rem 1.1rem;
   border: 1px solid var(--line);
-  border-top: 3px solid var(--zf-green);
+  border-top: 3px solid var(--zf-blue);
   border-radius: var(--radius);
   background: var(--white);
   color: var(--ink);
 }
-.sales-overdue { border-top-color: var(--zf-orange, #df8e46); }
+.sales-overdue { border-top-color: var(--zf-red); }
 .sales-amount span { color: var(--muted); font-weight: 600; }
 .sales-amount strong { text-align: right; font-size: clamp(1.15rem, 2vw, 1.7rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.sales-amount:is(:hover, :focus-visible, [aria-current="page"]) { outline: 2px solid var(--zf-green); outline-offset: 1px; }
+.sales-amount:is(:hover, :focus-visible, [aria-current="page"]) { outline: 2px solid var(--link); outline-offset: 1px; }
 @media (max-width: 650px) {
   .sales-amounts { grid-template-columns: 1fr; }
   .sales-amount { grid-template-columns: 1fr auto; align-items: center; }
