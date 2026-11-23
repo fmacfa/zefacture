@@ -467,3 +467,13 @@ class MonthlyExpenseTests(ApplicationCase):
         self.assertTrue(row["cached_total"])
         self.assertEqual(row["amount"], "12")
         self.assertNotIn("expense_paid_eur", row["values"])
+
+    def test_currency_from_billing_without_a_bank_account(self):
+        from core.services.activity_dashboard import bank_chart
+        from core.services.reports import period
+
+        self.debit(self.account(), 5)
+        chart = bank_chart(self.company, period({"preset": "all"}), "USD", {"USD"})
+        self.assertEqual(chart["currency"], "USD")
+        self.assertEqual(chart["currencies"], ["EUR", "USD"])
+        self.assertNotIn("ticks", chart)

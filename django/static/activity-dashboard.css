@@ -56,3 +56,5 @@ html[data-theme=dark] body:has(.activity-home) { background:var(--paper); }
 
 
 @media(max-width:700px){body:has(.activity-home) .topbar{flex-direction:row;align-items:center;flex-wrap:wrap;gap:.35rem .65rem;padding-block:.5rem}.activity-home .metric-strip{padding:.75rem .15rem;gap:.7rem 0}.headline-metric strong small{display:inline}.activity-home .headline-metric{justify-content:flex-start}.activity-home .headline-metric>span:first-child{min-height:2.5em}}
+
+.plot-unit { border:1px solid var(--line); padding:.2rem .55rem; border-radius:6px; font-size:.78rem; color:var(--muted); }

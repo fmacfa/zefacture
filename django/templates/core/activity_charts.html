@@ -1,7 +1,7 @@
 {% load l10n %}
 <div class="analytics-grid{% if not bank_chart %} solo{% endif %}">
 {% if can_finance %}<section class="analytics-panel activity-panel" aria-labelledby="cash-title">
-  <div class="analytics-panel-head"><div><h2 id="cash-title">Flux de trésorerie</h2><p>Mouvements bancaires comptabilisés</p></div><div class="chart-currencies">{% for code in bank_chart.currencies %}<a href="{% querystring devise=code %}" {% if code == bank_chart.currency %}aria-current="true"{% endif %}>{{ code }}</a>{% endfor %}</div></div>
+  <div class="analytics-panel-head"><div><h2 id="cash-title">Flux de trésorerie</h2><p>Mouvements bancaires comptabilisés</p></div><strong class="plot-unit">{{ bank_chart.currency }}</strong></div>
   {% if bank_chart.ticks %}<div class="chart-legend"><span class="dot-in">Encaissements</span><span class="dot-out">Décaissements</span></div>
   <div class="trend"><div class="trend-scale" aria-hidden="true"><span>{{ bank_chart.scale|display_number }}</span><span>{{ bank_chart.half|display_number }}</span><span>0</span></div>
   <svg class="cash-trend" viewBox="0 0 600 185" preserveAspectRatio="none" aria-label="Évolution des encaissements et des décaissements en {{ bank_chart.currency }}">
@@ -18,7 +18,7 @@
   {% else %}<p class="chart-empty">Aucun mouvement enregistré en {{ bank_chart.currency }} sur cette période.</p><a href="/app/finances/transactions#releve">Importer un relevé →</a>{% endif %}
 </section>{% endif %}
 <section class="analytics-panel distribution" aria-labelledby="dist-title">
-  <div class="analytics-panel-head"><div><h2 id="dist-title">Remboursements</h2><p>Notes de frais par statut actuel</p></div></div>
+  <div class="analytics-panel-head"><div><h2 id="dist-title">Remboursements</h2><p>Notes de frais par statut, toutes devises</p></div></div>
   <div class="distribution-body"><div class="donut"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="ring-track" cx="60" cy="60" r="48"/>
   {% for s in expense_segments %}{% if s.count %}<a href="{{ s.url }}" tabindex="-1"><title>{{ s.label }} · {{ s.count }}</title><circle class="ring-{{ s.status }}" cx="60" cy="60" r="48" pathLength="100" stroke-dasharray="{{ s.share|unlocalize }} 100" stroke-dashoffset="{{ s.offset|unlocalize }}" transform="rotate(-90 60 60)"/></a>{% endif %}{% endfor %}</svg>
   <a class="donut-total" href="{{ expense_url }}"><strong>{{ chart_expense_count|display_number }}</strong><span>note{{ chart_expense_count|pluralize }}</span></a></div>

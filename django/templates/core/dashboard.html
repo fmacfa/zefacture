@@ -5,6 +5,7 @@
 {% if can_write %}<a class="button" href="/app/factures/nouvelle">+ Nouvelle facture</a>{% endif %}</header>
 <div class="activity-controls"><nav class="period-strip" aria-label="Période du tableau de bord">
 <a href="?preset=month"{% if request.GET.preset == 'month' %} aria-current="true"{% endif %}>Ce mois</a><a href="?preset=quarter"{% if request.GET.preset == 'quarter' %} aria-current="true"{% endif %}>Ce trimestre</a><a href="?preset=year"{% if request.GET.preset == 'year' or not request.GET.preset and not request.GET.from %} aria-current="true"{% endif %}>Cette année</a><a href="?preset=all"{% if request.GET.preset == 'all' %} aria-current="true"{% endif %}>Tout</a></nav>
+{% if display_currencies|length > 1 %}<nav class="chart-currencies" aria-label="Devise des indicateurs">{% for c in display_currencies %}<a href="{% querystring devise=c %}" {% if c == display_currency %}aria-current="true"{% endif %}>{{ c }}</a>{% endfor %}</nav>{% endif %}
 <details class="activity-period"><summary>Période et comparaison</summary>{% include "core/period_filter.html" %}</details></div>
 {% if headline_metrics %}<div class="metric-strip">{% for m in headline_metrics %}<a class="headline-metric" href="{{ m.url }}"><span>{{ m.label }} ↗</span><strong>{{ m.value|display_number:"2g" }} <small>{{ m.currency }}</small></strong>{% if period.compare_start %}<span class="change">Écart {% if m.difference > 0 %}+{% endif %}{{ m.difference|display_number:"2g" }}</span>{% endif %}</a>{% endfor %}</div>{% endif %}
 {% include "core/activity_charts.html" %}

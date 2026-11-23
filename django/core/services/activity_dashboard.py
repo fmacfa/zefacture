@@ -33,7 +33,7 @@ def transaction_url(start, end, currency, direction=""):
     return "/app/finances/transactions?" + urlencode(params) + "#operations"
 
 
-def bank_chart(company, period, requested):
+def bank_chart(company, period, requested, billing_currencies):
     queryset, accounts = reports.transactions_for(company)
     queryset = reports.between(queryset, "transaction_date", period.start, period.end)
     totals = defaultdict(lambda: defaultdict(Decimal))
@@ -45,7 +45,9 @@ def bank_chart(company, period, requested):
     ):
         currency = accounts.get(row["account_uid"]) or "?"
         totals[currency][(row["month"], row["direction"])] += row["total"]
-    currencies = sorted(set(totals) | set(accounts.values()) - {""}) or ["EUR"]
+    currencies = sorted(
+        (set(totals) | set(accounts.values()) | billing_currencies) - {""}
+    ) or ["EUR"]
     currency = (
         requested
         if requested in currencies
@@ -134,14 +136,18 @@ def bank_chart(company, period, requested):
 
 def context(request, period, report, expenses):
     finance = request.role in ROLES["finance"]
+    requested = request.GET.get("devise")
+    billing_currencies = {m["currency"] for m in report["metrics"] if m["currency"]}
     chart = (
-        bank_chart(request.company, period, request.GET.get("devise"))
+        bank_chart(request.company, period, requested, billing_currencies)
         if finance
         else None
     )
     currency = (
         chart["currency"]
         if chart
+        else requested
+        if requested in billing_currencies
         else next((m["currency"] for m in report["metrics"] if m["value"]), "EUR")
     )
     cards = []
@@ -176,6 +182,10 @@ def context(request, period, report, expenses):
         offset += share
     return {
         "bank_chart": chart,
+        "display_currencies": chart["currencies"]
+        if chart
+        else sorted(billing_currencies),
+        "display_currency": currency,
         "headline_metrics": cards,
         "expense_segments": slices,
         "chart_expense_count": total,
