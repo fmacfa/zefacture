@@ -3,12 +3,13 @@ from datetime import date, timedelta
 from decimal import Decimal
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
-from django.db.models import Q, Count, Sum
+from django.db.models import Q, Count, Exists, OuterRef, Sum
 from django.core.paginator import Paginator
 from django.conf import settings
 from core.common import BusinessError, today, iso_date, money
 from core.models import (
     BankAccount,
+    BankAllocation,
     BankFeed,
     BankFeedEntry,
     BankTransaction,
@@ -102,10 +103,19 @@ def finance(request, section="overview", item_uid=None, action=None):
         if category:
             rows = rows.filter(standalone_category=category)
         treatment = request.GET.get("traitement", "")
-        unlinked = Q(document_uid__isnull=True) | Q(document_uid="")
-        treatment_filters = {"unlinked": unlinked, "invoice": ~unlinked,
-                             "pending": unlinked & Q(status="booked", standalone_category="") & ~Q(bank_feed__review__gt=""),
-                             "standalone": unlinked & Q(status="booked") & ~Q(standalone_category="")}
+        allocations = BankAllocation.objects.filter(transaction_id=OuterRef("pk"))
+        rows = rows.annotate(
+            has_allocations=Exists(allocations),
+            has_allocated_document=Exists(allocations.filter(document__isnull=False)),
+        )
+        unlinked = (Q(document_uid__isnull=True) | Q(document_uid="")) & Q(has_allocated_document=False)
+        treatment_filters = {
+            "unlinked": unlinked,
+            "invoice": ~unlinked,
+            "split": Q(has_allocations=True),
+            "pending": unlinked & Q(status="booked", standalone_category="", has_allocations=False) & ~Q(bank_feed__review__gt=""),
+            "standalone": unlinked & Q(status="booked") & (~Q(standalone_category="") | Q(has_allocations=True)),
+        }
         start = iso_date(request.GET.get("from"), optional=True)
         end = iso_date(request.GET.get("to"), optional=True)
         if start and end and start > end:

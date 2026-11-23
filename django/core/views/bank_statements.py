@@ -14,9 +14,10 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST, require_http_methods
 
 from core.common import BusinessError, decimal, iso_date, uid
-from core.models import BankAccount, BankTransaction, BankStatementImport
+from core.models import BankAccount, BankTransaction, BankStatementImport, SaleReceipt
 from core.security import scoped, scoped_get
 from core.services import (
+    bank_allocations,
     bank_categories,
     bank_statements,
     extraction_ai,
@@ -315,36 +316,50 @@ def confirm_selection(request, account, token, file_digest, *, item=None):
 @require_http_methods(["GET", "POST"])
 def treatment(request, item_uid):
     item = scoped_get(BankTransaction, request, transaction_uid=item_uid)
+    form_rows = [{}, {}]
+    error = ""
+    response_status = 200
     if request.method == "POST":
         action = request.POST.get("action", "classify")
-        if action not in {"classify", "reset"}:
+        if action == "split":
+            columns = [request.POST.getlist("allocation_" + key) for key in ("target", "amount", "note")]
+            if len(set(map(len, columns))) != 1 or len(columns[0]) > bank_allocations.MAX_LINES:
+                raise BusinessError("Lignes de ventilation invalides.")
+            form_rows = [dict(zip(("target", "amount", "note"), values)) for values in zip(*columns)]
+            try:
+                bank_allocations.allocate(request.company, item, form_rows)
+            except BusinessError as exc:
+                error, response_status = str(exc), exc.status
+            else:
+                messages.success(request, "Ventilation enregistrée.")
+                return redirect("bank_transaction_treatment", item_uid=item_uid)
+        elif action == "undo_split":
+            bank_allocations.reset(request.company, item, request.POST.get("version", ""))
+            messages.success(request, "Ventilation annulée. L’opération est de nouveau à traiter.")
+            return redirect("bank_transaction_treatment", item_uid=item_uid)
+        elif action in {"classify", "reset"}:
+            category = request.POST.get("category", "") if action == "classify" else ""
+            if action == "classify" and not category:
+                raise BusinessError("Choisissez une catégorie pour classer l’opération.")
+            note = request.POST.get("note", "") if category else item.classification_note
+            finance.classify(request.company, item, category, note)
+            messages.success(request, "Classement enregistré." if category else "L’opération est de nouveau à traiter.")
+            return redirect(TRANSACTIONS)
+        else:
             raise BusinessError("Action inconnue.")
-        category = request.POST.get("category", "") if action == "classify" else ""
-        if action == "classify" and not category:
-            raise BusinessError("Choisissez une catégorie pour classer l’opération.")
-        note = (
-            request.POST.get("note", "")
-            if action == "classify"
-            else item.classification_note
-        )
-        finance.classify(request.company, item, category, note)
-        messages.success(
-            request,
-            "Classement enregistré."
-            if category
-            else "L’opération est de nouveau à traiter.",
-        )
-        return redirect(TRANSACTIONS)
     account = BankAccount.objects.filter(
         company_uid=request.company.company_uid, account_uid=item.account_uid
     ).first()
     currency = account.currency_code if account else "EUR"
     from core.services.sale_receipts import eligible
-    from core.models import SaleReceipt
     documents = eligible(request.company, "outgoing" if item.direction == "incoming" else "incoming",
                          currency, item.amount).order_by("-issue_date", "number")
     pending = SaleReceipt.objects.filter(document__in=documents, transaction__isnull=True,
                                          cancelled=False, amount=item.amount).select_related("document")
+    split_documents = bank_allocations.available_documents(request.company, currency)
+    split_receipts = SaleReceipt.objects.filter(
+        document__in=split_documents, transaction__isnull=True, cancelled=False,
+    ).select_related("document").order_by("document__number", "received_on", "pk")
     return render(
         request,
         "core/bank_treatment.html",
@@ -356,5 +371,13 @@ def treatment(request, item_uid):
             "categories": bank_categories.choices(item.direction),
             "documents": documents,
             "pending_receipts": pending,
+            "allocations": list(item.allocations.select_related("document")),
+            "allocation_docs": split_documents.order_by("-issue_date", "number"),
+            "allocation_receipts": split_receipts,
+            "allocation_categories": bank_allocations.COMPONENTS,
+            "allocation_rows": form_rows or [{}, {}],
+            "allocation_error": error,
+            "signed_amount": bank_allocations.signed_amount(item),
         },
+        status=response_status,
     )

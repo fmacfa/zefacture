@@ -15,6 +15,7 @@ from core.models import (
     Document,
     DocumentLine,
     BankAccount,
+    BankAllocation,
     BankTransaction,
     InventoryItem,
     StockMovement,
@@ -81,6 +82,7 @@ DATASETS = {
     "inventory": "Stock en fin de période",
     "movements": "Mouvements de stock",
     "transactions": "Transactions bancaires",
+    "allocations": "Ventilations bancaires",
     "vat": "État de TVA",
     "expenses": "Notes de frais",
     "forecasts": "Prévisions de trésorerie",
@@ -780,6 +782,17 @@ def dataset(request, name, selected, report=None):
                 "transaction_date", "id"
             )
         ]
+    if name == "allocations":
+        transactions, accounts = transactions_for(request.company)
+        lines = BankAllocation.objects.filter(
+            transaction__in=between(transactions, "transaction_date", start, end)
+        ).select_related("transaction", "document").order_by("transaction__transaction_date", "transaction_id", "pk")
+        return ["Date", "Opération", "Libellé", "Affectation", "Pièce", "Montant signé", "Devise", "Motif"], [
+            [line.transaction.transaction_date, line.transaction.transaction_uid, line.transaction.label,
+             line.get_kind_display(), line.document.number if line.document_id else "", line.amount,
+             accounts.get(line.transaction.account_uid, "EUR"), line.note]
+            for line in lines
+        ]
     if name == "vat":
         return [
             "Date",
@@ -807,6 +820,8 @@ def dataset(request, name, selected, report=None):
             "Origine des fonds",
             "Remboursement",
             "Date du versement",
+            "Montant payé en EUR",
+            "Personne ayant avancé les fonds",
         ], [
             [
                 i.expense_date,
@@ -821,6 +836,8 @@ def dataset(request, name, selected, report=None):
                 i.get_expense_paid_by_display(),
                 STATES[reimbursement_state(i)],
                 getattr(getattr(i, "reimbursement", None), "paid_on", None),
+                i.expense_paid_eur,
+                i.expense_payer_name,
             ]
             for i in between(query, "expense_date", start, end).order_by(
                 "expense_date", "id"

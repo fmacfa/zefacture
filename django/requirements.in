@@ -1,4 +1,5 @@
 Django==5.2.18
+iso4217==1.16.20260101
 gunicorn==26.2.0
 whitenoise==6.12.0
 psycopg[binary]==3.3.6

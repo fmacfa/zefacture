@@ -31,8 +31,9 @@
       <div class="form-grid">
         <label>Commerçant<input name="merchant_name"></label>
         <label>Date de dépense<input type="date" name="expense_date"></label>
-        <label>Montant TTC<input type="number" step="0.01" min="0" name="expense_amount"></label>
+        <label>Montant TTC<input type="number" step="0.0001" min="0" name="expense_amount"></label>
         <label>Devise<input name="expense_currency" placeholder="EUR" maxlength="3"></label>
+        <label>Personne ayant avancé les fonds<input name="expense_payer_name" maxlength="180"></label>
         <label>Catégorie<input name="expense_category" placeholder="Transport, repas, hébergement…"></label>
         {% include "core/payment_fields.html" %}
       </div>

@@ -1,9 +1,10 @@
 {% for currency, group in expense_totals %}
   <dl class="amount-cards expense-amounts" aria-label="Montants en {{ currency }}">
-    <div class="amount-gross"><dt>Total TTC</dt><dd>{{ group.gross|display_number:"2g" }} <small>{{ currency }}</small></dd></div>
-    <div class="amount-due"><dt>À rembourser</dt><dd>{{ group.due|display_number:"2g" }} <small>{{ currency }}</small></dd></div>
-    <div><dt>Déjà remboursé</dt><dd>{{ group.paid|display_number:"2g" }} <small>{{ currency }}</small></dd></div>
-    <div><dt>Remboursement à préciser</dt><dd>{{ group.unknown|display_number:"2g" }} <small>{{ currency }}</small></dd></div>
+    <div class="amount-gross"><dt>Total TTC</dt><dd>{{ group.gross|expense_amount }} <small>{{ currency }}</small></dd></div>
+    <div class="amount-due"><dt>À rembourser</dt><dd>{{ group.due|expense_amount }} <small>{{ currency }}</small></dd></div>
+    <div><dt>Déjà remboursé</dt><dd>{{ group.paid|expense_amount }} <small>{{ currency }}</small></dd></div>
+    <div><dt>Remboursement à préciser</dt><dd>{{ group.unknown|expense_amount }} <small>{{ currency }}</small></dd></div>
   </dl>
 {% empty %}<p class="muted">Aucun montant identifié pour cette sélection.</p>{% endfor %}
 {% if missing_amounts %}<p class="form-help">{{ missing_amounts|display_number }} note{{ missing_amounts|pluralize }} à compléter pour le calcul des montants.</p>{% endif %}
+{% if paid_eur_count %}<p><strong>Paiements en euros documentés</strong> {{ paid_eur_total|display_number:"2g" }} EUR pour {{ paid_eur_count|display_number }} note{{ paid_eur_count|pluralize }}.</p>{% endif %}

@@ -1,5 +1,10 @@
 # Changements
 
+## Ventilations bancaires et avances en devise
+
+- Rapprochement de plusieurs montants sur une opération, avec factures, avoirs, commissions et reports. Le détail signé est exportable.
+- Conservation du montant original des notes de frais en devise, du montant effectivement payé en euros et du nom de la personne ayant avancé les fonds.
+
 ## Identité visuelle tricolore
 
 - Le logo et l’interface adoptent le bleu, le blanc et le rouge. Les nouveaux documents utilisent le bleu par défaut, les rapports reprennent la palette et chaque entreprise peut choisir sa propre couleur dans **Personnalisation**.

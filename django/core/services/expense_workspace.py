@@ -55,7 +55,7 @@ def record_reimbursement(request, item):
     if not item or item.archived_at:
         raise BusinessError("Choisissez une note de frais active.", 409)
     status = request.POST.get("reimbursement_status")
-    if status not in {"due", "paid", "exempt", "auto"}:
+    if status not in {*STATES, "auto"}:
         raise BusinessError("Choisissez un état de remboursement.")
     if status == "auto":
         ExpenseReimbursement.objects.filter(receipt=item).delete()
@@ -107,6 +107,8 @@ def details(item):
         "date": item.expense_date or suggested["date"],
         "amount": amount,
         "currency": item.expense_currency or suggested["currency"],
+        "paid_eur": item.expense_paid_eur,
+        "payer_name": item.expense_payer_name,
         "vat": suggested["vat"]
         if "totals.total_vat" in reviewed
         or not item.expense_currency
@@ -145,6 +147,7 @@ def workspace(selection, params, *, dashboard=False):
             "unknown": Decimal(0),
         }
     )
+    paid_eur_count, paid_eur_total = 0, Decimal(0)
     missing = 0
     results = []
     selection = selection.select_related("reimbursement").defer("transcription_json")
@@ -160,7 +163,10 @@ def workspace(selection, params, *, dashboard=False):
         summaries = (
             selection.filter(confirmed)
             .values("expense_currency", "reimbursement__status", "expense_paid_by")
-            .annotate(count=Count("pk"), amount=Sum("expense_amount"))
+            .annotate(
+                count=Count("pk"), amount=Sum("expense_amount"),
+                eur_count=Count("expense_paid_eur"), eur_total=Sum("expense_paid_eur"),
+            )
             .order_by()
         )
         for summary in summaries:
@@ -168,6 +174,8 @@ def workspace(selection, params, *, dashboard=False):
                 summary["expense_paid_by"], "unknown"
             )
             counts[current] += summary["count"]
+            paid_eur_count += summary["eur_count"]
+            paid_eur_total += summary["eur_total"] or 0
             group = amounts[summary["expense_currency"]]
             group["gross"] += summary["amount"]
             if current != "exempt":
@@ -189,6 +197,7 @@ def workspace(selection, params, *, dashboard=False):
                     facts["category"],
                     facts["description"],
                     facts["purpose"],
+                    facts["payer_name"],
                     item.original_filename,
                 )
             )
@@ -198,6 +207,9 @@ def workspace(selection, params, *, dashboard=False):
         counts[current] += 1
         if state and state != current:
             continue
+        if item.expense_paid_eur is not None:
+            paid_eur_count += 1
+            paid_eur_total += item.expense_paid_eur
         if facts["currency"] and facts["amount"] != "":
             group = amounts[facts["currency"]]
             amount = Decimal(facts["amount"])
@@ -233,6 +245,8 @@ def workspace(selection, params, *, dashboard=False):
     context = {
         "expense_cards": cards,
         "expense_totals": sorted(amounts.items()),
+        "paid_eur_count": paid_eur_count,
+        "paid_eur_total": paid_eur_total,
         "missing_amounts": missing,
         "categories": sorted(categories),
         "states": STATES,

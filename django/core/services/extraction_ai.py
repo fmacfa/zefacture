@@ -13,7 +13,7 @@ from django.core.validators import validate_email
 from core.common import BusinessError, json_text
 from core.payment_details import PaidBy, PaymentMethod
 from .expense_classification import CATEGORIES, clean_classification
-from .receipt_extraction import CURRENCIES, amount_string, as_date
+from .receipt_extraction import CURRENCIES, RECEIPT_CURRENCIES, amount_string, as_date
 
 PROVIDERS = {
     "openrouter": ("OpenRouter", "OPENROUTER"),
@@ -311,7 +311,7 @@ def normalize_extraction(data, *, sale=False, expense=False):
     invoice = clean_group(data.get("invoice"), "invoice")
     for field in ("issue_date", "due_date"):
         invoice[field] = as_date(invoice.get(field, ""))
-    if invoice.get("currency_code", "") not in CURRENCIES:
+    if invoice.get("currency_code", "") not in (RECEIPT_CURRENCIES if expense else CURRENCIES):
         invoice.pop("currency_code", None)
     totals = {
         field: amount_string(value)

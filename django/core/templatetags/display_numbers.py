@@ -18,3 +18,12 @@ def display_number(value, precision=None):
     if not isinstance(value, (int, float, Decimal)) or isinstance(value, bool):
         return value
     return style.format(value) if style.customized else value
+
+
+@register.filter
+def expense_amount(value):
+    """Keep sub-cent values on original receipts while displaying at least two places."""
+    if value is None or value == "":
+        return ""
+    precision = max(2, -Decimal(str(value)).normalize().as_tuple().exponent)
+    return display_number(value, f"{precision}g")

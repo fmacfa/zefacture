@@ -309,7 +309,7 @@ class BankWorkspaceTests(ApplicationCase):
         self.assertEqual(reply.context["transactions"].paginator.count, 4)
         self.assertEqual(
             reply.context["bank_counts"],
-            {"all": 5, "unlinked": 4, "invoice": 1, "standalone": 1, "pending": 2},
+            {"all": 5, "unlinked": 4, "invoice": 1, "standalone": 1, "pending": 2, "split": 0},
         )
         totals = dict(reply.context["bank_totals"])
         self.assertEqual((totals["EUR"]["net"], totals["USD"]["net"]), (-12, -100))

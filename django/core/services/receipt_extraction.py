@@ -4,16 +4,22 @@ import re
 import unicodedata
 from datetime import date
 from decimal import Decimal
+from iso4217 import Currency
 
 from core.common import BusinessError, decimal, iso_date, unpack
 from core.payment_details import PaymentMethod, payment_fields
 
 EXPENSE_KINDS = {"expense_note", "expense", "expense_receipt", "receipt"}
 CURRENCIES = {"EUR", "USD", "GBP", "CHF", "CAD", "JPY", "SEK", "NOK", "DKK", "PLN"}
+RECEIPT_CURRENCIES = frozenset(Currency.__members__) - {"XXX", "XTS"}
 
 DATE = re.compile(r"(?<!\d)(\d{4}-\d{2}-\d{2}|\d{1,2}[./-]\d{1,2}[./-]\d{4})(?!\d)")
 AMOUNT = r"\d{1,3}(?: \d{3})+[,.]\d{2}|\d{1,9}[,.]\d{2}"
 CURRENCY_UNIT = r"(?:€|£|euros?|" + "|".join(sorted(CURRENCIES)) + ")"
+RECEIPT_UNIT = r"(?:€|£|euros?|k[cč]|" + "|".join(sorted(RECEIPT_CURRENCIES)) + ")"
+RECEIPT_AMOUNT = re.compile(
+    rf"\s*(?:{RECEIPT_UNIT}\s*)?(\d+(?: \d{{3}})*(?:[.,]\d{{1,4}})?)(?:\s*{RECEIPT_UNIT})?\s*$", re.I
+)
 AMOUNT_ONLY = re.compile(
     rf"\s*(?:{CURRENCY_UNIT}\s*)?({AMOUNT})(?:\s*{CURRENCY_UNIT})?\s*$",
     re.I,
@@ -65,12 +71,12 @@ def amount_string(value):
     )
 
 
-def explicit_amount(tail):
-    match = AMOUNT_ONLY.fullmatch(tail)
+def explicit_amount(tail, expense=False):
+    match = (RECEIPT_AMOUNT if expense else AMOUNT_ONLY).fullmatch(tail)
     return amount_string(match[1].replace(" ", "")) if match else ""
 
 
-def local_suggestion(text):
+def local_suggestion(text, *, expense=False):
     # Most relevant data is in the header and footer. Bound the work for long PDFs.
     text = text or ""
     if len(text) > 36000:
@@ -90,11 +96,11 @@ def local_suggestion(text):
             if not tail and index + 1 < len(labels):
                 tail = labels[index + 1]
             (generic_totals if label == "total" else firm_totals).append(
-                explicit_amount(tail)
+                explicit_amount(tail, expense)
             )
         match = VAT.match(line)
         if match:
-            taxes.append(explicit_amount(match[1]))
+            taxes.append(explicit_amount(match[1], expense))
 
     merchant = next(
         (
@@ -111,6 +117,13 @@ def local_suggestion(text):
     )
     upper = text.upper()
     currencies = {code for code in CURRENCIES if re.search(rf"\b{code}\b", upper)}
+    if expense:
+        # Common words such as TRY are also ISO codes. Require a nearby price.
+        for before, after in re.findall(r"\b([A-Z]{3})[ \t]*\d|\d[ \t]*([A-Z]{3})\b", upper):
+            if (code := before or after) in RECEIPT_CURRENCIES:
+                currencies.add(code)
+        if re.search(r"\bKČ\b", upper):
+            currencies.add("CZK")
     if "€" in text or re.search(r"\bEUROS?\b", upper):
         currencies.add("EUR")
     if "£" in text:
@@ -130,7 +143,7 @@ def local_suggestion(text):
 
 
 def expense_suggestion(item, parsed=None):
-    local = local_suggestion(item.transcription_text)
+    local = local_suggestion(item.transcription_text, expense=True)
     if parsed is None:
         parsed = unpack(item.extraction_json)
     if not isinstance(parsed, dict):
@@ -153,7 +166,7 @@ def expense_suggestion(item, parsed=None):
         "merchant": str(supplier["legal_name"] or "")[:255],
         "date": as_date(str(invoice["issue_date"] or "")),
         "currency": currency
-        if isinstance(currency, str) and currency in CURRENCIES
+        if isinstance(currency, str) and currency in RECEIPT_CURRENCIES
         else "",
         "amount": amount_string(totals["total_including_tax"]),
         "vat": amount_string(totals["total_vat"]),
@@ -208,11 +221,13 @@ def expense_values(data, require_complete=False):
     merchant = text("merchant_name", 255)
     when = iso_date(data.get("expense_date"), optional=True)
     raw_amount = data.get("expense_amount")
+    if raw_amount not in (None, "") and not re.fullmatch(r"-?\d+(?:[.,]\d{1,4})?", str(raw_amount).strip()):
+        raise BusinessError("Indiquez le montant du justificatif avec au plus quatre décimales.")
     amount = decimal(raw_amount) if raw_amount not in (None, "") else None
     currency = data.get("expense_currency", "").strip().upper()
     if amount is not None and amount < Decimal(0):
         raise BusinessError("Le montant du justificatif doit être positif ou nul.")
-    if currency and currency not in CURRENCIES:
+    if currency and currency not in RECEIPT_CURRENCIES:
         raise BusinessError("Devise non prise en charge.")
     if require_complete and (
         not merchant or not when or amount is None or not currency
@@ -220,7 +235,19 @@ def expense_values(data, require_complete=False):
         raise BusinessError(
             "Renseignez le commerçant, la date, le montant TTC et la devise."
         )
+    extra = {}
+    if "expense_paid_eur" in data:
+        value = str(data["expense_paid_eur"]).strip() if data["expense_paid_eur"] is not None else ""
+        if value and not re.fullmatch(r"\d+(?:[.,]\d{1,2})?", value):
+            raise BusinessError("Indiquez un montant payé en euros positif ou nul, au centime.")
+        extra["expense_paid_eur"] = decimal(value) if value else None
+    if "expense_payer_name" in data:
+        payer = (data.get("expense_payer_name") or "").replace("\0", "").strip()
+        if len(payer) > 180:
+            raise BusinessError("Le nom de la personne qui a avancé les fonds est limité à 180 caractères.")
+        extra["expense_payer_name"] = payer
     return {
+        **extra,
         "merchant_name": merchant,
         "expense_date": when,
         "expense_amount": amount,

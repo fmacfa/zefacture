@@ -10,7 +10,7 @@ from core.common import BusinessError, decimal, unpack
 from core.models import Company, DocumentFile, Ingestion, PdpInvoice
 from . import files
 from .invoice_match import invoice_keys_v1, name_key
-from .receipt_extraction import local_suggestion
+from .receipt_extraction import EXPENSE_KINDS, local_suggestion
 
 
 def index_extraction(item, data):
@@ -20,7 +20,7 @@ def index_extraction(item, data):
 
 
 def local_invoice(item):
-    data = local_suggestion(item.transcription_text)
+    data = local_suggestion(item.transcription_text, expense=item.source_kind in EXPENSE_KINDS)
     raw = item.transcription_text or ""
     numbers = {
         m.strip(" .:")

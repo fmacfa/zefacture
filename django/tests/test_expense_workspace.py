@@ -26,6 +26,39 @@ class ExpenseWorkspaceTests(ApplicationCase):
         }
         return Ingestion.objects.create(**(values | changes))
 
+    def test_documented_foreign_payment_advancer_and_reimbursement(self):
+        note = self.receipt(expense_currency="", expense_amount=None)
+        url = "/app/imports/" + note.ingestion_uid
+        values = {"merchant_name": "Café exemple", "expense_date": "2024-05-03",
+                  "expense_amount": "98.5", "expense_currency": "CZK", "expense_paid_by": "personal",
+                  "expense_payer_name": "Camille Exemple", "expense_paid_eur": "3,92"}
+        save = url + "/enregistrer-justificatif"
+        self.assertEqual(self.client.post(save, values).status_code, 302)
+        note.refresh_from_db()
+        self.assertEqual((note.expense_amount, note.expense_currency, note.expense_paid_eur, note.expense_payer_name),
+                         (Decimal("98.5"), "CZK", Decimal("3.92"), "Camille Exemple"))
+        visible = self.client.get("/app/notes-de-frais", {"q": "Camille Exemple"})
+        self.assertEqual(visible.context["paid_eur_total"], Decimal("3.92"))
+        self.assertEqual(visible.context["paid_eur_count"], 1)
+        self.assertContains(visible, "CZK")
+        self.assertContains(self.client.get(url), "Camille Exemple")
+        report = self.client.get("/app/rapports", {"dataset": "expenses", "format": "csv", "preset": "all"})
+        self.assertIn("Camille Exemple", report.content.decode())
+        for change in ({"expense_paid_eur": "-1"}, {"expense_paid_eur": "2.345"}, {"expense_currency": "ZZZ"},
+                       {"expense_payer_name": "x" * 181}):
+            self.assertEqual(self.client.post(save, values | change).status_code, 422)
+        refund = url + "/remboursement"
+        self.assertEqual(self.client.post(refund, {"reimbursement_status": "unknown"}).status_code, 302)
+        self.assertEqual(self.client.post(refund, {"reimbursement_status": "paid", "paid_on": "2024-05-06"}).status_code, 302)
+        self.assertEqual(self.client.post(save, values | {"expense_paid_eur": "4.15"}).status_code, 409)
+        self.assertEqual(self.client.post(refund, {"reimbursement_status": "due"}).status_code, 302)
+        self.assertEqual(self.client.post(save, values | {"expense_amount": "1.234", "expense_currency": "KWD",
+                                                        "expense_paid_eur": ""}).status_code, 302)
+        note.refresh_from_db()
+        self.assertIsNone(note.expense_paid_eur)
+        self.assertEqual(note.expense_amount, Decimal("1.234"))
+        self.assertContains(self.client.get(url), "1,234")
+
     def test_provider_schema_fields_and_legacy_classification(self):
         data = {
             "supplier": {"legal_name": "Atelier exemple"},

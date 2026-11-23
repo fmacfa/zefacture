@@ -92,9 +92,10 @@ def declare(document, amount, day, nonce):
     return receipt
 
 
-def confirm_or_record(document, tx, choice, automatic):
+def confirm_or_record(document, tx, choice, automatic, *, amount=None):
+    amount = tx.amount if amount is None else amount
     pending = document.receipts.select_for_update().filter(
-        transaction__isnull=True, cancelled=False, amount=tx.amount
+        transaction__isnull=True, cancelled=False, amount=amount
     )
     if choice == "new":
         receipt = None
@@ -131,11 +132,11 @@ def confirm_or_record(document, tx, choice, automatic):
         receipt.received_on = receipt.received_on or tx.transaction_date
         receipt.save(update_fields=["transaction", "received_on"])
     else:
-        apply_amount(document, tx.amount, tx.transaction_date)
+        apply_amount(document, amount, tx.transaction_date)
         receipt = SaleReceipt.objects.create(
             document=document,
             transaction=tx,
-            amount=tx.amount,
+            amount=amount,
             received_on=tx.transaction_date,
             origin="bank",
         )
