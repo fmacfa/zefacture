@@ -13,11 +13,14 @@
   <section class="expense-original" aria-labelledby="original-title">
     <div class="expense-original-head"><h2 id="original-title">Justificatif original</h2>
       <div class="inline wrap">{% if can_preview and not preview_error %}<a href="{{ reader_url }}">Agrandir</a>{% endif %}
-        <a data-download href="/app/imports/{{ item.ingestion_uid }}/telecharger">Télécharger l’original</a></div>
+        {% if item.storage_path %}<a data-download href="/app/imports/{{ item.ingestion_uid }}/telecharger">Télécharger l’original</a>{% endif %}</div>
     </div>
     {% if page_count %}{% include "core/reader_panel.html" with inline_reader=True page=1 title=item.original_filename %}
-    {% else %}<p class="notice" role="status">{{ preview_error|default:"L’aperçu de ce format est indisponible. Vous pouvez télécharger l’original." }}</p>{% endif %}
+    {% elif not item.storage_path %}<p>Cette dépense provient d’un registre Excel.</p>{% else %}<p class="notice" role="status">{{ preview_error|default:"L’aperçu de ce format est indisponible. Vous pouvez télécharger l’original." }}</p>{% endif %}
     <p class="form-help break">{{ item.original_filename }}</p>
+    {% if can_finance %}{% include "core/proof_links.html" with links=item.proofs.all only %}<a href="/app/justificatifs/frais/{{ item.ingestion_uid }}">Gérer les pièces justificatives</a>
+    {% for source in item.register_lines.all %}<p><a href="/app/notes-de-frais/registres/{{ source.workbook.upload_uid }}?sheet={{ source.sheet|urlencode }}&amp;register={{ source.register|urlencode }}">{{ source.register }} · {{ source.sheet }} · ligne {{ source.row_number }}</a></p>{% endfor %}
+    {% if item.claim_line %}<p><a href="/app/notes-de-frais/groupees/{{ item.claim_line.claim.claim_uid }}">Ouvrir la note groupée</a></p>{% endif %}{% endif %}
   </section>
   <div class="expense-details">
     <dl class="expense-metrics" aria-label="Montants du justificatif">
@@ -28,7 +31,7 @@
     </dl>
     {% if item.progress.busy %}
       <section class="card import-wait" data-import-wait><h2>Traitement du document</h2><p role="status">{% include "core/import_state.html" with i=item only %}</p><p>Les champs apparaîtront ici dès la fin du traitement.</p><noscript><a href="{{ request.path }}">Actualiser</a></noscript></section>
-    {% elif can_write and not item.archived_at and not item.document_uid %}
+    {% elif can_write and not item.archived_at and not item.document_uid and not item.claim_line.claim.approved %}
       <form class="card stack expense-form" method="post" action="/app/imports/{{ item.ingestion_uid }}/enregistrer-justificatif">
         {% csrf_token %}
         <h2>Détails de la dépense</h2>
@@ -55,13 +58,13 @@
       </form>
     {% else %}
       <section class="card stack" id="suivi-reglement"><h2>Paiement et motif</h2>
-        {% if edit_payment and not item.archived_at %}<form class="stack" action="{{ payment_action }}" method="post">{% csrf_token %}<div class="form-grid">{% include "core/payment_fields.html" %}</div><div><button>Enregistrer le suivi du règlement</button></div></form>
+        {% if edit_payment and not item.archived_at and not item.claim_line.claim.approved %}<form class="stack" action="{{ payment_action }}" method="post">{% csrf_token %}<div class="form-grid">{% include "core/payment_fields.html" %}</div><div><button>Enregistrer le suivi du règlement</button></div></form>
         {% else %}<dl class="payment-summary"><div><dt>Moyen de paiement</dt><dd>{{ facts.method_label|default:"Non renseigné" }}</dd></div><div><dt>Origine des fonds</dt><dd>{{ facts.payer_label|default:"Non renseignée" }}</dd></div><div><dt>Motif</dt><dd>{{ facts.purpose|default:"Non renseigné" }}</dd></div></dl>{% endif %}
       </section>
     {% endif %}
     <section class="card stack expense-refund" id="remboursement"><div class="section-head"><h2>Remboursement</h2><span class="expense-chip refund-{{ facts.status }}">{{ facts.status_label }}</span></div>
       {% if item.reimbursement.paid_on %}<p>Versement effectué le <strong>{{ item.reimbursement.paid_on|date:"d/m/Y" }}</strong>.</p>{% endif %}
-      {% if can_finance and not item.archived_at and not item.progress.busy %}
+      {% if can_finance and not item.archived_at and not item.progress.busy and not item.claim_line.claim.approved %}
         <form method="post" action="{{ request.path }}/remboursement" class="stack" data-reimbursement>{% csrf_token %}
           <div class="form-grid"><label>État du remboursement<select name="reimbursement_status"><option value="auto">Selon l’origine des fonds</option>{% for key,label in reimbursement_states.items %}<option value="{{ key }}"{% if item.reimbursement.status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
           <label data-paid-date>Date du versement<input type="date" name="paid_on" max="{{ today|date:'Y-m-d' }}" value="{{ item.reimbursement.paid_on|date:'Y-m-d' }}"></label></div>
@@ -73,14 +76,14 @@
   </div>
 </div>
 {% if item.document_uid %}<p class="notice success"><a href="/app/reception/{{ item.document_uid }}">Ouvrir la facture fournisseur liée</a></p>{% endif %}
-{% if can_write and not item.progress.busy %}
+{% if can_write and not item.progress.busy and not item.claim_line.claim.approved %}
   {% if not item.document_uid and not item.archived_at %}
     <details class="card form-disclosure"><summary>Facturation détaillée et texte transcrit</summary>{% include "core/ingestion_invoice_editor.html" %}</details>
   {% endif %}
   <div class="form-actions expense-secondary">
     {% if item.archived_at %}<form method="post" action="{{ request.path }}/restaurer">{% csrf_token %}<button class="secondary">Restaurer le justificatif</button></form>
     {% else %}
-      {% if not item.document_uid %}<form method="post" action="{{ request.path }}/relancer">{% csrf_token %}<button class="secondary">Relancer l’analyse{% if ai_choices %} avec {{ ai_choices.0.1 }}{% endif %}</button></form>{% endif %}
+      {% if not item.document_uid and not item.register_lines.all or not item.document_uid and item.storage_path %}<form method="post" action="{{ request.path }}/relancer">{% csrf_token %}<button class="secondary">Relancer l’analyse{% if ai_choices %} avec {{ ai_choices.0.1 }}{% endif %}</button></form>{% endif %}
       <form method="post" action="{{ request.path }}/archiver" data-confirm="Archiver ce justificatif ?">{% csrf_token %}<button class="secondary">Archiver le justificatif</button></form>
     {% endif %}
   </div>

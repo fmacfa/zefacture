@@ -1,3 +1,4 @@
+from core.services import expense_claims
 from collections import Counter, defaultdict
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -54,6 +55,7 @@ def record_reimbursement(request, item):
     item = receipts_for(request).select_for_update().filter(pk=item.pk).first()
     if not item or item.archived_at:
         raise BusinessError("Choisissez une note de frais active.", 409)
+    expense_claims.require_editable(item)
     status = request.POST.get("reimbursement_status")
     if status not in {*STATES, "auto"}:
         raise BusinessError("Choisissez un état de remboursement.")

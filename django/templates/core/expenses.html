@@ -3,6 +3,7 @@
 {% block content %}
 <div class="page-head"><div><p class="eyebrow">Achats</p><h1>{% if archives %}Notes de frais archivées{% else %}Notes de frais{% endif %}</h1></div>
   <div class="inline wrap">
+    {% if can_finance %}<a href="/app/notes-de-frais/groupees">Notes groupées</a><a href="/app/notes-de-frais/registres">Registres Excel</a>{% endif %}
     {% if not archives and can_write %}<a class="button" href="?importer=1#importer">Importer des justificatifs</a>{% endif %}
     <a class="button secondary" href="{{ request.path }}{% if not archives %}?archives=1{% endif %}">{% if archives %}Revenir à la liste active{% else %}Voir les archives{% endif %}</a>
   </div>

@@ -10,13 +10,15 @@ from core.models import (
     BankFeedEntry,
     BankTransaction,
     Document,
+    ExpenseClaim,
 )
-from . import sale_receipts
+from . import sale_receipts, expense_claims
 from .documents import INVOICE_TYPES, event
 
 KINDS = BankAllocation.Kind
 COMPONENTS = dict(KINDS.choices)
 COMPONENTS.pop(KINDS.DOCUMENT)
+COMPONENTS.pop(KINDS.CLAIM)
 OPEN = ("sent", "accepted", "received", "disputed")
 MAX_LINES = 100
 
@@ -40,6 +42,10 @@ def available_documents(company, currency):
         )
         .distinct()
     )
+
+
+def account_exists(company, tx):
+    return BankAccount.objects.filter(company_uid=company.company_uid, account_uid=tx.account_uid).exists()
 
 
 def signed_amount(tx):
@@ -77,6 +83,11 @@ def parse_lines(rows):
             raise BusinessError(
                 "Chaque ligne exige un montant non nul et un motif de 500 caractères au maximum."
             )
+        if re.fullmatch(r"claim-[0-9a-f]{32}", target):
+            if any(row[0] == KINDS.CLAIM and row[1] == target[6:] for row in parsed):
+                raise BusinessError("Regroupez les montants affectés à la même note.")
+            parsed.append((KINDS.CLAIM, target[6:], "", amount, note))
+            continue
         if target in COMPONENTS:
             parsed.append((target, "", "", amount, note))
             continue
@@ -177,16 +188,27 @@ def allocate(company, tx, rows):
         raise BusinessError(
             "Une pièce est indisponible pour cette entreprise ou cette devise.", 409
         )
+    claim_ids = {r[1] for r in parsed if r[0] == KINDS.CLAIM}
+    claims = {c.claim_uid: c for c in ExpenseClaim.objects.select_for_update().filter(
+        claim_uid__in=claim_ids, company_uid=company.company_uid, approved=True).order_by("pk")}
+    if claims.keys() != claim_ids:
+        raise BusinessError("Une note groupée est indisponible ou encore en brouillon.", 409)
     lines = []
     for kind, doc_uid, choice, amount, note in parsed:
-        doc = docs.get(doc_uid)
+        doc = docs.get(doc_uid) if kind == KINDS.DOCUMENT else None
+        claim = claims.get(doc_uid) if kind == KINDS.CLAIM else None
+        if claim and (currency != "EUR" or not account_exists(company, tx) or tx.direction != "outgoing"
+                      or amount >= 0 or -amount > expense_claims.balances(claim)[2]):
+            raise BusinessError("Le remboursement doit provenir d’un débit en euros et respecter le solde de la note.", 409)
         line = BankAllocation(
-            transaction=tx, document=doc, kind=kind, amount=amount, note=note
+            transaction=tx, document=doc, claim=claim, kind=kind, amount=amount, note=note
         )
         if doc:
             apply_document(tx, doc, line, choice)
         lines.append(line)
     BankAllocation.objects.bulk_create(lines)
+    for claim in claims.values():
+        expense_claims.update_reimbursements(claim)
     tx.updated_at = stamp()
     tx.save(update_fields=["updated_at"])
 
@@ -205,6 +227,8 @@ def undo_locked(tx, *, version=None):
         )
         .order_by("pk")
     }
+    claims = list(ExpenseClaim.objects.select_for_update().filter(
+        company_uid=tx.company_uid, pk__in=[line.claim_id for line in lines if line.claim_id]).order_by("pk"))
     for line in lines:
         if not line.document_id:
             continue
@@ -248,6 +272,8 @@ def undo_locked(tx, *, version=None):
             },
         )
     tx.allocations.all().delete()
+    for claim in claims:
+        expense_claims.update_reimbursements(claim)
     tx.updated_at = stamp()
     tx.save(update_fields=["updated_at"])
 

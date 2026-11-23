@@ -786,10 +786,10 @@ def dataset(request, name, selected, report=None):
         transactions, accounts = transactions_for(request.company)
         lines = BankAllocation.objects.filter(
             transaction__in=between(transactions, "transaction_date", start, end)
-        ).select_related("transaction", "document").order_by("transaction__transaction_date", "transaction_id", "pk")
+        ).select_related("transaction", "document", "claim").order_by("transaction__transaction_date", "transaction_id", "pk")
         return ["Date", "Opération", "Libellé", "Affectation", "Pièce", "Montant signé", "Devise", "Motif"], [
             [line.transaction.transaction_date, line.transaction.transaction_uid, line.transaction.label,
-             line.get_kind_display(), line.document.number if line.document_id else "", line.amount,
+             line.get_kind_display(), line.document.number if line.document_id else f"{line.claim.payer} · {line.claim.month:%Y-%m}" if line.claim_id else "", line.amount,
              accounts.get(line.transaction.account_uid, "EUR"), line.note]
             for line in lines
         ]

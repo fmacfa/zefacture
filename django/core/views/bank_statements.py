@@ -14,7 +14,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST, require_http_methods
 
 from core.common import BusinessError, decimal, iso_date, uid
-from core.models import BankAccount, BankTransaction, BankStatementImport, SaleReceipt
+from core.models import BankAccount, BankTransaction, BankStatementImport, SaleReceipt, ExpenseClaim
 from core.security import scoped, scoped_get
 from core.services import (
     bank_allocations,
@@ -24,6 +24,7 @@ from core.services import (
     finance,
     statement_batches,
     statement_pdf,
+    month_end,
 )
 
 TRANSACTIONS = "/app/finances/transactions"
@@ -192,6 +193,8 @@ def upload(request):
             request.company.company_uid,
             account.account_uid,
             hashlib.sha256(raw).hexdigest(),
+            month_end.printed(transcript),
+            Path(uploaded.name).name[:255],
         ],
         salt=SIGNING_SALT,
     )
@@ -212,6 +215,7 @@ def review_page(request, account, token, rows, transcript, error="", item=None):
             "token": token,
             "rows": rows,
             "transcript": transcript,
+            "printed": month_end.printed(transcript),
             "max_slots": MAX_SLOTS,
             "error": error,
         },
@@ -225,7 +229,7 @@ def review_page(request, account, token, rows, transcript, error="", item=None):
 def confirm_pdf(request):
     token = request.POST.get("preview", "")
     try:
-        user, company, uid, file_digest = signing.loads(
+        user, company, uid, file_digest, *metadata = signing.loads(
             token, salt=SIGNING_SALT, max_age=7200
         )
     except signing.BadSignature as exc:
@@ -235,10 +239,10 @@ def confirm_pdf(request):
     if (user, company) != (request.user.user_uid, request.company.company_uid):
         raise BusinessError("Aperçu indisponible.", 404)
     account = scoped_get(BankAccount, request, account_uid=uid, status="active")
-    return confirm_selection(request, account, token, file_digest)
+    return confirm_selection(request, account, token, file_digest, metadata=metadata)
 
 
-def confirm_selection(request, account, token, file_digest, *, item=None):
+def confirm_selection(request, account, token, file_digest, *, item=None, metadata=None):
     slots = request.POST.getlist("slot")
     selected = set(request.POST.getlist("selected"))
     valid = {str(i) for i in range(MAX_SLOTS)}
@@ -290,9 +294,17 @@ def confirm_selection(request, account, token, file_digest, *, item=None):
                     if index < len(originals)
                     else f"manual:{index - len(originals)}"
                 )
-        result = bank_statements.import_rows(
-            request.company, account.account_uid, "pdf", file_digest, confirmed
-        )
+        with transaction.atomic():
+            result = bank_statements.import_rows(
+                request.company, account.account_uid, "pdf", file_digest, confirmed
+            )
+            printed = month_end.printed(item.result["transcript"]) if item else metadata[0] if metadata else {}
+            if printed:
+                reference = item.filename if item else metadata[1]
+                control = month_end.save_control(account, printed, request.user.user_uid, reference)
+                if not month_end.ledger(control)["matches"]:
+                    raise BusinessError("Les mouvements comptabilisés ne correspondent pas aux soldes ou aux totaux imprimés. Vérifiez les dates et les lignes sélectionnées.")
+
     except BusinessError as exc:
         return review_page(
             request,
@@ -371,7 +383,8 @@ def treatment(request, item_uid):
             "categories": bank_categories.choices(item.direction),
             "documents": documents,
             "pending_receipts": pending,
-            "allocations": list(item.allocations.select_related("document")),
+            "allocations": list(item.allocations.select_related("document","claim")),
+            "allocation_claims": ExpenseClaim.objects.filter(company_uid=request.company.company_uid, approved=True).order_by("-month","payer") if currency == "EUR" and item.direction == "outgoing" else [],
             "allocation_docs": split_documents.order_by("-issue_date", "number"),
             "allocation_receipts": split_receipts,
             "allocation_categories": bank_allocations.COMPONENTS,

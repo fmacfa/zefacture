@@ -1,0 +1,7 @@
+{% extends "core/base.html" %}{% block content %}
+<a href="{{ back }}">← Retour à la fiche</a><div class="page-head"><div><h1>Pièces justificatives</h1><p>{{ target }}</p></div></div>
+<section class="card"><h2>Pièces liées</h2>{% for link in links %}<form class="section-head" method="post">{% csrf_token %}<a href="/app/justificatifs/source/{{ link.source.file_uid }}{% if link.page %}/{{ link.page }}{% endif %}">{{ link.source.filename }}{% if link.page %} · page {{ link.page }}{% endif %}</a><button class="secondary" name="unlink" value="{{ link.pk }}">Délier</button></form>{% empty %}<p>Aucune pièce liée à cette fiche.</p>{% endfor %}</section>
+<form method="post" enctype="multipart/form-data" class="card stack">{% csrf_token %}<h2>Associer un justificatif</h2>
+<label>Déposer un original PDF, JPEG ou PNG<input type="file" name="source" accept=".pdf,.jpg,.jpeg,.png"></label>
+{% if sources %}<label>Ou réutiliser une pièce déjà déposée<select name="existing"><option value="">Choisir une pièce</option>{% for s in sources %}<option value="{{ s.file_uid }}">{{ s.filename }} · {{ s.pages }} page{{ s.pages|pluralize }}</option>{% endfor %}</select></label>{% endif %}
+<label>Page précise (facultatif)<input type="number" min="1" name="page" max="500"><small>Laissez vide pour associer tout le document.</small></label><div><button>Associer la pièce</button></div></form>{% endblock %}

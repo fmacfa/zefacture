@@ -445,6 +445,13 @@ def document_list(request, section, *, export=False):
     _, title, new = SECTIONS[section]
     visible = section_query(request.company, section, request)
     query = visible
+    if request.GET.get("comptabilise") == "1" and section in ("factures", "reception"):
+        query = Document.objects.filter(company_uid=request.company.company_uid,
+            direction="outgoing" if section == "factures" else "incoming").exclude(
+            document_uid__in=hidden_expense_documents(request)).exclude(type="quote").exclude(
+            status__in=["draft", "cancelled", "refused", "simulated"])
+        if request.GET.get("devise"):
+            query = query.filter(currency_code=request.GET["devise"])
     if request.GET.get("q"):
         q = request.GET["q"][:200]
         query = query.filter(

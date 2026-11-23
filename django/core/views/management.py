@@ -64,7 +64,7 @@ def table(request, title, headers, rows, **context):
 
 @scoped()
 def dashboard(request):
-    from core.services import reports, expense_workspace, bank_categories
+    from core.services import reports, expense_workspace, bank_categories, activity_dashboard
 
     selected = reports.period(request.GET)
     comparison = reports.summary(request, selected)
@@ -125,6 +125,7 @@ def dashboard(request):
             "period": selected,
             "report": comparison,
             **expense_summary,
+            **activity_dashboard.context(request, selected, comparison, expense_summary["expense_cards"]),
             "independent_outflows": outflows,
             "totals": totals,
             "documents": docs.order_by("-id")[:8],

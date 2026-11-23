@@ -24,6 +24,25 @@ if (active) {
 const sidebar = document.querySelector('[data-sidebar]');
 if (sidebar) {
   const toggle = sidebar.querySelector('[data-sidebar-toggle]');
+  const find = sidebar.querySelector('[data-nav-find]');
+  const query = find.querySelector('[data-nav-query]');
+  const links = Array.from(sidebar.querySelectorAll('nav a'));
+  const sections = Array.from(sidebar.querySelectorAll('.sidebar-group, .sidebar-account'));
+  const settingsMenu = sidebar.querySelector('.sidebar-settings');
+  let settingsOpen = settingsMenu.open;
+  const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  find.hidden = false;
+  query.addEventListener('input', () => {
+    const term = normalize(query.value.trim());
+    if (!sidebar.hasAttribute('data-searching')) settingsOpen = settingsMenu.open;
+    sidebar.toggleAttribute('data-searching', Boolean(term));
+    links.forEach(link => { link.hidden = Boolean(term) && !normalize(link.textContent).includes(term); });
+    sections.forEach(group => { group.hidden = !group.querySelector('a:not([hidden])'); });
+    settingsMenu.hidden = settingsMenu.querySelector('.sidebar-group').hidden;
+    settingsMenu.open = term ? !settingsMenu.hidden : settingsOpen;
+    const count = links.filter(link => !link.hidden).length;
+    find.querySelector('[data-nav-count]').textContent = term ? count + (count === 1 ? ' résultat' : ' résultats') : '';
+  });
   function setMenu(open) {
     sidebar.toggleAttribute('data-menu-open', open);
     toggle.setAttribute('aria-expanded', String(open));

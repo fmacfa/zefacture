@@ -128,6 +128,15 @@ def finance(request, section="overview", item_uid=None, action=None):
             BankAccount.objects.filter(company_uid=company.company_uid).order_by("name")
         )
         by_uid = {a.account_uid: a for a in accounts}
+        currency = request.GET.get("devise", "")
+        if currency == "?":
+            rows = rows.exclude(account_uid__in=[a.account_uid for a in accounts if a.currency_code])
+        elif currency:
+            rows = rows.filter(account_uid__in=[a.account_uid for a in accounts if a.currency_code == currency])
+        if request.GET.get("sens") in ("incoming", "outgoing"):
+            rows = rows.filter(direction=request.GET["sens"])
+        if request.GET.get("statut") == "booked":
+            rows = rows.filter(status="booked")
         base_rows = rows
         if treatment in treatment_filters:
             rows = rows.filter(treatment_filters[treatment])

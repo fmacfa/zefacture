@@ -1,3 +1,4 @@
+from core.services import expense_claims
 import json
 import re
 from django.db import transaction
@@ -111,6 +112,7 @@ def progress_response(request, selection, visible, documents, expenses, archived
 def review(request, item, action, query, documents):
     Company.objects.select_for_update().get(pk=request.company.pk)
     item = Ingestion.objects.select_for_update().get(pk=item.pk)
+    expense_claims.require_editable(item)
     if item.archived_at:
         raise BusinessError("Restaurez cet import pour le modifier.", 409)
     if item.document_uid:
@@ -258,6 +260,11 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         expense_payments.save(item, request.POST, purchase=item.source_kind != "sales_invoice")
         messages.success(request, "Suivi du règlement enregistré.")
         return redirect("/app/imports/" + item.ingestion_uid + "#suivi-reglement")
+    if item and action in ("apercu", "telecharger") and request.method == "GET" and not item.storage_path and item.register_lines.exists():
+        proof = item.proofs.select_related("source").defer("source__contents").first() if request.role in ROLES["finance"] else None
+        if proof:
+            return redirect(f"/app/justificatifs/source/{proof.source.file_uid}/{proof.page}")
+        return redirect("/app/imports/" + item.ingestion_uid)
     if action == "apercu":
         if request.method != "GET":
             return HttpResponse(status=405, headers={"Allow": "GET"})
@@ -300,6 +307,7 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
         with transaction.atomic():
             item = Ingestion.objects.select_for_update().get(pk=item.pk)
             jobs.require_idle(item)
+            expense_claims.require_editable(item)
             archived = action == "archiver"
             if bool(item.archived_at) != archived:
                 item.archived_at = timezone.now() if archived else None
@@ -376,6 +384,9 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
                 {"title": "Résultat du lot", "results": results, "batch": batch, "expenses": expenses},
             )
         elif action == "relancer":
+            expense_claims.require_editable(item)
+            if not item.storage_path and item.register_lines.exists():
+                raise BusinessError("Cet import provient d’un registre Excel.")
             if item.source_kind not in EXPENSE_KINDS:
                 raise BusinessError("Choisissez une note de frais.")
             choices = extraction_ai.choices(request.company.company_uid)
@@ -385,6 +396,9 @@ def ingestions(request, ingestion_uid=None, action=None, expenses=False):
             else:
                 jobs.enqueue(item, "pipeline", provider)
         elif action in {"transcrire", "analyser"}:
+            expense_claims.require_editable(item)
+            if not item.storage_path and item.register_lines.exists():
+                raise BusinessError("Cet import provient d’un registre Excel.")
             jobs.enqueue(
                 item,
                 "transcribe" if action == "transcrire" else "analyze",

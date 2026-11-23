@@ -631,6 +631,7 @@ class BankTransaction(models.Model):
 class BankAllocation(models.Model):
     class Kind(models.TextChoices):
         DOCUMENT = "document", "Facture ou avoir"
+        CLAIM = "claim", "Note de frais groupée"
         FEE = "fee", "Commission ou frais"
         CREDIT = "credit", "Crédit antérieur / trop-perçu"
         RENT = "rent", "Terme de loyer"
@@ -639,6 +640,7 @@ class BankAllocation(models.Model):
 
     transaction = models.ForeignKey(BankTransaction, on_delete=models.CASCADE, related_name="allocations")
     document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="bank_allocations", null=True, blank=True)
+    claim = models.ForeignKey("ExpenseClaim", on_delete=models.PROTECT, related_name="allocations", null=True, blank=True)
     kind = models.CharField(max_length=12, choices=Kind.choices)
     amount = models.DecimalField(max_digits=18, decimal_places=2)
     note = models.CharField(max_length=500, blank=True)
@@ -654,6 +656,10 @@ class BankAllocation(models.Model):
                                   | (~models.Q(kind="document") & models.Q(document__isnull=True)),
                                   name="bank_allocation_document_kind"),
             models.UniqueConstraint(fields=["transaction", "document"], name="bank_allocation_one_per_document"),
+            models.CheckConstraint(condition=models.Q(kind="claim", claim__isnull=False, amount__lt=0)
+                                  | (~models.Q(kind="claim") & models.Q(claim__isnull=True)),
+                                  name="bank_allocation_claim_kind"),
+            models.UniqueConstraint(fields=["transaction", "claim"], name="bank_allocation_one_per_claim"),
         ]
 
 
@@ -1186,3 +1192,116 @@ class PdpOutbox(models.Model):
                 fields=["company_uid", "request_key"], name="unique_pdp_operation"
             )
         ]
+
+
+class ExpenseClaim(models.Model):
+    claim_uid = models.CharField(max_length=32, unique=True, default=uid)
+    company_uid = models.CharField(max_length=32, db_index=True)
+    payer = models.CharField(max_length=180)
+    month = models.DateField()
+    approved = models.BooleanField(default=False)
+    created_by = models.CharField(max_length=32)
+    approved_by = models.CharField(max_length=32, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "django_expense_claims"
+        constraints = [models.UniqueConstraint(fields=["company_uid", "payer", "month"], name="expense_claim_month")]
+
+
+class ExpenseClaimLine(models.Model):
+    claim = models.ForeignKey(ExpenseClaim, on_delete=models.CASCADE, related_name="lines")
+    receipt = models.OneToOneField(Ingestion, on_delete=models.PROTECT, related_name="claim_line")
+    amount = models.DecimalField(max_digits=18, decimal_places=2, null=True)
+    previous_status = models.CharField(max_length=12, blank=True)
+
+    class Meta:
+        db_table = "django_expense_claim_lines"
+
+
+class EvidenceFile(models.Model):
+    file_uid = models.CharField(max_length=32, unique=True, default=uid)
+    company_uid = models.CharField(max_length=32, db_index=True)
+    digest = models.CharField(max_length=64)
+    filename = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100)
+    pages = models.PositiveIntegerField(default=1)
+    contents = models.BinaryField()
+
+    class Meta:
+        db_table = "django_evidence_files"
+        constraints = [models.UniqueConstraint(fields=["company_uid", "digest"], name="evidence_company_digest")]
+
+
+class EvidenceLink(models.Model):
+    source = models.ForeignKey(EvidenceFile, on_delete=models.PROTECT, related_name="links")
+    receipt = models.ForeignKey(Ingestion, on_delete=models.CASCADE, null=True, related_name="proofs")
+    transaction = models.ForeignKey(BankTransaction, on_delete=models.CASCADE, null=True, related_name="proofs")
+    page = models.PositiveIntegerField(default=0)  # Zero means the entire original.
+
+    class Meta:
+        db_table = "django_evidence_links"
+        constraints = [
+            models.CheckConstraint(condition=models.Q(receipt__isnull=False, transaction__isnull=True)
+                | models.Q(receipt__isnull=True, transaction__isnull=False), name="evidence_one_target"),
+            models.UniqueConstraint(fields=["source", "receipt", "page"], name="evidence_receipt_page"),
+            models.UniqueConstraint(fields=["source", "transaction", "page"], name="evidence_transaction_page"),
+        ]
+
+
+class ExpenseWorkbook(models.Model):
+    upload_uid = models.CharField(max_length=32, unique=True, default=uid)
+    company_uid = models.CharField(max_length=32, db_index=True)
+    digest = models.CharField(max_length=64)
+    filename = models.CharField(max_length=255)
+    contents = models.BinaryField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "django_expense_workbooks"
+        constraints = [models.UniqueConstraint(fields=["company_uid", "digest"], name="workbook_company_digest")]
+
+
+class ExpenseRegisterLine(models.Model):
+    company_uid = models.CharField(max_length=32, db_index=True)
+    register = models.CharField(max_length=150)
+    sheet = models.CharField(max_length=64)
+    key = models.CharField(max_length=180)
+    row_number = models.PositiveIntegerField()
+    workbook = models.ForeignKey(ExpenseWorkbook, on_delete=models.PROTECT, related_name="lines")
+    receipt = models.ForeignKey(Ingestion, on_delete=models.PROTECT, related_name="register_lines")
+    source_values = models.JSONField(default=dict)
+
+    class Meta:
+        db_table = "django_expense_register_lines"
+        constraints = [models.UniqueConstraint(fields=["company_uid", "register", "sheet", "key"], name="register_logical_row")]
+
+
+class StatementControl(models.Model):
+    account = models.ForeignKey(BankAccount, on_delete=models.CASCADE, related_name="controls")
+    start = models.DateField()
+    end = models.DateField()
+    opening = models.DecimalField(max_digits=24, decimal_places=2)
+    closing = models.DecimalField(max_digits=24, decimal_places=2)
+    debits = models.DecimalField(max_digits=24, decimal_places=2, null=True)
+    credits = models.DecimalField(max_digits=24, decimal_places=2, null=True)
+    reference = models.CharField(max_length=255)
+    source = models.ForeignKey(EvidenceFile, on_delete=models.PROTECT, null=True)
+    updated_by = models.CharField(max_length=32)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "django_statement_controls"
+        constraints = [models.UniqueConstraint(fields=["account", "start", "end"], name="statement_control_period")]
+
+
+class ClosingReviewNote(models.Model):
+    receipt = models.OneToOneField(Ingestion, on_delete=models.CASCADE, related_name="closing_review")
+    document_date = models.DateField(null=True, blank=True)
+    reason = models.CharField(max_length=750)
+    next_action = models.CharField(max_length=500)
+    updated_by = models.CharField(max_length=32)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "django_closing_review_notes"
