@@ -7,14 +7,16 @@
   <svg class="cash-trend" viewBox="0 0 600 185" preserveAspectRatio="none" aria-label="Évolution des encaissements et des décaissements en {{ bank_chart.currency }}">
     <defs><linearGradient id="flow-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#4b73d3" stop-opacity=".17"/><stop offset="100%" stop-color="#4b73d3" stop-opacity=".01"/></linearGradient></defs>
     <path d="M12 29H588M12 91.5H588M12 154H588" class="chart-grid"/>
-    {% if bank_chart.ticks|length > 1 %}<polygon points="32,154 {{ bank_chart.paths.incoming }} 568,154" fill="url(#flow-fill)"/>{% endif %}
-    <polyline points="{{ bank_chart.paths.incoming }}" class="cash-line in"/><polyline points="{{ bank_chart.paths.outgoing }}" class="cash-line out"/>
-    {% for t in bank_chart.ticks %}<a class="chart-point" href="{{ t.url }}" aria-label="{{ t.full }}, encaissements {{ t.incoming|display_number:2 }}, décaissements {{ t.outgoing|display_number:2 }} {{ bank_chart.currency }}">
+    {% for segment in bank_chart.segments %}
+    <polygon points="{{ segment.start|unlocalize }},154 {{ segment.incoming }} {{ segment.end|unlocalize }},154" fill="url(#flow-fill)"/>
+    <polyline points="{{ segment.incoming }}" class="cash-line in"/><polyline points="{{ segment.outgoing }}" class="cash-line out"/>{% endfor %}
+    {% for t in bank_chart.ticks %}{% if t.gap %}<a href="/app/cloture?month={{ t.end|date:'Y-m' }}" aria-label="Vérifier la couverture du relevé pour {{ t.full }}"><title>{{ t.full }} · Aucun mouvement enregistré, couverture à vérifier</title><path class="chart-missing" d="M{{ t.x|unlocalize }} 24V154"/></a>{% else %}<a class="chart-point" href="{{ t.url }}" aria-label="{{ t.full }}, encaissements {{ t.incoming|display_number:2 }}, décaissements {{ t.outgoing|display_number:2 }} {{ bank_chart.currency }}">
       <title>{{ t.full }} · Entrées {{ t.incoming|display_number:2 }} · Sorties {{ t.outgoing|display_number:2 }} {{ bank_chart.currency }}</title><path class="hover-line" d="M{{ t.x|unlocalize }} 20V154"/><circle class="point-in" cx="{{ t.x|unlocalize }}" cy="{{ t.y_incoming|unlocalize }}" r="3.6"/><circle class="point-out" cx="{{ t.x|unlocalize }}" cy="{{ t.y_outgoing|unlocalize }}" r="3.6"/>
-      <path class="chart-hit" d="M{{ t.x|unlocalize }} 20V158"/></a>{% endfor %}
+      <path class="chart-hit" d="M{{ t.x|unlocalize }} 20V158"/></a>{% endif %}{% endfor %}
   </svg></div>
   <div class="trend-labels" aria-hidden="true">{% for t in bank_chart.ticks %}<span>{{ t.label }}</span>{% endfor %}</div>
-  <div class="analytics-foot"><details><summary>Données du graphique</summary><div class="table-wrap"><table><thead><tr><th>Période</th><th>Entrées</th><th>Sorties</th></tr></thead><tbody>{% for t in bank_chart.ticks %}<tr><td><a href="{{ t.url }}">{{ t.full }}</a></td><td>{{ t.incoming|display_number:2 }}</td><td>{{ t.outgoing|display_number:2 }}</td></tr>{% endfor %}</tbody></table></div></details><a href="{{ bank_chart.url }}">Transactions →</a></div>
+  {% if bank_chart.gaps %}<p class="coverage-gaps">Couverture à vérifier · {% for t in bank_chart.gaps %}<a href="/app/cloture?month={{ t.end|date:'Y-m' }}" title="{{ t.full }}">{{ t.label }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  <div class="analytics-foot"><details><summary>Données du graphique</summary><div class="table-wrap"><table><thead><tr><th>Période</th><th>Entrées</th><th>Sorties</th></tr></thead><tbody>{% for t in bank_chart.ticks %}<tr><td><a href="{{ t.url }}">{{ t.full }}</a></td> {% if t.gap %}<td colspan="2"><a href="/app/cloture?month={{ t.end|date:'Y-m' }}">Couverture du relevé à vérifier</a></td>{% else %}<td>{{ t.incoming|display_number:2 }}</td><td>{{ t.outgoing|display_number:2 }}</td>{% endif %}</tr>{% endfor %}</tbody></table></div></details><a href="{{ bank_chart.url }}">Transactions →</a></div>
   {% else %}<p class="chart-empty">Aucun mouvement enregistré en {{ bank_chart.currency }} sur cette période.</p><a href="/app/finances/transactions#releve">Importer un relevé →</a>{% endif %}
 </section>{% endif %}
 <section class="analytics-panel distribution" aria-labelledby="dist-title">

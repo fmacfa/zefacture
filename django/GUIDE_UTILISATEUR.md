@@ -372,7 +372,7 @@ Pour une assistance, indiquer l’écran, la date, le message d’erreur et un e
 
 ## Tableau de bord, notes groupées et clôture
 
-La **Vue d’ensemble** propose un sélecteur de période et de devise. Un point du graphique de trésorerie ouvre les opérations comptabilisées de sa période. Le tableau sous la courbe fournit les mêmes liens au clavier. Un segment des remboursements ouvre les notes du statut indiqué. La recherche du menu retrouve les fonctionnalités auxquelles le rôle de la personne donne accès.
+La **Vue d’ensemble** propose un sélecteur de période et de devise. Un point du graphique de trésorerie ouvre les opérations comptabilisées de sa période. Une période sans mouvement enregistré et sans couverture bancaire vérifiée apparaît en pointillés et renvoie à la clôture. Le tableau sous la courbe fournit les mêmes liens au clavier. Un segment des remboursements ouvre les notes du statut indiqué. La recherche du menu retrouve les fonctionnalités auxquelles le rôle de la personne donne accès.
 
 Dans **Notes groupées**, sélectionner un payeur identifié sur la pièce et un mois. Le brouillon réunit les justificatifs actifs sur fonds personnels disponibles pour cette période. Compléter les montants effectivement avancés en euros avant de valider. La validation confirme la dette envers la personne. Rapprocher un débit bancaire en euros depuis la note ou la ventilation du mouvement. Un virement peut couvrir une partie de la note ou plusieurs notes. Les montants couvrent les pièces de la plus ancienne à la plus récente. Pour corriger un rapprochement, annuler la ventilation sur le mouvement. Rouvrir la note restaure les états de remboursement antérieurs.
 
