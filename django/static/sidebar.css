@@ -1,3 +1,9 @@
+.sidebar [hidden] { display: none !important; }
+.nav-find { display: grid; gap: .15rem; padding: .1rem .3rem .35rem; }
+.nav-find label { color: #e1eafa; gap: .3rem; font-size: .72rem; }
+.nav-find input { padding: .45rem .65rem; background: #ffffff12; border-color: #ffffff4a; color: white; border-radius: .4rem; }
+.nav-find input::placeholder { color: #c3d2ec; }
+.nav-find [role=status] { color: #e1eafa; font-size: .72rem; }
 .sidebar-heading {
   display: flex;
   align-items: center;

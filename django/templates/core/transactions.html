@@ -19,6 +19,9 @@
   <label>Rechercher une opération<input name="q" value="{{ request.GET.q }}"></label>
   <label>Traitement<select name="traitement"><option value="">Tous les traitements</option><option value="unlinked"{% if request.GET.traitement == "unlinked" %} selected{% endif %}>Sans facture liée</option><option value="pending"{% if request.GET.traitement == 'pending' %} selected{% endif %}>À traiter</option><option value="standalone"{% if request.GET.traitement == 'standalone' %} selected{% endif %}>Classées sans facture</option><option value="invoice"{% if request.GET.traitement == 'invoice' %} selected{% endif %}>Rapprochées d’une facture</option><option value="split"{% if request.GET.traitement == 'split' %} selected{% endif %}>Ventilées</option></select></label>
   <label>Filtrer par catégorie<select name="categorie"><option value="">Toutes les catégories</option>{% for code,label in categories.items %}<option value="{{ code }}"{% if request.GET.categorie == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  {% if request.GET.devise %}<label>Devise<input name="devise" value="{{ request.GET.devise }}" readonly></label>{% endif %}
+  {% if request.GET.sens %}<input type="hidden" name="sens" value="{{ request.GET.sens }}"><p>{% if request.GET.sens == 'incoming' %}Encaissements{% else %}Décaissements{% endif %}</p>{% endif %}
+  {% if request.GET.statut == 'booked' %}<input type="hidden" name="statut" value="booked"><p>Opérations comptabilisées</p>{% endif %}
   <label>Du<input name="from" type="date" value="{{ request.GET.from }}"></label><label>Au<input name="to" type="date" value="{{ request.GET.to }}"></label>
   <div class="form-actions"><button class="secondary">Filtrer</button>{% if request.GET %}<a href="/app/finances/transactions">Effacer les filtres</a>{% endif %}</div>
 </form>

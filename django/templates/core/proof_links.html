@@ -1,0 +1,1 @@
+{% for link in links %}<p><a href="/app/justificatifs/source/{{ link.source.file_uid }}{% if link.page %}/{{ link.page }}{% endif %}">{{ link.source.filename }}{% if link.page %} · page {{ link.page }}{% endif %}</a></p>{% empty %}<p class="muted">Aucune pièce complémentaire liée.</p>{% endfor %}

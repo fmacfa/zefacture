@@ -1,5 +1,13 @@
 # Changements
 
+## Tableau de bord et clôture mensuelle
+
+- Courbes de trésorerie et répartition des remboursements avec accès aux écritures par période, devise et statut.
+- Notes groupées par personne et mois, rapprochement partiel ou intégral des virements et correction des ventilations.
+- Registres Excel avec aperçu des différences et justificatifs partagés à la page d’un PDF.
+- Comparaison des relevés imprimés avec les mouvements comptabilisés et liste des pièces à vérifier.
+
+
 ## Ventilations bancaires et avances en devise
 
 - Rapprochement de plusieurs montants sur une opération, avec factures, avoirs, commissions et reports. Le détail signé est exportable.

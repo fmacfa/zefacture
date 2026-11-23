@@ -368,3 +368,16 @@ Une nouvelle identité visuelle s’applique aux nouveaux documents et aux broui
 | Téléphone et codes de secours perdus | Contacter l’exploitant pour une vérification d’identité et la récupération administrative |
 
 Pour une assistance, indiquer l’écran, la date, le message d’erreur et un exemple fictif. Ne pas transmettre de mot de passe, clé API, code de secours ou document client dans un ticket public.
+
+
+## Tableau de bord, notes groupées et clôture
+
+La **Vue d’ensemble** propose un sélecteur de période et de devise. Un point du graphique de trésorerie ouvre les opérations comptabilisées de sa période. Le tableau sous la courbe fournit les mêmes liens au clavier. Un segment des remboursements ouvre les notes du statut indiqué. La recherche du menu retrouve les fonctionnalités auxquelles le rôle de la personne donne accès.
+
+Dans **Notes groupées**, sélectionner un payeur identifié sur la pièce et un mois. Le brouillon réunit les justificatifs actifs sur fonds personnels disponibles pour cette période. Compléter les montants effectivement avancés en euros avant de valider. La validation confirme la dette envers la personne. Rapprocher un débit bancaire en euros depuis la note ou la ventilation du mouvement. Un virement peut couvrir une partie de la note ou plusieurs notes. Les montants couvrent les pièces de la plus ancienne à la plus récente. Pour corriger un rapprochement, annuler la ventilation sur le mouvement. Rouvrir la note restaure les états de remboursement antérieurs.
+
+Dans **Registres Excel**, déposer le fichier et ses justificatifs. Choisir la feuille, la ligne d’en-tête et le même nom de registre pour ses versions successives. Associer la date, le commerçant, le TTC et la devise de la pièce. Un identifiant stable permet le suivi après déplacement des lignes. Sans identifiant, la position de la ligne sert de référence. Le TTC déjà calculé et enregistré par Excel est signalé pour vérification sur la pièce. Les formules ne sont pas exécutées. L’aperçu montre le rapprochement proposé, les changements et les ambiguïtés. Cocher les lignes à confirmer. Pour documenter une fiche déjà relue, choisir de conserver ses valeurs et d’enregistrer seulement la provenance du registre. Une nouvelle lecture identique conserve les fiches déjà associées.
+
+Sur une dépense ou une opération bancaire, **Gérer les pièces justificatives** permet de déposer un original ou de réutiliser une pièce existante. Renseigner un numéro de page pour ouvrir uniquement cette page du PDF. Délier retire l’association à la fiche et conserve l’original partagé.
+
+La **Clôture mensuelle** compare le solde imprimé de chaque relevé à son solde d’ouverture augmenté des crédits et diminué des débits comptabilisés sur le compte. Les totaux de débits et crédits imprimés se vérifient aussi séparément. Un PDF lisible peut préremplir les montants. Vérifier la période inclusive et les chiffres sur l’original avant d’enregistrer. Les comptes sans contrôle et les écarts restent visibles. La liste des justificatifs et factures en attente ouvre chaque fiche à vérifier.

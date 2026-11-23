@@ -1,0 +1,7 @@
+{% extends "core/base.html" %}{% block content %}
+<div class="page-head"><h1>Notes de frais groupées</h1><a href="/app/notes-de-frais">Tous les justificatifs</a></div>
+<form class="card stack" method="post">{% csrf_token %}<h2>Préparer un brouillon</h2><p>Les pièces sont regroupées par mois de dépense et par personne identifiée comme ayant avancé les fonds.</p><div class="grid two">
+<label>Payeur identifié<select required name="payer"><option value="">Choisir une personne</option>{% for payer in payers %}<option>{{ payer }}</option>{% endfor %}</select></label>
+<label>Mois de dépense<input name="month" type="month" required></label></div><div><button name="action" value="draft">Préparer ou compléter le brouillon</button></div></form>
+<section class="card table-wrap"><h2>Notes groupées</h2><table><thead><tr><th>Payeur</th><th>Mois</th><th>Pièces</th><th>État</th></tr></thead>
+<tbody>{% for c in claims %}<tr><td><a href="/app/notes-de-frais/groupees/{{ c.claim_uid }}">{{ c.payer }}</a></td><td>{{ c.month|date:"F Y" }}</td><td>{{ c.count }}</td><td>{% if c.approved %}Validée{% else %}Brouillon{% endif %}</td></tr>{% empty %}<tr><td colspan="4">Aucune note groupée.</td></tr>{% endfor %}</tbody></table></section>{% endblock %}

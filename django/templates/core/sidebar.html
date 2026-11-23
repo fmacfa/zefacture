@@ -7,10 +7,12 @@
   </div>
 
   <nav id="workspace-navigation" aria-label="Espace de gestion">
+    <div class="nav-find" data-nav-find hidden><label>Filtrer les fonctionnalités<input type="search" placeholder="Rechercher un outil…" data-nav-query autocomplete="off"></label><span role="status" data-nav-count></span></div>
     <div class="sidebar-group">
       <div class="sidebar-group-label">Pilotage</div>
       {% include "core/sidebar_link.html" with route="/app" icon="dashboard" label="Vue d’ensemble" active_route=active_route only %}
       {% if can_finance %}
+      {% include "core/sidebar_link.html" with route="/app/cloture" icon="reports" label="Clôture mensuelle" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/rapports" icon="reports" label="Rapports" active_route=active_route only %}
       {% endif %}
     </div>
@@ -26,6 +28,10 @@
       <div class="sidebar-group-label">Achats</div>
       {% include "core/sidebar_link.html" with route="/app/reception" icon="inbox" label="Factures fournisseurs" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/notes-de-frais" icon="expense" label="Notes de frais" active_route=active_route only %}
+      {% if can_finance %}
+      {% include "core/sidebar_link.html" with route="/app/notes-de-frais/groupees" icon="expense" label="Notes groupées" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/notes-de-frais/registres" icon="import" label="Registres Excel" active_route=active_route only %}
+      {% endif %}
       {% if can_write %}
       {% include "core/sidebar_link.html" with route="/app/imports" icon="import" label="Imports" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/inventaire" icon="inventory" label="Inventaire" active_route=active_route only %}
@@ -36,6 +42,8 @@
       <div class="sidebar-group-label">Banque et finances</div>
       {% include "core/sidebar_link.html" with route="/app/finances/comptes" icon="bank" label="Comptes bancaires" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/finances/transactions" icon="transfer" label="Transactions" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/finances/tresorerie" icon="reports" label="Prévisions de trésorerie" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/finances/tva" icon="invoice" label="État de TVA" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/finances" icon="finance" label="Finances et trésorerie" active_route=active_route only %}
     </div>
     {% endif %}
@@ -44,6 +52,8 @@
       {% include "core/sidebar_link.html" with route="/app/entreprise" icon="company" label="Mon entreprise" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/entreprise/reglages/nombres" icon="settings" label="Format des nombres" active_route=active_route only %}
       {% if can_admin %}
+      {% include "core/sidebar_link.html" with route="/app/entreprise/pdp" icon="invoice" label="Facturation électronique" active_route=active_route only %}
+      {% include "core/sidebar_link.html" with route="/app/developpeurs/webhooks" icon="api" label="Webhooks" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/collaborateurs" icon="clients" label="Collaborateurs" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/entreprise/personnalisation" icon="branding" label="Personnalisation" active_route=active_route only %}
       {% include "core/sidebar_link.html" with route="/app/emails" icon="mail" label="Emails" active_route=active_route only %}

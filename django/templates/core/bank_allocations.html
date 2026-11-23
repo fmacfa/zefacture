@@ -5,7 +5,7 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Affectation</th><th>Motif</th><th class="num">Montant signé</th></tr></thead>
       <tbody>{% for line in allocations %}
-        <tr><td>{% if line.document %}<a href="{{ line.document.url }}">{{ line.document.number }}</a>{% else %}{{ line.get_kind_display }}{% endif %}</td><td>{{ line.note|default:"—" }}</td><td class="num">{% if line.amount > 0 %}+{% endif %}{{ line.amount|display_number:2 }} {{ currency }}</td></tr>
+        <tr><td>{% if line.document %}<a href="{{ line.document.url }}">{{ line.document.number }}</a>{% elif line.claim %}<a href="/app/notes-de-frais/groupees/{{ line.claim.claim_uid }}">{{ line.claim.payer }} · {{ line.claim.month|date:"m/Y" }}</a>{% else %}{{ line.get_kind_display }}{% endif %}</td><td>{{ line.note|default:"—" }}</td><td class="num">{% if line.amount > 0 %}+{% endif %}{{ line.amount|display_number:2 }} {{ currency }}</td></tr>
       {% endfor %}</tbody>
       <tfoot><tr><th colspan="2">Mouvement bancaire</th><td class="num">{{ signed_amount|display_number:2 }} {{ currency }}</td></tr></tfoot>
     </table></div>
@@ -25,6 +25,7 @@
             <select name="allocation_target">
               <option value="">Choisir une affectation…</option>
               <optgroup label="Autres montants">{% for kind,label in allocation_categories.items %}<option value="{{ kind }}"{% if row.target == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</optgroup>
+              {% if allocation_claims %}<optgroup label="Notes groupées validées">{% for claim in allocation_claims %}{% with target="claim-"|add:claim.claim_uid %}<option value="{{ target }}"{% if row.target == target %} selected{% endif %}>{{ claim.payer }} · {{ claim.month|date:"m/Y" }}</option>{% endwith %}{% endfor %}</optgroup>{% endif %}
               {% if allocation_docs %}<optgroup label="Factures et avoirs">{% for d in allocation_docs %}{% if d.amount_due > 0 or d.type == 'credit_note' %}{% with target=d.document_uid|add:"/new" %}<option value="{{ target }}"{% if row.target == target %} selected{% endif %}>{{ d.number }} · {% if d.direction == 'incoming' %}achat{% else %}vente{% endif %} · {% if d.type == 'credit_note' %}avoir {{ d.total_including_tax|display_number:2 }}{% else %}reste {{ d.amount_due|display_number:2 }}{% endif %} {{ currency }}</option>{% endwith %}{% endif %}{% endfor %}</optgroup>{% endif %}
               {% if allocation_receipts %}<optgroup label="Encaissements déjà déclarés">{% for r in allocation_receipts %}{% with target=r.document.document_uid|add:"/"|add:r.receipt_uid %}<option value="{{ target }}"{% if row.target == target %} selected{% endif %}>{{ r.document.number }} · {{ r.received_on|date:"d/m/Y"|default:"date inconnue" }} · {{ r.amount|display_number:2 }} {{ currency }}</option>{% endwith %}{% endfor %}</optgroup>{% endif %}
             </select>

@@ -1,3 +1,4 @@
+from core.services import expense_claims
 from django.db import transaction
 
 from core.common import BusinessError, json_text, unpack
@@ -56,6 +57,7 @@ def save(record, data, *, purchase=True):
         from .jobs import require_idle
 
         require_idle(record)
+        expense_claims.require_editable(record)
     mark_expense_fields(record, changes)
     for field, value in changes.items():
         setattr(record, field, value)
