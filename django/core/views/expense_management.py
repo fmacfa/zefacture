@@ -261,7 +261,13 @@ def registers(request, uid=None):
         if (owner, tenant, source) != (actor, company.company_uid, uid):
             raise BusinessError("Aperçu indisponible.", 404)
         n = expense_registers.commit(
-            company, actor, book, options, request.POST.getlist("row"), checksum
+            company,
+            actor,
+            book,
+            options,
+            request.POST.getlist("row"),
+            checksum,
+            preserve_existing=request.POST.get("preserve_existing") == "1",
         )
         messages.success(request, f"{n} ligne(s) du registre enregistrée(s).")
         from urllib.parse import urlencode

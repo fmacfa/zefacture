@@ -398,3 +398,37 @@ class MonthlyExpenseTests(ApplicationCase):
             ).status_code,
             302,
         )
+
+    def test_register_can_preserve_a_reviewed_receipt(self):
+        item = self.receipt(original_filename="original.pdf")
+        book = self.workbook(
+            [["A", "2025-04-03", "Maison Exemple", 13, None, "original.pdf", None]]
+        )
+        opts = dict(
+            register="Relecture",
+            sheet="Sheet",
+            header=1,
+            currency="EUR",
+            mapping={
+                "expense_date": 2,
+                "merchant_name": 3,
+                "expense_amount": 4,
+                "file": 6,
+            },
+        )
+        rows = expense_registers.preview(self.company, book, **opts)
+        self.assertEqual(rows[0]["item"].pk, item.pk)
+        expense_registers.commit(
+            self.company,
+            self.user.user_uid,
+            book,
+            opts,
+            ["2"],
+            expense_registers.fingerprint(rows),
+            preserve_existing=True,
+        )
+        item.refresh_from_db()
+        self.assertEqual(item.expense_amount, 10)
+        self.assertEqual(
+            item.register_lines.get().source_values["expense_amount"], "13"
+        )

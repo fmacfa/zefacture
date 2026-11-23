@@ -360,14 +360,14 @@ def preview(company, workbook, register, sheet, header, mapping, currency):
                     and item.claim_line.claim.approved
                 )
             ):
-                raise ValueError(
-                    "Justificatif validé ou remboursé. Révisez la fiche avant toute correction."
-                )
+                row["preserve_only"] = True
             if entry and entry.source_values == vals and not proof_new:
                 row["state"] = "Inchangée"
             else:
                 row.update(
-                    state="Mise à jour"
+                    state="Provenance seule (fiche validée)"
+                    if row.get("preserve_only")
+                    else "Mise à jour"
                     if entry
                     else "Relier à la fiche"
                     if item
@@ -421,7 +421,9 @@ def fingerprint(rows):
 
 
 @transaction.atomic
-def commit(company, actor, workbook, options, selected, expected):
+def commit(
+    company, actor, workbook, options, selected, expected, *, preserve_existing=False
+):
     type(company).objects.select_for_update().get(pk=company.pk)
     # Lock existing receipts before recomputing differences against the signed preview.
     list(
@@ -459,12 +461,17 @@ def commit(company, actor, workbook, options, selected, expected):
                 transcription_status="skipped",
                 extraction_status="skipped",
             )
-        if r["changes"] and item.pk:
+        changes = (
+            []
+            if item.pk and (preserve_existing or r.get("preserve_only"))
+            else r["changes"]
+        )
+        if changes and item.pk:
             expense_claims.require_editable(item)
-        for field, _, _, value in r["changes"]:
+        for field, _, _, value in changes:
             if field not in ("file", "page"):
                 setattr(item, field, value)
-        if not item.pk or r["changes"]:
+        if not item.pk or changes:
             item.updated_at = stamp()
             item.save()
         ExpenseRegisterLine.objects.update_or_create(
