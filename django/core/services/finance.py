@@ -15,7 +15,6 @@ from core.common import (
 )
 from core.models import (
     BankAccount,
-    BankFeedEntry,
     BankTransaction,
     Document,
 )
@@ -24,14 +23,7 @@ from . import bank_categories, sale_receipts
 
 
 @transaction.atomic
-def reconcile(company, bank_transaction, document_uid, *, exact=False, receipt_choice=""):
-    feed_entry = (
-        BankFeedEntry.objects.select_for_update()
-        .filter(transaction=bank_transaction)
-        .first()
-    )
-    if feed_entry and feed_entry.review:
-        raise BusinessError("Vérifiez d’abord la correction bancaire.", 409)
+def reconcile(company, bank_transaction, document_uid, *, receipt_choice=""):
     bank_transaction = BankTransaction.objects.select_for_update().get(
         pk=bank_transaction.pk, company_uid=company.company_uid
     )
@@ -64,8 +56,6 @@ def reconcile(company, bank_transaction, document_uid, *, exact=False, receipt_c
     if (
         bank_transaction.direction != expected or bank_transaction.amount <= 0
         or not sale and bank_transaction.amount > document.amount_due
-        or not sale and exact and (bank_transaction.amount != document.amount_due
-                                   or document.status not in {"sent", "received", "accepted"})
     ):
         raise BusinessError("Sens incompatible ou paiement supérieur au solde.", 409)
     account = BankAccount.objects.filter(
@@ -73,11 +63,8 @@ def reconcile(company, bank_transaction, document_uid, *, exact=False, receipt_c
     ).first()
     if document.currency_code != (account.currency_code if account else "EUR"):
         raise BusinessError("Les devises du compte et de la facture diffèrent.")
-    if feed_entry:
-        feed_entry.previous_invoice_status = document.status
-        feed_entry.save(update_fields=["previous_invoice_status"])
     if sale:
-        sale_receipts.confirm_or_record(document, bank_transaction, receipt_choice, exact)
+        sale_receipts.confirm_or_record(document, bank_transaction, receipt_choice)
     else:
         document.amount_due = money(document.amount_due - bank_transaction.amount)
         if not document.amount_due:
@@ -101,9 +88,6 @@ def reconcile(company, bank_transaction, document_uid, *, exact=False, receipt_c
 
 @transaction.atomic
 def classify(company, item, category, note):
-    feed_entry = (
-        BankFeedEntry.objects.select_for_update().filter(transaction=item).first()
-    )
     item = BankTransaction.objects.select_for_update().get(
         pk=item.pk, company_uid=company.company_uid
     )
@@ -111,7 +95,6 @@ def classify(company, item, category, note):
         item.document_uid
         or item.allocations.exists()
         or item.status != "booked"
-        or (feed_entry and feed_entry.review)
     ):
         raise BusinessError(
             "Seule une opération comptabilisée, disponible et sans facture peut être classée.",
@@ -167,7 +150,7 @@ def create_transaction(company, data):
         import_hash=data.get("import_hash"),
         imported_at=stamp() if data.get("import_hash") else None,
     )
-    if account and not hasattr(account, "bank_feed"):
+    if account:
         account.current_balance += amount if direction == "incoming" else -amount
         account.updated_at = stamp()
         account.save()

@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}{% load static %}
 {% block styles %}<link rel="stylesheet" href="{% static 'banking.css' %}">{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Transactions</h1><div class="inline wrap"><a class="button secondary" href="#releve">Importer des relevés</a><a class="button" href="?depense=1#saisie">Saisir une dépense</a><a class="button secondary" href="/app/finances/comptes">Comptes et connexion Bridge</a><a class="button secondary" data-download href="/app/finances/transactions/export{% querystring %}">Exporter le CSV</a></div></div>
+<div class="page-head"><h1>Transactions</h1><div class="inline wrap"><a class="button secondary" href="#releve">Importer des relevés</a><a class="button" href="?depense=1#saisie">Saisir une dépense</a><a class="button secondary" href="/app/finances/comptes">Comptes bancaires</a><a class="button secondary" data-download href="/app/finances/transactions/export{% querystring %}">Exporter le CSV</a></div></div>
 {% if new_expense %}{% include "core/bank_manual_transaction.html" %}{% endif %}
 <nav class="bank-views" aria-label="Vue des transactions">
 <a href="{% querystring traitement=None page=None %}#operations" {% if not request.GET.traitement %}aria-current="page"{% endif %}>Toutes <b>{{ bank_counts.all|display_number }}</b></a>
@@ -12,7 +12,6 @@
 <a href="{% querystring traitement="split" page=None %}#operations" {% if request.GET.traitement == "split" %}aria-current="page"{% endif %}>Ventilées <b>{{ bank_counts.split|display_number }}</b></a></nav>
 {% for currency, totals in bank_totals %}<section class="card stack"><h2>Mouvements comptabilisés · {{ currency|default:"Devise non renseignée" }}</h2>
 <dl class="bank-amounts"><div><dt>Encaissements</dt><dd>{{ totals.incoming|display_number:2 }}</dd></div><div><dt>Décaissements</dt><dd>{{ totals.outgoing|display_number:2 }}</dd></div><div><dt>Variation nette</dt><dd>{{ totals.net|display_number:2 }}</dd></div></dl></section>{% endfor %}
-{% include "core/bank_reviews.html" %}
 
 <form class="card form-grid" method="get"><h2 class="full">Rechercher des opérations</h2>
   <label>Filtrer par compte<select name="compte"><option value="">Tous les comptes</option>{% for a in all_accounts %}<option value="{{ a.account_uid }}"{% if request.GET.compte == a.account_uid %} selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></label>
@@ -28,8 +27,8 @@
 <section class="card table-wrap" id="operations"><h2>Opérations bancaires</h2><table><thead><tr><th>Date</th><th>Libellé</th><th>Compte</th><th class="num">Montant</th><th>Traitement</th><th>Action</th></tr></thead><tbody>
 {% for t in transactions %}<tr><td>{{ t.transaction_date }}</td><td>{{ t.label }}{% if t.classification_note %}<small class="bank-detail">{{ t.classification_note }}</small>{% endif %}</td><td>{{ t.account.name|default:"—" }}</td>
 <td class="num">{% if t.direction == "outgoing" %}−{% else %}+{% endif %}{{ t.amount|display_number:2 }} {{ t.account.currency_code|default:"EUR" }}</td>
-<td>{% if t.bank_feed.review %}À vérifier{% elif t.status != "booked" %}{% if t.status == "cancelled" %}Annulée{% else %}En attente{% endif %}{% elif t.has_allocations %}<span class="badge accepted">Ventilée</span>{% elif t.document_uid %}<span class="badge accepted">Rapprochée</span>{% if t.document %} <a href="{{ t.document.url }}">{{ t.document.number|default:"Voir la facture" }}</a>{% endif %}{% elif t.standalone_category %}{{ t.category_label }}{% else %}À traiter{% if t.category_label %}<small class="bank-detail">{{ t.category_label }}</small>{% endif %}{% endif %}</td>
-<td>{% if t.bank_feed.review %}<a href="#bank-reviews">Vérifier</a>{% else %}<a href="/app/finances/transactions/{{ t.transaction_uid }}/traiter">{% if t.has_allocations or t.document_uid or t.status != "booked" %}Consulter{% elif t.standalone_category %}Modifier{% else %}Traiter{% endif %}</a>{% endif %}</td></tr>
+<td>{% if t.status != "booked" %}{% if t.status == "cancelled" %}Annulée{% else %}En attente{% endif %}{% elif t.has_allocations %}<span class="badge accepted">Ventilée</span>{% elif t.document_uid %}<span class="badge accepted">Rapprochée</span>{% if t.document %} <a href="{{ t.document.url }}">{{ t.document.number|default:"Voir la facture" }}</a>{% endif %}{% elif t.standalone_category %}{{ t.category_label }}{% else %}À traiter{% if t.category_label %}<small class="bank-detail">{{ t.category_label }}</small>{% endif %}{% endif %}</td>
+<td><a href="/app/finances/transactions/{{ t.transaction_uid }}/traiter">{% if t.has_allocations or t.document_uid or t.status != "booked" %}Consulter{% elif t.standalone_category %}Modifier{% else %}Traiter{% endif %}</a></td></tr>
 {% empty %}<tr><td colspan="6" class="empty">Aucune opération pour cette sélection.</td></tr>{% endfor %}</tbody></table></section>
 {% include "core/pagination.html" with page=transactions %}
 <section class="card stack" id="releve">

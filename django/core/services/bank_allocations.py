@@ -7,7 +7,6 @@ from core.common import BusinessError, decimal, stamp
 from core.models import (
     BankAccount,
     BankAllocation,
-    BankFeedEntry,
     BankTransaction,
     Document,
     ExpenseClaim,
@@ -53,11 +52,10 @@ def signed_amount(tx):
 
 
 def lock_transaction(company, tx):
-    feed = BankFeedEntry.objects.select_for_update().filter(transaction=tx).first()
     tx = BankTransaction.objects.select_for_update().get(
         pk=tx.pk, company_uid=company.company_uid
     )
-    if tx.status != "booked" or (feed and feed.review):
+    if tx.status != "booked":
         raise BusinessError(
             "Vérifiez le statut de l’opération bancaire avant de la ventiler.", 409
         )
@@ -137,7 +135,7 @@ def apply_document(tx, doc, line, choice):
             )
             if candidate:
                 line.previous_receipt_date = candidate.received_on
-        sale_receipts.confirm_or_record(doc, tx, choice, False, amount=amount)
+        sale_receipts.confirm_or_record(doc, tx, choice, amount=amount)
     else:
         sale_receipts.apply_amount(doc, amount, tx.transaction_date)
     if choice not in ("", "new") and not sale_receipts.is_sale(doc):

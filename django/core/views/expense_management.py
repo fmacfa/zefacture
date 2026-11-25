@@ -124,7 +124,6 @@ def claims(request, uid=None):
             allocations__isnull=True,
         )
         .filter(Q(document_uid__isnull=True) | Q(document_uid=""))
-        .exclude(bank_feed__review__gt="")
         .order_by("-transaction_date", "pk")
         if claim.approved and left > 0
         else []

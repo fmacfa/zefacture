@@ -6,11 +6,10 @@ from core.services.statement_batches import work_one as work_statement
 from core.services.mail import flush
 from core.services.webhooks import flush as flush_webhooks
 from core.services.pdp_sync import flush_outbox, sync_due
-from core.services.bank_sync import sync_due as sync_banks
 
 
 class Command(BaseCommand):
-    help = "Traiter imports, emails, webhooks, échanges SUPERPDP et synchronisations bancaires."
+    help = "Traiter imports de documents et de relevés, emails, webhooks et échanges SUPERPDP."
 
     def add_arguments(self, parser):
         parser.add_argument("--once", action="store_true")
@@ -24,7 +23,6 @@ class Command(BaseCommand):
             flush_webhooks()
             flush_outbox()
             sync_due()
-            sync_banks()
             if options["once"]:
                 break
             if not worked and not bank_worked:

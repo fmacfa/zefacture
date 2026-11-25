@@ -1,9 +1,8 @@
 {% extends "core/base.html" %}{% block content %}
 <div class="page-head"><h1>Traiter une opération</h1><a class="button secondary" href="/app/finances/transactions">Retour aux transactions</a></div>
 <section class="card stack"><h2>{{ item.label }}</h2><strong class="big-number">{% if item.direction == "outgoing" %}−{% else %}+{% endif %}{{ item.amount|display_number:2 }} {{ currency }}</strong>
-<p>{{ item.transaction_date }} · {{ account.name|default:"Sans compte" }} · {% if item.bank_feed %}Bridge{% elif item.import_hash %}Relevé importé{% else %}Saisie manuelle{% endif %}</p></section>
-{% if item.bank_feed.review %}<p class="notice"><a href="/app/finances/transactions#bank-reviews">Vérifier la correction bancaire</a></p>{% if allocations %}{% include "core/bank_allocations.html" %}{% endif %}
-{% elif item.status != "booked" %}<p class="notice">{% if item.status == "cancelled" %}Opération annulée.{% else %}Opération en attente de comptabilisation.{% endif %}</p>
+<p>{{ item.transaction_date }} · {{ account.name|default:"Sans compte" }} · {% if item.import_hash %}Relevé importé{% elif item.imported_at %}Opération importée{% else %}Saisie manuelle{% endif %}</p></section>
+{% if item.status != "booked" %}<p class="notice">{% if item.status == "cancelled" %}Opération annulée.{% else %}Opération en attente de comptabilisation.{% endif %}</p>
 {% elif allocations %}{% include "core/bank_allocations.html" %}
 {% elif item.document_uid %}<section class="card"><h2>Rapprochée d’une facture</h2><a href="/app/{% if item.direction == 'incoming' %}factures{% else %}reception{% endif %}/{{ item.document_uid }}">Ouvrir la facture</a></section>
 {% else %}

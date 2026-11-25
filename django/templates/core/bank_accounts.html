@@ -3,46 +3,11 @@
 {% block content %}
 <div class="page-head"><h1>Comptes bancaires</h1><a class="button secondary" href="/app/finances/transactions">Voir les transactions</a></div>
 <section class="card stack"><h2>Importer des relevés de compte</h2><p>Sélectionnez plusieurs fichiers CSV, OFX, QFX ou PDF du même compte.</p><div><a class="button secondary" href="/app/finances/transactions#releve">Importer des relevés</a></div></section>
-<section class="card stack bank-connection">
-  <div class="section-head"><h2>Connexion bancaire automatique</h2>
-    {% if feed.remote_user %}<span class="badge">{% if feed.enabled %}Activée{% else %}En pause{% endif %}</span>{% endif %}
-  </div>
-  {% if external_disabled %}<p class="notice">Les services externes sont désactivés sur cette instance.</p>{% endif %}
-  {% if feed.last_error %}<p class="notice error" role="alert">{{ feed.last_error }}</p>{% endif %}
-  {% if feed.last_success_at %}<p>Dernière synchronisation le {{ feed.last_success_at|date:"d/m/Y à H:i" }}.</p>{% endif %}
-  {% if feed %}
-    <p>Autorisez vos comptes sur le portail Bridge. Les opérations seront récupérées toutes les quatre heures.</p>
-    {% if not external_disabled %}<div class="inline wrap">
-      {% if can_admin %}{% if not feed.owner_uid or feed.owner_uid == user.user_uid %}
-        <form method="post" action="/app/finances/comptes/connexion/autoriser">{% csrf_token %}<button>{% if feed.remote_user %}Relier ou gérer mes banques{% else %}Relier ma banque{% endif %}</button></form>
-      {% else %}<p class="form-help">L’administrateur ayant ouvert la connexion gère les autorisations auprès des banques.</p>{% endif %}{% endif %}
-      {% if feed.enabled %}<form method="post" data-loading-label="Demande de synchronisation bancaire…" action="/app/finances/comptes/connexion/synchroniser">{% csrf_token %}<button class="secondary">Synchroniser maintenant</button></form>{% endif %}
-      {% if can_admin and feed.remote_user %}<form method="post" action="/app/finances/comptes/connexion/activation">{% csrf_token %}
-        {% if feed.enabled %}<button name="action" value="pause" class="text-button">Mettre en pause</button>{% else %}<button name="action" value="resume" class="secondary">Reprendre la synchronisation</button>{% endif %}
-      </form>{% endif %}
-    </div>{% endif %}
-  {% elif can_admin %}<p>Renseignez les identifiants de votre application Bridge, puis choisissez les banques et les comptes à autoriser.</p>
-  {% else %}<p>Un administrateur peut configurer Bridge pour cette entreprise.</p>{% endif %}
-  {% if can_admin %}
-  <details class="form-disclosure"{% if not feed %} open{% endif %}><summary>{% if feed %}Modifier les paramètres Bridge{% else %}Configurer Bridge{% endif %}</summary>
-    <form class="stack" method="post" action="/app/finances/comptes/connexion/configurer">{% csrf_token %}
-      <div class="form-grid">
-        <label>Client ID<input name="client_id" value="{{ feed.client_id }}" required maxlength="180" autocomplete="off"{% if feed.remote_user %} readonly{% endif %}></label>
-        <label>Client Secret<input type="password" name="client_secret" maxlength="1024" autocomplete="new-password"{% if not feed %} required{% endif %}>
-          {% if feed %}<small>Laissez vide pour conserver le secret enregistré.</small>{% endif %}</label>
-      </div>
-      <p class="form-help">Autorisez le domaine de retour dans Bridge. URL de retour de cette instance <code class="break">{{ callback_url }}</code>. <a href="https://zefacture.com/documentation/autohebergement#connexion-bancaire-bridge" target="_blank" rel="noopener noreferrer">Guide de configuration de Bridge</a></p>
-      <label class="check"><input type="checkbox" name="auto_reconcile" value="1"{% if feed.auto_reconcile or not feed %} checked{% endif %}> Rapprocher automatiquement une facture si sa référence, son solde, la devise et le sens du paiement concordent.</label>
-      <div><button class="secondary">Enregistrer les paramètres</button></div>
-    </form>
-  </details>
-  {% endif %}
-</section>
 <div class="grid two">{% for a in accounts %}
   <section class="card stack"><h2>{{ a.name }}</h2>
     {% if a.iban or a.bank_name %}<p class="break">{{ a.bank_name }} {{ a.iban }}</p>{% endif %}
     <strong class="big-number">{{ a.current_balance|display_number:"2g" }} {{ a.currency_code }}</strong>
-    <p>{% if a.status == "archived" %}Archivé{% elif a.bank_feed %}{% if a.bank_feed.shared %}Connecté via Bridge{% else %}Accès bancaire interrompu{% endif %}{% else %}Compte manuel{% endif %}</p>
+    <p>{% if a.status == "archived" %}Archivé{% else %}Actif{% endif %}</p>
     <div class="inline wrap"><a href="/app/finances/transactions?compte={{ a.account_uid }}">Transactions de ce compte</a>
     {% if a.status == "active" %}<form method="post" action="/app/finances/comptes/{{ a.account_uid }}/archiver">{% csrf_token %}<button class="text-button">Archiver</button></form>{% endif %}</div>
   </section>

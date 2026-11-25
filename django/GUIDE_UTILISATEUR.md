@@ -140,9 +140,9 @@ L’action **Marquer payé** correspond à un règlement intégral. Un paiement 
 
 Dans **Factures**, les encarts **À encaisser aujourd’hui** et **Dont en retard** affichent les soldes ouverts à ce jour. **Encaissé sur la période** utilise la date effective des règlements, même si la facture a été émise avant la période. La période initiale couvre les douze derniers mois. Cliquez sur un montant pour voir les factures correspondantes, séparées par devise. La recherche porte sur les tiers, le numéro et l’objet. Sans encart sélectionné, les dates filtrent la date d’émission.
 
-Ouvrez la facture et utilisez **Suivi de la facture client → Enregistrer le règlement** avec son montant et sa date. Pour une facture de 1 200 € TTC échue et un paiement de 400 €, il reste 800 € à encaisser, dont 800 € échus. À l’arrivée de la transaction, Bridge peut confirmer le paiement existant. Le même versement reste compté une seule fois. La fiche donne accès à la transaction. **Annuler la déclaration** permet de corriger un montant saisi avant confirmation bancaire.
+Ouvrez la facture et utilisez **Suivi de la facture client → Enregistrer le règlement** avec son montant et sa date. Pour une facture de 1 200 € TTC échue et un paiement de 400 €, il reste 800 € à encaisser, dont 800 € échus. Lorsque le versement apparaît dans les transactions, ouvrez-le et choisissez le règlement déjà déclaré pour le confirmer. Le même versement reste compté une seule fois. La fiche donne accès à la transaction. **Annuler la déclaration** permet de corriger un montant saisi avant confirmation bancaire.
 
-Le rapprochement automatique nécessite l’option activée, une transaction comptabilisée dans la bonne devise et une référence de facture non ambiguë. Pour confirmer automatiquement une déclaration, le montant doit correspondre et les dates doivent être à sept jours d’écart au plus. En cas d’homonymie de montants, ouvrez **Finances → Transactions → Traiter**, puis sélectionnez la déclaration avec sa date ou **Nouveau règlement** si la transaction est supplémentaire. Les règlements historiques de date inconnue restent visibles sur leur fiche.
+Dans **Finances → Transactions → Traiter**, sélectionnez le règlement avec sa date ou **Nouveau règlement** pour enregistrer un versement supplémentaire. Les règlements historiques de date inconnue restent visibles sur leur fiche.
 
 Dans la fiche, **Émission**, **Remise et transmission** et **Encaissement** se lisent séparément. Après remise du PDF en main propre ou dans un espace client, utilisez **Déclarer la remise au client**. Les événements de messagerie et de SUPERPDP conservent leur propre suivi.
 
@@ -247,20 +247,17 @@ Les administrateurs et comptables peuvent traiter les frais de l’entreprise. L
 
 ## 7. Finances et rapprochement
 
-### Relier une ou plusieurs banques
+### Ajouter un compte bancaire
 
-1. Un propriétaire ou un administrateur ouvre **Finances → Comptes bancaires → Configurer Bridge**, renseigne les identifiants de son application Bridge et enregistre. Le guide d’auto-hébergement décrit l’activation du service d’agrégation. [Configuration de Bridge](GUIDE_AUTOHEBERGEMENT.md#connexion-bancaire-bridge).
-2. Cliquer sur **Relier ma banque**, puis sur **Continuer vers Bridge**. Choisir l’établissement et les comptes de paiement à partager. Valider la demande auprès de la banque, puis revenir dans ZeFacture.
-3. Pour ajouter une deuxième banque, renouveler un accès ou retirer un compte, le même administrateur choisit **Relier ou gérer mes banques**. Chaque compte partagé dispose de son propre solde et d’un lien **Transactions de ce compte**. La période d’historique disponible dépend de l’établissement.
-4. **Synchroniser maintenant** demande une actualisation au serveur. Le worker récupère ensuite les nouvelles opérations et les corrections toutes les quatre heures. La date de dernière réussite et les éventuelles erreurs apparaissent dans **Comptes bancaires**.
+Dans **Finances → Comptes bancaires → Ajouter un compte manuel**, saisir le nom du compte, sa devise et son solde d’ouverture. **Transactions de ce compte** ouvre la liste de ses mouvements. Pour suivre plusieurs comptes, créer une fiche par compte et sélectionner le compte correspondant à chaque import.
 
 ### Saisir un salaire, une CFE ou un autre décaissement
 
-Dans le tableau de bord, **Paiements hors facture** présente les opérations bancaires classées de la période. Choisir **Saisir un salaire**, **Saisir la CFE** ou **Saisir une dépense**. Renseigner la date, le libellé, le montant et le compte, vérifier la catégorie puis enregistrer. Si le paiement figure déjà dans Bridge ou dans un relevé importé, ouvrir l’opération dans **Transactions → Traiter → Classer sans facture** pour utiliser la ligne existante. Les raccourcis sont disponibles aux rôles financiers.
+Dans le tableau de bord, **Paiements hors facture** présente les opérations bancaires classées de la période. Choisir **Saisir un salaire**, **Saisir la CFE** ou **Saisir une dépense**. Renseigner la date, le libellé, le montant et le compte, vérifier la catégorie puis enregistrer. Si le paiement figure déjà dans un relevé importé, ouvrir l’opération dans **Transactions → Traiter → Classer sans facture** pour utiliser la ligne existante. Les raccourcis sont disponibles aux rôles financiers.
 
 ### Importer un relevé bancaire
 
-Dans **Finances → Comptes bancaires**, créer un compte avec sa devise et son solde d’ouverture, ou reprendre un compte déjà relié à Bridge. Choisir **Importer des relevés**, vérifier le compte de destination et sélectionner jusqu’à **50 fichiers du même compte** en une fois, avec 5 Mo maximum par fichier. Les formats peuvent être mélangés. Le suivi indique l’état de chaque fichier et les doublons. **Ouvrir mon dernier lot** permet de reprendre la vérification pendant sept jours.
+Dans **Finances → Comptes bancaires**, ouvrir le compte de destination ou créer un compte avec sa devise et son solde d’ouverture. Choisir **Importer des relevés**, vérifier le compte de destination et sélectionner jusqu’à **50 fichiers du même compte** en une fois, avec 5 Mo maximum par fichier. Les formats peuvent être mélangés. Le suivi indique l’état de chaque fichier et les doublons. **Ouvrir mon dernier lot** permet de reprendre la vérification pendant sept jours.
 
 | Format | Contenu et vérification |
 | --- | --- |
@@ -282,13 +279,11 @@ Une ventilation peut associer plusieurs factures distinctes, un avoir, un terme 
 
 Dans **Finances → Transactions**, filtrer sur **À traiter**, ouvrir **Traiter** sur la ligne, puis **Classer sans facture**. Choisir par exemple **Salaires**, **Cotisations sociales**, **Remboursement de frais versé**, **Paiement de TVA**, **Frais bancaires** ou **Autre dépense** pour une sortie. Pour une entrée, choisir **Remboursement de TVA reçu**, **Autre remboursement reçu** ou **Autre encaissement**. Le champ **Motif ou bénéficiaire** permet de préciser la dépense. Cliquer sur **Enregistrer le classement**. Une opération saisie dans **Nouvelle transaction** peut recevoir sa catégorie immédiatement.
 
-Le classement porte sur l’écriture bancaire existante et conserve son montant. Bridge respecte le classement lors des synchronisations suivantes. **Modifier** permet de corriger la catégorie. **Remettre à traiter** rend l’opération disponible pour un rapprochement avec une facture. **État de TVA** affiche les paiements et remboursements bancaires classés pour la période, à côté des montants issus des factures. Les filtres de la liste et les rapports permettent de retrouver les catégories et les motifs dans les exports.
+Le classement porte sur l’écriture bancaire existante et conserve son montant. **Modifier** permet de corriger la catégorie. **Remettre à traiter** rend l’opération disponible pour un rapprochement avec une facture. **État de TVA** affiche les paiements et remboursements bancaires classés pour la période, à côté des montants issus des factures. Les filtres de la liste et les rapports permettent de retrouver les catégories et les motifs dans les exports.
 
 ### Rapprocher les règlements
 
-Dans **Transactions**, rechercher un libellé ou filtrer par compte. L’option **Rapprocher automatiquement** associe un mouvement comptabilisé à une facture identifiée par son numéro complet, sa devise et le sens du paiement. Pour une vente, un montant partiel peut réduire le reste dû ou confirmer un règlement déclaré. Pour un achat, le rapprochement automatique exige le montant du solde. Un encaissement règle une facture client et un décaissement règle une facture fournisseur. L’historique de la facture conserve le paiement.
-
-Pour un paiement partiel ou un libellé sans référence exploitable, ouvrir **Traiter → Rapprocher d’une facture**, sélectionner la facture et cliquer sur **Rapprocher**. Dans **Opérations à vérifier**, choisir l’écriture existante si elle correspond au même mouvement, ou **Créer une opération distincte** si deux paiements sont réellement différents. Si la banque annule ou modifie un paiement déjà rapproché, vérifier le mouvement puis confirmer la correction. La facture retrouve alors le montant dû correspondant.
+Dans **Finances → Transactions**, rechercher le mouvement par libellé ou filtrer par compte. Ouvrir **Traiter → Rapprocher d’une facture**, sélectionner la facture dans la devise du compte et cliquer sur **Rapprocher**. Pour une facture client, choisir le règlement déjà déclaré ou enregistrer le nouveau versement. Un paiement partiel réduit le reste dû. L’historique de la facture conserve le lien vers la transaction.
 
 ### Comptes manuels et exports
 
