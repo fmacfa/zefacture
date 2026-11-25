@@ -5,20 +5,16 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.db.models import Q, Count, Exists, OuterRef, Sum
 from django.core.paginator import Paginator
-from django.conf import settings
 from core.common import BusinessError, today, iso_date, money
 from core.models import (
     BankAccount,
     BankAllocation,
-    BankFeed,
-    BankFeedEntry,
     BankTransaction,
     Document,
     Forecast,
 )
 from core.services import bank_categories
 from . import bank_statements
-from core.services.bank_sync import candidates
 from core.forms import AccountForm, ForecastForm
 from core.security import scoped, scoped_get
 from core.services import finance as service
@@ -69,13 +65,7 @@ def finance(request, section="overview", item_uid=None, action=None):
                 "form": form,
                 "accounts": BankAccount.objects.filter(
                     company_uid=company.company_uid
-                ).select_related("bank_feed"),
-                "feed": BankFeed.objects.filter(
-                    company_uid=company.company_uid
-                ).first(),
-                "callback_url": settings.APP_URL.rstrip("/")
-                + "/app/finances/comptes/connexion/retour",
-                "external_disabled": settings.EXTERNAL_SERVICES_DISABLED,
+                ),
             },
         )
     if section == "transactions":
@@ -113,7 +103,7 @@ def finance(request, section="overview", item_uid=None, action=None):
             "unlinked": unlinked,
             "invoice": ~unlinked,
             "split": Q(has_allocations=True),
-            "pending": unlinked & Q(status="booked", standalone_category="", has_allocations=False) & ~Q(bank_feed__review__gt=""),
+            "pending": unlinked & Q(status="booked", standalone_category="", has_allocations=False),
             "standalone": unlinked & Q(status="booked") & (~Q(standalone_category="") | Q(has_allocations=True)),
         }
         start = iso_date(request.GET.get("from"), optional=True)
@@ -184,32 +174,7 @@ def finance(request, section="overview", item_uid=None, action=None):
             balance[group["direction"]] += group["amount"]
         for balance in totals.values():
             balance["net"] = balance["incoming"] - balance["outgoing"]
-        reviews = (
-            BankFeedEntry.objects.filter(
-                feed_account__feed__company_uid=company.company_uid
-            )
-            .exclude(review="")
-            .select_related(
-                "feed_account__account", "feed_account__feed", "transaction"
-            )
-        )
-        if request.GET.get("compte"):
-            reviews = reviews.filter(
-                feed_account__account__account_uid=request.GET["compte"]
-            )
-        if start:
-            reviews = reviews.filter(day__gte=start)
-        if end:
-            reviews = reviews.filter(day__lte=end)
-        if request.GET.get("q"):
-            reviews = reviews.filter(label__icontains=request.GET["q"][:200])
-        review_page = Paginator(reviews.order_by("pk"), 15).get_page(
-            request.GET.get("verification")
-        )
-        for entry in review_page:
-            if entry.review == "overlap":
-                entry.choices = candidates(entry).order_by("pk")
-        page = Paginator(rows.select_related("bank_feed"), 50).get_page(
+        page = Paginator(rows, 50).get_page(
             request.GET.get("page")
         )
         linked = {d.document_uid: d for d in Document.objects.filter(company_uid=company.company_uid,
@@ -230,7 +195,6 @@ def finance(request, section="overview", item_uid=None, action=None):
                 "outgoing_categories": bank_categories.OUTGOING,
                 "incoming_categories": bank_categories.INCOMING,
                 "transactions": page,
-                "review_page": review_page,
                 "all_accounts": accounts,
                 "today": today(),
                 "accounts": BankAccount.objects.filter(
@@ -350,7 +314,7 @@ def finance(request, section="overview", item_uid=None, action=None):
             .filter(amount_due__gt=0, due_date__lte=horizon)
         ]
         balances = defaultdict(Decimal)
-        for account in BankAccount.objects.exclude(bank_feed__shared=False).filter(
+        for account in BankAccount.objects.filter(
             company_uid=company.company_uid, status="active"
         ):
             balances[account.currency_code] += account.current_balance

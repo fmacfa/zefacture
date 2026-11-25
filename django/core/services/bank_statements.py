@@ -290,7 +290,7 @@ def record_row(company, account, data, kind, file_digest, key, used):
     ref = data.get("external_id")
     if ref:
         matched = (
-            candidates.filter(Q(external_id=ref) | Q(bank_feed__bank_reference=ref))
+            candidates.filter(external_id=ref)
             .order_by("pk")
             .first()
         )
@@ -301,7 +301,6 @@ def record_row(company, account, data, kind, file_digest, key, used):
             # Historical CSV hashes already disambiguate identical lines by occurrence.
             candidates = candidates.exclude(
                 import_hash__isnull=False,
-                bank_feed__isnull=True,
                 statement_matches__isnull=True,
             )
             candidates = candidates.exclude(statement_matches__kind="csv")
@@ -310,7 +309,6 @@ def record_row(company, account, data, kind, file_digest, key, used):
                 Q(external_id__isnull=True)
                 | Q(external_id="")
                 | Q(external_id=ref)
-                | Q(bank_feed__isnull=False)
             )
         matched = candidates.filter(label__iexact=data["label"]).order_by("pk").first()
     if matched:

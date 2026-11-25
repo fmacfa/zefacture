@@ -1,4 +1,3 @@
-from datetime import date
 from decimal import Decimal
 import re
 
@@ -92,7 +91,7 @@ def declare(document, amount, day, nonce):
     return receipt
 
 
-def confirm_or_record(document, tx, choice, automatic, *, amount=None):
+def confirm_or_record(document, tx, choice, *, amount=None):
     amount = tx.amount if amount is None else amount
     pending = document.receipts.select_for_update().filter(
         transaction__isnull=True, cancelled=False, amount=amount
@@ -113,20 +112,6 @@ def confirm_or_record(document, tx, choice, automatic, *, amount=None):
                 409,
             )
         receipt = matches[0] if matches else None
-        if (
-            receipt
-            and automatic
-            and (
-                not receipt.received_on
-                or abs(
-                    (date.fromisoformat(tx.transaction_date) - receipt.received_on).days
-                )
-                > 7
-            )
-        ):
-            raise BusinessError(
-                "Vérifiez la date du versement avant de le rapprocher.", 409
-            )
     if receipt:
         receipt.transaction = tx
         receipt.received_on = receipt.received_on or tx.transaction_date

@@ -9,10 +9,10 @@
       {% endfor %}</tbody>
       <tfoot><tr><th colspan="2">Mouvement bancaire</th><td class="num">{{ signed_amount|display_number:2 }} {{ currency }}</td></tr></tfoot>
     </table></div>
-    {% if not item.bank_feed.review %}<form method="post">{% csrf_token %}
+    <form method="post">{% csrf_token %}
       <input type="hidden" name="version" value="{{ allocations.0.pk|unlocalize }}">
       <button class="secondary" name="action" value="undo_split">Annuler la ventilation</button>
-    </form>{% endif %}
+    </form>
   {% else %}
     <h2>Ventiler le mouvement</h2>
     <p>Répartissez le montant entre factures, avoirs, frais ou reports. Saisissez les entrées avec un signe positif et les sorties avec un signe négatif.</p>

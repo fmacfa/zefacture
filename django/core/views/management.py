@@ -108,7 +108,7 @@ def dashboard(request):
         transactions, accounts = reports.transactions_for(request.company)
         independent = reports.between(transactions, "transaction_date", selected.start, selected.end).filter(
             direction="outgoing", standalone_category__in=bank_categories.OUTGOING,
-        ).exclude(bank_feed__review__gt="")
+        )
         grouped = defaultdict(Decimal)
         for row in independent.values("account_uid", "standalone_category").annotate(total=Sum("amount")).order_by():
             grouped[(accounts.get(row["account_uid"], "EUR"), row["standalone_category"])] += row["total"]
