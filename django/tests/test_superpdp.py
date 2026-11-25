@@ -782,6 +782,17 @@ class SuperpdpTests(ApplicationCase):
                 self.company, operation.operation_uid, confirmed=True
             )
 
+    def test_sandbox_download_is_the_submitted_file_even_after_a_second_send(self):
+        self.provider.environment = "sandbox"
+        document = self.document()
+        send(document, "superpdp")
+        operation = PdpOutbox.objects.get()
+        send(document, "superpdp")
+        document.refresh_from_db()
+        self.assertEqual((document.status, document.amount_due), ("simulated", 0))
+        self.assertEqual(generate_document(document).file_uid, operation.file_uid)
+        self.assertEqual(PdpOutbox.objects.count(), 1)
+
     def test_sandbox_lifecycle_declaration_keeps_document_simulated(self):
         self.provider.environment = "sandbox"
         self.provider.add()

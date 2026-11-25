@@ -60,6 +60,11 @@ class Company(models.Model):
     city = models.TextField(null=True, blank=True)
     country_code = models.TextField(default="FR")
     billing_email = models.TextField(null=True, blank=True)
+    electronic_address = models.CharField(max_length=255, blank=True, default="")
+    electronic_address_scheme = models.CharField(max_length=4, blank=True, default="")
+    early_payment_terms = models.TextField(blank=True, default="")
+    late_payment_terms = models.TextField(blank=True, default="")
+    collection_fee_terms = models.TextField(blank=True, default="")
     support_email = models.TextField(null=True, blank=True)
     phone = models.TextField(null=True, blank=True)
     website = models.TextField(null=True, blank=True)
@@ -263,7 +268,7 @@ class Document(models.Model):
 
     @property
     def draft_reference(self):
-        return "BROUILLON-" + self.document_uid
+        return "BR-" + self.document_uid
 
     @property
     def lines(self):
@@ -284,6 +289,26 @@ class Document(models.Model):
     @property
     def buyer(self):
         return unpack(self.buyer_snapshot)
+
+    @property
+    def french_b2b_invoice(self):
+        seller, buyer = self.seller, self.buyer
+        return (
+            self.type in {"invoice", "progress_invoice", "credit_note"}
+            and seller.get("country_code") == buyer.get("country_code") == "FR"
+            and buyer.get("type") == "business"
+        )
+
+    @property
+    def payment_notes(self):
+        if not self.french_b2b_invoice:
+            return []
+        seller = self.seller
+        return [(code, seller[key]) for code, key in (
+            ("PMT", "collection_fee_terms"),
+            ("PMD", "late_payment_terms"),
+            ("AAB", "early_payment_terms"),
+        ) if seller.get(key)]
 
     @property
     def get_status_label(self):

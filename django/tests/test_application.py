@@ -48,6 +48,10 @@ class ApplicationCase(TestCase):
             country_code="FR",
             billing_email=cls.user.email,
             payment_terms="Paiement à 30 jours.",
+            electronic_address="123456789", electronic_address_scheme="0225",
+            collection_fee_terms="Indemnité forfaitaire de recouvrement de 40 EUR.",
+            late_payment_terms="Pénalités de retard au taux convenu.",
+            early_payment_terms="Aucun escompte pour paiement anticipé.",
         )
         CompanyMember.objects.create(
             company_uid=cls.company.company_uid,

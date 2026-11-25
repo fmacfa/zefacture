@@ -33,7 +33,8 @@ DJANGO_ONLY_COLUMNS = {
     "document_lines": {"unit_price_including_tax", "global_discount_amount"},
     "inventory_items": {"currency_code", "vat_category_code", "unit_price_including_tax"},
     "documents": {"global_discount_type", "global_discount_value", "global_discount_amount", "operation_category", "delivery_date", "purchase_order", "delivery_address"},
-    "companies": {"ingestion_ai"},
+    "companies": {"ingestion_ai", "electronic_address", "electronic_address_scheme",
+                  "collection_fee_terms", "late_payment_terms", "early_payment_terms"},
     "inventory_stock_movements": {"source_document_uid", "source_line_uid"},
 }
 

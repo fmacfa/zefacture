@@ -41,6 +41,8 @@ docker compose up -d --force-recreate web worker
 
 Pour une instance restaurée, utiliser la fonction Compose et le fichier de configuration indiqués dans le [guide d’auto-hébergement](GUIDE_AUTOHEBERGEMENT.md#43-passer-la-copie-validée-sur-le-domaine). Ne pas remplacer les clés ou volumes restaurés.
 
+Pour une facture entre professionnels en France, saisir dans **Mon entreprise → Coordonnées** l’adresse électronique de facturation de l’émetteur et son schéma tels que les indique l’annuaire de la plateforme. Dans **Mon entreprise → Paiement**, renseigner l’indemnité de recouvrement, les pénalités de retard et les conditions d’escompte prévues par l’entreprise. ZeFacture reprend ces trois mentions dans le PDF et les encode dans le XML avec les codes PMT, PMD et AAB. En sandbox, utiliser les coordonnées et les conditions de l’entreprise fictive.
+
 ## 3. Connecter depuis l’interface
 
 1. Sélectionner la bonne entreprise et vérifier son SIREN dans **Mon entreprise**.

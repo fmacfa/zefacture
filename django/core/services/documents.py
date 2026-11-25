@@ -27,7 +27,11 @@ from .calculations import calculate
 
 
 CUSTOMER_FIELDS = "type legal_name trade_name local_registration siren siret vat_number email phone address_line1 address_line2 postal_code city country_code electronic_address electronic_address_scheme".split()
-COMPANY_FIELDS = "legal_name trade_name siren siret vat_number address_line1 address_line2 postal_code city country_code billing_email support_email phone website legal_form share_capital rcs_city rcs_number ape_code bank_iban bank_bic payment_terms invoice_footer vat_regime has_vat_on_debits quote_number_prefix invoice_number_prefix credit_note_number_prefix".split()
+INVOICE_SELLER_FIELDS = (
+    "electronic_address", "electronic_address_scheme",
+    "collection_fee_terms", "late_payment_terms", "early_payment_terms",
+)
+COMPANY_FIELDS = "legal_name trade_name siren siret vat_number address_line1 address_line2 postal_code city country_code billing_email support_email phone website legal_form share_capital rcs_city rcs_number ape_code bank_iban bank_bic payment_terms invoice_footer vat_regime has_vat_on_debits quote_number_prefix invoice_number_prefix credit_note_number_prefix".split() + list(INVOICE_SELLER_FIELDS)
 INVOICE_TYPES = ("invoice", "progress_invoice")
 ISSUED_INVOICE_STATUSES = {"sent", "paid", "accepted"}
 
@@ -70,6 +74,7 @@ def snapshot(party, seller=False):
         from .branding import snapshot as branding_snapshot
 
         result["branding"] = branding_snapshot(party)
+        result.update({key: getattr(party, key) for key in INVOICE_SELLER_FIELDS})
         for key in "bank_iban bank_bic payment_terms invoice_footer vat_regime has_vat_on_debits legal_form share_capital rcs_city rcs_number".split():
             result[key] = getattr(party, key, "") or ""
         siren = "".join(result["siren"].split())
@@ -90,6 +95,29 @@ def snapshot(party, seller=False):
             electronic_address_scheme=party.electronic_address_scheme or "",
         )
     return json_text(result)
+
+
+def prepare_facturx_draft(document, company):
+    """Complete previously saved drafts without modifying issued originals."""
+    if document.status != "draft" or document.direction != "outgoing":
+        return False
+    changed = []
+    if document.number == "BROUILLON-" + document.document_uid:
+        document.number = document.draft_reference
+        changed.append("number")
+    seller = document.seller
+    updates = {key: getattr(company, key) for key in (
+        "collection_fee_terms", "late_payment_terms", "early_payment_terms"
+    ) if not seller.get(key) and getattr(company, key)}
+    if not seller.get("electronic_address") and company.electronic_address:
+        updates.update(electronic_address=company.electronic_address,
+                       electronic_address_scheme=company.electronic_address_scheme)
+    if updates:
+        document.seller_snapshot = json_text(seller | updates)
+        changed.append("seller_snapshot")
+    if changed:
+        document.save(update_fields=changed)
+    return bool(changed)
 
 
 def event(document, code, label, payload=None):
@@ -156,7 +184,7 @@ def issue_invoice(document):
 
 def finalize_number(company, document):
     """Called inside the issuing transaction, under company and document locks."""
-    if document.number not in (None, "", document.draft_reference):
+    if document.number not in (None, "", document.draft_reference, "BROUILLON-" + document.document_uid):
         return
     document.number = number(company, document.type, issue_date=document.issue_date)
     document.save(update_fields=["number"])
