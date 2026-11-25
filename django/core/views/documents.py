@@ -555,7 +555,7 @@ def send(document, channel="email", processing_rule=""):
         queue_invoice(document, processing_rule=processing_rule)
     elif channel == "email":
         service.finalize_number(company, document)
-        file = files.generate_document(document)
+        file = files.generate_document(document, reissue_simulation=document.status == "simulated")
         body = f"Bonjour,\nVotre {'devis' if document.type == 'quote' else 'facture'} {document.number} d'un montant de {document_amount(document,document.total_including_tax)} {document.currency_code} est disponible."
         if document.type == "quote":
             raw = secrets.token_hex(32)

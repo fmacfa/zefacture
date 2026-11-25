@@ -179,7 +179,23 @@ def party_xml(party):
     return data
 
 
+def xml_decimal(value):
+    """Use plain decimal notation and keep only significant fractional digits."""
+    text = format(value, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def xml_unit_price(price):
+    # BT-146 allows six decimal places. A larger price base (BT-149)
+    # preserves the exact per-unit rate, including prices derived from tax-inclusive input.
+    fractional = xml_decimal(price).partition(".")[2]
+    scale = max(0, len(fractional) - 6)
+    return xml_decimal(price.scaleb(scale)), str(10 ** scale)
+
+
 def xml_data(document, computed):
+    if len(document.number or "") > 35:
+        raise BusinessError("Le numéro de la facture Factur-X est limité à 35 caractères.")
     net, vat = computed["net"], computed["vat"]
     gross = net + vat
     payable = gross + document.rounding_amount
@@ -237,8 +253,10 @@ def xml_data(document, computed):
     notes = [document.notes, document.seller.get("invoice_footer")]
     if document.seller.get("has_vat_on_debits"):
         notes.append("Option pour le paiement de la taxe d’après les débits")
-    if any(notes):
-        data["BG-1"] = [{"BT-22": str(n)} for n in notes if n]
+    invoice_notes = [{"BT-22": str(n)} for n in notes if n]
+    invoice_notes.extend({"BT-21": code, "BT-22": note} for code, note in document.payment_notes)
+    if invoice_notes:
+        data["BG-1"] = invoice_notes
     if document.source_invoice_uid:
         source = Document.objects.get(
             document_uid=document.source_invoice_uid, company_uid=document.company_uid
@@ -254,18 +272,21 @@ def xml_data(document, computed):
     if computed["allowance"]:
         data["BT-107"] = str(computed["allowance"])
         data["BG-20"] = []
+    french_invoice = document.french_b2b_invoice
     for tax in computed["taxes"]:
+        if french_invoice and len(xml_decimal(tax["rate"]).partition(".")[2]) > 2:
+            raise BusinessError("Le taux de TVA d’une facture française doit tenir sur deux décimales.")
         if tax["allowance"]:
             discount = {"amount": str(tax["allowance"]), "reason": "Remise globale",
                         "vat_category_code": tax["category"]}
             if tax["category"] != "O":
-                discount["vat_rate"] = str(tax["rate"])
+                discount["vat_rate"] = xml_decimal(tax["rate"])
             data["BG-20"].append(discount)
         item = {
             "BT-116": str(tax["basis"]),
             "BT-117": str(tax["tax"]),
             "BT-118": tax["category"],
-            "BT-119": str(tax["rate"]),
+            "BT-119": xml_decimal(tax["rate"]),
         }
         if tax["category"] in reasons:
             item["BT-120"] = document.notes or reasons[tax["category"]]
@@ -273,15 +294,16 @@ def xml_data(document, computed):
             item.pop("BT-119")
         data["BG-23"].append(item)
     for line in computed["lines"]:
+        price, base_quantity = xml_unit_price(line["unit_price_excluding_tax"])
         item = {
             "BT-126": str(line["position"]),
-            "BT-129": str(line["quantity"]),
+            "BT-129": xml_decimal(line["quantity"]),
             "BT-130": line["unit_code"],
             "BT-131": str(line["total_excluding_tax"] + line["global_discount_amount"]),
-            "BT-146": str(line["unit_price_excluding_tax"]),
-            "BT-149": "1",
+            "BT-146": price,
+            "BT-149": base_quantity,
             "BT-151": line["vat_category_code"],
-            "BT-152": str(line["vat_rate"]),
+            "BT-152": xml_decimal(line["vat_rate"]),
             "BT-153": line["description"],
         }
         if line["vat_category_code"] == "O":
@@ -293,7 +315,7 @@ def xml_data(document, computed):
                 {
                     "amount": str(allowance),
                     "base_amount": str(base),
-                    "rate": str(line["discount_percent"]),
+                    "rate": xml_decimal(line["discount_percent"]),
                     "reason": "Remise commerciale",
                 }
             ]
@@ -349,7 +371,7 @@ def issued_invoice_pdf(document):
 
 
 @transaction.atomic
-def generate_document(document):
+def generate_document(document, *, reissue_simulation=False):
     from facturx import generate_xml, generate_from_binary
     from lxml import etree
     from weasyprint import HTML
@@ -375,6 +397,18 @@ def generate_document(document):
             )
         read_verified(original)
         return original
+    if document.status == "simulated" and not reissue_simulation:
+        from core.models import PdpOutbox
+
+        queued_file = PdpOutbox.objects.filter(
+            company_uid=document.company_uid, document_uid=document.document_uid, operation="invoice",
+        ).values_list("file_uid", flat=True).first()
+        if queued_file:
+            original = document.files.filter(file_uid=queued_file, kind="facturx").first()
+            if not original:
+                raise BusinessError("L’original Factur-X de la simulation est absent.", 409)
+            read_verified(original)
+            return original
     kind = "pdf" if document.type == "quote" else "facturx"
     existing = document.files.filter(kind=kind).first()
     from core.models import Ingestion
@@ -406,6 +440,10 @@ def generate_document(document):
             )
         read_verified(existing)
         return existing
+    if kind == "facturx" and document.status == "draft":
+        from core.models import Company
+        from .documents import prepare_facturx_draft
+        prepare_facturx_draft(document, Company.objects.get(company_uid=document.company_uid))
     computed = calculate(list(document.lines.values()), document.global_discount_type, document.global_discount_value)
     if (
         computed["net"],

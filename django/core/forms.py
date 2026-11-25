@@ -1,7 +1,7 @@
 from django import forms
 from .common import BusinessError, email, today
 from .models import Company, Customer, InventoryItem, BankAccount, Forecast
-from .services.documents import CUSTOMER_FIELDS, COMPANY_FIELDS
+from .services.documents import CUSTOMER_FIELDS, COMPANY_FIELDS, INVOICE_SELLER_FIELDS
 from .country_fields import CountryInput, country_code as country_from_name
 
 LABELS = {
@@ -26,6 +26,9 @@ LABELS = {
     "bank_bic": "BIC",
     "payment_terms": "Conditions de paiement",
     "invoice_footer": "Mentions de bas de facture",
+    "collection_fee_terms": "Indemnité pour frais de recouvrement",
+    "late_payment_terms": "Pénalités de retard",
+    "early_payment_terms": "Conditions d’escompte",
     "legal_form": "Forme juridique",
     "share_capital": "Capital social",
     "rcs_city": "Ville du greffe RCS",
@@ -106,7 +109,8 @@ class StyledModelForm(forms.ModelForm):
             if isinstance(field.widget, forms.Textarea):
                 field.widget = (
                     forms.Textarea(attrs={"rows": 3})
-                    if name in {"description", "payment_terms", "invoice_footer"}
+                    if name in {"description", "payment_terms", "invoice_footer", "collection_fee_terms",
+                                "late_payment_terms", "early_payment_terms"}
                     else forms.TextInput()
                 )
             if name in {"email", "billing_email", "support_email"}:
@@ -261,6 +265,10 @@ class CompanyForm(StyledModelForm):
                         field = self.fields[name]
                         field.widget = SuggestedValueInput(field.label, choices)
             help_texts = {
+                "electronic_address": "Adresse de facturation de l’émetteur inscrite dans l’annuaire de sa plateforme.",
+                "electronic_address_scheme": "Code de l’annuaire, par exemple 0225 pour une adresse française.",
+                "early_payment_terms": "Indiquez l’escompte applicable ou son absence.",
+                "late_payment_terms": "Indiquez les conditions et le taux prévus dans vos conditions de vente.",
                 "legal_form": (
                     "Choisissez la forme indiquée sur votre justificatif d’immatriculation."
                 ),
@@ -284,6 +292,11 @@ class CompanyForm(StyledModelForm):
             for name, hint in help_texts.items():
                 if name in self.fields:
                     self.fields[name].help_text = hint
+        if self.is_bound:
+            for name in INVOICE_SELLER_FIELDS:
+                if name in self.fields and self.add_prefix(name) not in self.data:
+                    # Older open forms did not include these fields.
+                    self.fields[name].disabled = True
         for name, autocomplete in {
             "legal_name": "organization",
             "address_line1": "address-line1",
@@ -329,6 +342,11 @@ class CompanyForm(StyledModelForm):
                 and not cleaned.get(name)
             ):
                 self.add_error(name, "Précisez la valeur ou choisissez « Non renseigné ».")
+        if "electronic_address" in cleaned and "electronic_address_scheme" in cleaned:
+            address, scheme = cleaned["electronic_address"], cleaned["electronic_address_scheme"]
+            if bool(address) != bool(scheme):
+                field = "electronic_address_scheme" if address else "electronic_address"
+                self.add_error(field, "Renseignez ensemble l’adresse et le schéma de facturation.")
         for name in (
             "quote_number_prefix",
             "invoice_number_prefix",

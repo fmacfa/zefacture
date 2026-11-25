@@ -207,6 +207,7 @@ COMPANY_SECTIONS = {
                 ("address_line1", "address_line2", "postal_code", "city", "country_code"),
             ),
             ("Contact", ("billing_email", "support_email", "phone", "website")),
+            ("Adresse de facturation électronique", ("electronic_address", "electronic_address_scheme")),
         ),
     ),
     "fiscalite": (
@@ -221,6 +222,8 @@ COMPANY_SECTIONS = {
         (
             ("Coordonnées bancaires", ("bank_iban", "bank_bic")),
             ("Conditions", ("payment_terms",)),
+            ("Mentions des factures entre professionnels en France",
+             ("collection_fee_terms", "late_payment_terms", "early_payment_terms")),
         ),
     ),
     "documents": (
@@ -338,6 +341,9 @@ def company(request, section=None):
                 "address_line1",
                 "address_line2",
                 "payment_terms",
+                "collection_fee_terms",
+                "late_payment_terms",
+                "early_payment_terms",
                 "invoice_footer",
             },
             "sections": navigation,

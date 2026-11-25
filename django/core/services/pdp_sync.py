@@ -162,6 +162,9 @@ def queue_invoice(document, file=None, processing_rule=""):
         company_uid=company.company_uid, request_key="invoice:" + document.document_uid
     ).first()
     if prior:
+        if document.status == "simulated" and document.amount_due:
+            document.amount_due = 0
+            document.save(update_fields=["amount_due"])
         return prior
     if document.pdp_invoice_id or document.status not in {"draft", "simulated"}:
         raise BusinessError(
@@ -169,6 +172,17 @@ def queue_invoice(document, file=None, processing_rule=""):
         )
     if file and (file.document_uid != document.document_uid or file.kind != "facturx"):
         raise BusinessError("Original Factur-X du document requis.")
+    from .documents import prepare_facturx_draft
+    if prepare_facturx_draft(document, company):
+        file = None
+    if document.french_b2b_invoice and (
+        not document.seller.get("electronic_address") or not document.seller.get("electronic_address_scheme")
+        or len(document.payment_notes) != 3
+    ):
+        raise BusinessError(
+            "Complétez l’adresse électronique de facturation dans Mon entreprise → Coordonnées "
+            "et les trois mentions de règlement dans Mon entreprise → Paiement avant le dépôt."
+        )
     if state.remote_environment != "sandbox":
         from .documents import finalize_number
 
